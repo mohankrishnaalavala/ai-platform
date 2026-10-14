@@ -1,0 +1,30 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*-key.json
+# Python
+__pycache__/
+.venv/
+.pytest_cache/
+# OS
+.DS_Store
+# Private plan: these live in the local plan repo (.plan.git), never in this repo.
+# plan.sh mirrors this list. Change both together.
+/*.md
+!/README.md
+/docs/*
+!/docs/diagrams/
+!/docs/versions.md
+/projects/*/SPEC.md
+/.claude/
+/.plan.git/
+/plan.sh

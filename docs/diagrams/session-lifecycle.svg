@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="420" viewBox="0 0 1000 420" role="img" font-family="Arial, Helvetica, sans-serif">
+  <title>Session lifecycle: develop, test, terminate</title>
+  <desc>Develop free on the laptop, run make up to create the cloud session, test and benchmark, run make down to destroy it, then make status to prove nothing billable is left. Safety nets catch forgotten sessions. The cheap foundation stays.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5F5E5A"/>
+    </marker>
+  </defs>
+  <rect width="1000" height="420" fill="#FFFFFF"/>
+  <text x="40" y="36" font-size="20" font-weight="bold" fill="#2C2C2A">Develop → test → terminate</text>
+
+  <!-- Bracket over cloud session -->
+  <line x1="235" y1="72" x2="785" y2="72" stroke="#534AB7" stroke-width="1.5"/>
+  <line x1="235" y1="72" x2="235" y2="80" stroke="#534AB7" stroke-width="1.5"/>
+  <line x1="785" y1="72" x2="785" y2="80" stroke="#534AB7" stroke-width="1.5"/>
+  <text x="510" y="64" font-size="12" fill="#3C3489" text-anchor="middle">Cloud session: the only time you pay for a GPU</text>
+
+  <!-- 1 Develop -->
+  <rect x="40" y="88" width="160" height="96" rx="8" fill="#F1EFE8" stroke="#888780"/>
+  <text x="120" y="114" font-size="15" font-weight="bold" fill="#444441" text-anchor="middle">Develop</text>
+  <text x="120" y="136" font-size="12" fill="#5F5E5A" text-anchor="middle">make local-up</text>
+  <text x="120" y="154" font-size="12" fill="#5F5E5A" text-anchor="middle">kind + Ollama</text>
+  <text x="120" y="172" font-size="12" fill="#5F5E5A" text-anchor="middle">Free</text>
+
+  <line x1="200" y1="136" x2="231" y2="136" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- 2 Up -->
+  <rect x="235" y="88" width="160" height="96" rx="8" fill="#EEEDFE" stroke="#534AB7"/>
+  <text x="315" y="114" font-size="15" font-weight="bold" fill="#3C3489" text-anchor="middle">make up</text>
+  <text x="315" y="136" font-size="12" fill="#534AB7" text-anchor="middle">Terraform: cluster</text>
+  <text x="315" y="154" font-size="12" fill="#534AB7" text-anchor="middle">Helm: layers</text>
+  <text x="315" y="172" font-size="12" fill="#534AB7" text-anchor="middle">[X] min</text>
+
+  <line x1="395" y1="136" x2="426" y2="136" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- 3 Test -->
+  <rect x="430" y="88" width="160" height="96" rx="8" fill="#EEEDFE" stroke="#534AB7"/>
+  <text x="510" y="114" font-size="15" font-weight="bold" fill="#3C3489" text-anchor="middle">Test</text>
+  <text x="510" y="136" font-size="12" fill="#534AB7" text-anchor="middle">make test · make bench</text>
+  <text x="510" y="154" font-size="12" fill="#534AB7" text-anchor="middle">Results → repo + GCS</text>
+  <text x="510" y="172" font-size="12" fill="#534AB7" text-anchor="middle">You choose how long</text>
+
+  <line x1="590" y1="136" x2="621" y2="136" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- 4 Down -->
+  <rect x="625" y="88" width="160" height="96" rx="8" fill="#EEEDFE" stroke="#534AB7"/>
+  <text x="705" y="114" font-size="15" font-weight="bold" fill="#3C3489" text-anchor="middle">make down</text>
+  <text x="705" y="136" font-size="12" fill="#534AB7" text-anchor="middle">Uninstall, delete disks</text>
+  <text x="705" y="154" font-size="12" fill="#534AB7" text-anchor="middle">terraform destroy</text>
+  <text x="705" y="172" font-size="12" fill="#534AB7" text-anchor="middle">[X] min</text>
+
+  <line x1="785" y1="136" x2="816" y2="136" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- 5 Status -->
+  <rect x="820" y="88" width="160" height="96" rx="8" fill="#E1F5EE" stroke="#0F6E56"/>
+  <text x="900" y="114" font-size="15" font-weight="bold" fill="#085041" text-anchor="middle">make status</text>
+  <text x="900" y="136" font-size="12" fill="#0F6E56" text-anchor="middle">Lists billable resources</text>
+  <text x="900" y="154" font-size="12" fill="#0F6E56" text-anchor="middle">labeled app=ai-platform</text>
+  <text x="900" y="172" font-size="12" fill="#0F6E56" text-anchor="middle">Must be empty</text>
+
+  <!-- Safety nets container -->
+  <rect x="40" y="214" width="940" height="104" rx="10" fill="none" stroke="#0F6E56" stroke-dasharray="6 4"/>
+  <text x="60" y="238" font-size="14" font-weight="bold" fill="#085041">Safety nets, in case you forget</text>
+
+  <rect x="60" y="252" width="210" height="50" rx="6" fill="#E1F5EE" stroke="#0F6E56"/>
+  <text x="165" y="272" font-size="13" font-weight="bold" fill="#085041" text-anchor="middle">Budget alerts</text>
+  <text x="165" y="290" font-size="12" fill="#0F6E56" text-anchor="middle">$25 / $50 / $100 by email</text>
+
+  <rect x="290" y="252" width="210" height="50" rx="6" fill="#E1F5EE" stroke="#0F6E56"/>
+  <text x="395" y="272" font-size="13" font-weight="bold" fill="#085041" text-anchor="middle">cost-guard.yml</text>
+  <text x="395" y="290" font-size="12" fill="#0F6E56" text-anchor="middle">Nightly: destroy if older than 8h</text>
+
+  <rect x="520" y="252" width="210" height="50" rx="6" fill="#E1F5EE" stroke="#0F6E56"/>
+  <text x="625" y="272" font-size="13" font-weight="bold" fill="#085041" text-anchor="middle">gpu-session.yml</text>
+  <text x="625" y="290" font-size="12" fill="#0F6E56" text-anchor="middle">Down step runs even on failure</text>
+
+  <rect x="750" y="252" width="210" height="50" rx="6" fill="#E1F5EE" stroke="#0F6E56"/>
+  <text x="855" y="272" font-size="13" font-weight="bold" fill="#085041" text-anchor="middle">Labels everywhere</text>
+  <text x="855" y="290" font-size="12" fill="#0F6E56" text-anchor="middle">app · layer · session · owner</text>
+
+  <!-- Foundation -->
+  <rect x="40" y="342" width="940" height="50" rx="8" fill="#F1EFE8" stroke="#888780"/>
+  <text x="510" y="364" font-size="14" font-weight="bold" fill="#444441" text-anchor="middle">Foundation stays: state bucket · keyless CI login · registry · buckets · secrets</text>
+  <text x="510" y="382" font-size="12" fill="#5F5E5A" text-anchor="middle">$[X] a month when idle</text>
+</svg>

@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620" viewBox="0 0 1000 620" role="img" font-family="Arial, Helvetica, sans-serif">
+  <title>ai-platform architecture</title>
+  <desc>Apps and AI agents call two gateways. The action gateway guards infrastructure changes, sends approvals to Slack and writes an audit log; it uses the LLM gateway for risk summaries. The LLM gateway routes to self-hosted model serving on an L4 GPU with fallback to the Claude API. The release gate and observability span all layers. Everything sits on a Terraform foundation with a per-session GKE cluster.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5F5E5A"/>
+    </marker>
+  </defs>
+  <rect width="1000" height="620" fill="#FFFFFF"/>
+  <text x="40" y="40" font-size="20" font-weight="bold" fill="#2C2C2A">ai-platform: architecture</text>
+
+  <!-- Apps -->
+  <rect x="300" y="70" width="400" height="56" rx="8" fill="#F1EFE8" stroke="#888780"/>
+  <text x="500" y="93" font-size="15" font-weight="bold" fill="#444441" text-anchor="middle">Apps and AI agents</text>
+  <text x="500" y="112" font-size="12" fill="#5F5E5A" text-anchor="middle">Claude Code · internal apps · agents</text>
+
+  <!-- Arrows from apps -->
+  <line x1="365" y1="126" x2="365" y2="156" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="635" y1="126" x2="635" y2="156" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- Release gate (left bar) -->
+  <rect x="40" y="160" width="180" height="270" rx="8" fill="#E1F5EE" stroke="#0F6E56"/>
+  <text x="130" y="188" font-size="15" font-weight="bold" fill="#085041" text-anchor="middle">4 · Release gate</text>
+  <text x="130" y="220" font-size="12" fill="#0F6E56" text-anchor="middle">Eval suite in CI</text>
+  <text x="130" y="244" font-size="12" fill="#0F6E56" text-anchor="middle">Results tied to config hash</text>
+  <text x="130" y="268" font-size="12" fill="#0F6E56" text-anchor="middle">Canary via gateway weights</text>
+  <text x="130" y="292" font-size="12" fill="#0F6E56" text-anchor="middle">Automatic rollback</text>
+
+  <!-- Observability (right bar) -->
+  <rect x="780" y="160" width="180" height="270" rx="8" fill="#E1F5EE" stroke="#0F6E56"/>
+  <text x="870" y="188" font-size="15" font-weight="bold" fill="#085041" text-anchor="middle">3 · Observability</text>
+  <text x="870" y="220" font-size="12" fill="#0F6E56" text-anchor="middle">OpenTelemetry traces</text>
+  <text x="870" y="244" font-size="12" fill="#0F6E56" text-anchor="middle">Prometheus + Grafana</text>
+  <text x="870" y="268" font-size="12" fill="#0F6E56" text-anchor="middle">SLOs, burn-rate alerts</text>
+  <text x="870" y="292" font-size="12" fill="#0F6E56" text-anchor="middle">Cost per team</text>
+
+  <!-- Action gateway -->
+  <rect x="250" y="160" width="230" height="70" rx="8" fill="#EEEDFE" stroke="#534AB7"/>
+  <text x="365" y="184" font-size="15" font-weight="bold" fill="#3C3489" text-anchor="middle">5 · Action gateway</text>
+  <text x="365" y="203" font-size="12" fill="#534AB7" text-anchor="middle">Policy · dry run · approval</text>
+  <text x="365" y="220" font-size="12" fill="#534AB7" text-anchor="middle">Audit · undo (MCP server)</text>
+
+  <!-- LLM gateway -->
+  <rect x="520" y="160" width="230" height="70" rx="8" fill="#EEEDFE" stroke="#534AB7"/>
+  <text x="635" y="184" font-size="15" font-weight="bold" fill="#3C3489" text-anchor="middle">2 · LLM gateway</text>
+  <text x="635" y="203" font-size="12" fill="#534AB7" text-anchor="middle">Team keys · budgets · limits</text>
+  <text x="635" y="220" font-size="12" fill="#534AB7" text-anchor="middle">Fallback · PII masking</text>
+
+  <!-- Action gw -> LLM gw -->
+  <line x1="480" y1="195" x2="516" y2="195" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- Action gw -> K8s -->
+  <line x1="365" y1="230" x2="365" y2="266" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#a)"/>
+  <rect x="250" y="270" width="230" height="70" rx="8" fill="#F1EFE8" stroke="#888780"/>
+  <text x="365" y="297" font-size="15" font-weight="bold" fill="#444441" text-anchor="middle">Kubernetes and cloud APIs</text>
+  <text x="365" y="318" font-size="12" fill="#5F5E5A" text-anchor="middle">Narrowly scoped service account</text>
+
+  <!-- Action gw -> Slack + audit (left lane) -->
+  <path d="M250 215 H236 V400 H246" fill="none" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#a)"/>
+  <rect x="250" y="370" width="230" height="60" rx="8" fill="#F1EFE8" stroke="#888780"/>
+  <text x="365" y="395" font-size="14" font-weight="bold" fill="#444441" text-anchor="middle">Slack approval + audit log</text>
+  <text x="365" y="415" font-size="12" fill="#5F5E5A" text-anchor="middle">Socket Mode · GCS with retention</text>
+
+  <!-- LLM gw -> Model serving -->
+  <line x1="635" y1="230" x2="635" y2="266" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#a)"/>
+  <rect x="520" y="270" width="230" height="70" rx="8" fill="#EEEDFE" stroke="#534AB7"/>
+  <text x="635" y="294" font-size="15" font-weight="bold" fill="#3C3489" text-anchor="middle">1 · Model serving</text>
+  <text x="635" y="313" font-size="12" fill="#534AB7" text-anchor="middle">vLLM on NVIDIA L4 (spot)</text>
+  <text x="635" y="330" font-size="12" fill="#534AB7" text-anchor="middle">KEDA autoscaling on queue</text>
+
+  <!-- LLM gw -> Claude (right lane) -->
+  <path d="M750 215 H765 V400 H754" fill="none" stroke="#5F5E5A" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#a)"/>
+  <rect x="520" y="370" width="230" height="60" rx="8" fill="#F1EFE8" stroke="#888780"/>
+  <text x="635" y="395" font-size="14" font-weight="bold" fill="#444441" text-anchor="middle">Claude API</text>
+  <text x="635" y="415" font-size="12" fill="#5F5E5A" text-anchor="middle">Hosted fallback (dashed path)</text>
+
+  <!-- Foundation -->
+  <rect x="40" y="470" width="920" height="80" rx="8" fill="#F1EFE8" stroke="#888780"/>
+  <text x="500" y="496" font-size="15" font-weight="bold" fill="#444441" text-anchor="middle">0 · Foundation (Terraform on GCP)</text>
+  <text x="500" y="517" font-size="12" fill="#5F5E5A" text-anchor="middle">GKE zonal cluster created per session · spot L4 pool, min 0 nodes · Workload Identity Federation for GitHub Actions</text>
+  <text x="500" y="536" font-size="12" fill="#5F5E5A" text-anchor="middle">Artifact Registry · GCS buckets (state, models, results, audit) · Secret Manager · budget alerts</text>
+
+  <!-- Legend -->
+  <rect x="40" y="574" width="14" height="14" rx="2" fill="#EEEDFE" stroke="#534AB7"/>
+  <text x="62" y="586" font-size="12" fill="#444441">Request path</text>
+  <rect x="200" y="574" width="14" height="14" rx="2" fill="#E1F5EE" stroke="#0F6E56"/>
+  <text x="222" y="586" font-size="12" fill="#444441">Watches and gates every layer</text>
+  <rect x="440" y="574" width="14" height="14" rx="2" fill="#F1EFE8" stroke="#888780"/>
+  <text x="462" y="586" font-size="12" fill="#444441">Outside services and foundation</text>
+</svg>
