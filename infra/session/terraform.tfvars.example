@@ -1,0 +1,4 @@
+# Copy to terraform.tfvars (gitignored) and fill in. Pass the session label on each run:
+#   terraform plan -var="session=$(date -u +%Y%m%dt%H%Mz)"
+project_id = "your-project-id"
+owner      = "your-name"

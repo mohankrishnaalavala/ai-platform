@@ -57,7 +57,7 @@ Run on macOS. Replace `<PROJECT_ID>`, `<BILLING_ACCOUNT_ID>` and `<you>` with yo
    terraform apply foundation.tfplan
    ```
 
-   Every IAM grant only adds, so Terraform never removes bootstrap's grants or your own roles. `make` wraps these steps in P0-06, and after the first apply the `foundation.yml` workflow takes over (P0-13).
+   Every IAM grant only adds, so Terraform never removes bootstrap's grants or your own roles. `make foundation-plan` and `make foundation-apply` run the same steps and read your values from gcloud and GitHub, so no `terraform.tfvars` is needed. After the first apply, the `foundation.yml` workflow takes over (P0-13).
 
 Still to do:
 
