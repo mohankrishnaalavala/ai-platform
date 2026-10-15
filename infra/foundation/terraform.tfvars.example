@@ -1,0 +1,6 @@
+# Copy to terraform.tfvars (gitignored) and fill in. Never commit real values.
+project_id         = "your-project-id"
+billing_account_id = "XXXXXX-XXXXXX-XXXXXX"
+owner              = "your-name"
+owner_email        = "you@example.com"
+github_repo        = "your-github-user/ai-platform"

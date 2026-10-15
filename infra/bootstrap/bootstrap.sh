@@ -108,7 +108,7 @@ fi
 
 policy=$(gcloud projects get-iam-policy "$PROJECT_ID" --format=json)
 for role in roles/resourcemanager.projectIamAdmin roles/iam.serviceAccountAdmin roles/compute.networkAdmin \
-            roles/storage.admin roles/artifactregistry.admin roles/iam.workloadIdentityPoolAdmin; do
+            roles/storage.admin roles/artifactregistry.admin; do
   if has_binding "$policy" "$role" "serviceAccount:$sa"; then
     log "project $role: granted, skipped"
   else
