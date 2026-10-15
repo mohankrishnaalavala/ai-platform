@@ -2,16 +2,15 @@
 
 A GPU sandbox on Google Cloud where nothing expensive exists until a session starts. CI logs in without keys, and a nightly job removes anything left running.
 
-**Status:** bootstrap and foundation done: network, service accounts, Artifact Registry, buckets and budget exist. No cluster yet. Idle cost: $[X] per month (not measured yet).
+**Status:** bootstrap and foundation done. The session cluster has made two clean round trips (`make up` 11m39s and 11m56s, `make down` 10m18s and 10m24s; [results](results/round-trip-2026-10-15.md)). The GPU node hasn't started yet: no L4 capacity in the zones tried. Laptop mode is not part of P0. Idle cost: $[X] per month (not measured yet).
 
 ## Day-1 setup (manual, one time)
 
 Run on macOS. Replace `<PROJECT_ID>`, `<BILLING_ACCOUNT_ID>` and `<you>` with your own values.
 
-1. **Tools.** You need Terraform, the gcloud CLI, kubectl, Helm, Docker, kind, jq and the GitHub CLI.
+1. **Tools.** You need Terraform, the gcloud CLI, kubectl, Helm, Docker (for the linters), jq and the GitHub CLI.
 
    ```bash
-   brew install kind
    gcloud components install gke-gcloud-auth-plugin   # kubectl needs this to reach GKE
    ```
 
@@ -59,7 +58,17 @@ Run on macOS. Replace `<PROJECT_ID>`, `<BILLING_ACCOUNT_ID>` and `<you>` with yo
 
    Every IAM grant only adds, so Terraform never removes bootstrap's grants or your own roles. `make foundation-plan` and `make foundation-apply` run the same steps and read your values from gcloud and GitHub, so no `terraform.tfvars` is needed. After the first apply, the `foundation.yml` workflow takes over (P0-13).
 
-Still to do:
+6. **GPUs.** Upgrade the billing account from the free trial (trial accounts can't use GPUs), then request quota in the console or the Cloud Quotas API. `gcloud compute accelerator-types list --filter="name:nvidia-l4"` shows which zones have L4 GPUs. A new account may be refused a bigger request but granted `GPUS_ALL_REGIONS` = 1, which is enough for one L4 (spot or on demand).
 
-- Upgrade the billing account from the free trial. Trial accounts cannot use GPUs.
-- Request GPU quota in `us-central1` (`gcloud compute accelerator-types list --filter="name:nvidia-l4"` shows which zones have L4 GPUs): `GPUS_ALL_REGIONS` ≥ 2, `PREEMPTIBLE_NVIDIA_L4_GPUS` ≥ 2 and `NVIDIA_L4_GPUS` ≥ 1.
+7. **A session.** Everything that costs money lives only between `up` and `down`.
+
+   ```bash
+   make up                  # the session cluster (11m39s–11m56s measured); ZONE=us-central1-b for another zone
+   make test P=00           # nodes Ready, system pods running, no external IPs, no service account keys
+   make down                # deletes PVCs, destroys the cluster, then runs make status
+   make status              # must say "nothing billable is running"
+   ```
+
+   L4 capacity runs out in a zone at times (`ZONE_RESOURCE_POOL_EXHAUSTED`). Try another zone, or on demand with `gpu_spot = false`.
+
+8. **Workflows.** Set the two repository secrets listed in [`.github/workflows/README.md`](../../.github/workflows/README.md). `gpu-session.yml` runs a session from GitHub; `cost-guard.yml` destroys any session cluster older than 8 hours every night and opens an issue.

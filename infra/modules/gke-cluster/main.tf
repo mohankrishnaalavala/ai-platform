@@ -1,5 +1,8 @@
 # Zonal GKE Standard cluster with private nodes. The control plane is reachable only through its
 # DNS-based endpoint, where IAM decides who gets in (no IP allowlist). Includes the system pool.
+# Authorized networks only restrict the IP endpoints, which are disabled below. The DNS endpoint
+# is gated by IAM (container.clusters.connect), so there is nothing for them to restrict.
+#trivy:ignore:GCP-0061
 resource "google_container_cluster" "this" {
   name       = var.name
   location   = var.zone
