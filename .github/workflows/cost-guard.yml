@@ -57,6 +57,9 @@ jobs:
       - name: gcloud configuration
         run: |
           gcloud config configurations create ai-platform
+          # kubectl's auth plugin needs an active account in this configuration, not just the
+          # credential file override that the other gcloud commands use.
+          gcloud auth login --cred-file="$GOOGLE_APPLICATION_CREDENTIALS" --quiet
           gcloud config set project "$PROJECT_ID"
 
       # `make down` deletes PVCs first and keeps the Terraform state right. If it fails, or the
