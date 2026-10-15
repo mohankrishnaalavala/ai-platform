@@ -8,7 +8,7 @@ Record every pinned version here when you add it (Terraform providers, GKE versi
 | Google provider (`hashicorp/google`) | 8.7.0 | `infra/foundation/versions.tf`, `.terraform.lock.hcl` | 2026-10-15 |
 | tflint (Docker image) | `ghcr.io/terraform-linters/tflint:v0.64.0@sha256:1c595f42…` | `ci.yml`; same command on the laptop | 2026-10-15 |
 | shellcheck (Docker image) | `koalaman/shellcheck:v0.11.0@sha256:61862eba…` | `ci.yml`; same command on the laptop | 2026-10-15 |
-| GKE (session cluster) | `1.36.4-gke.1391002`, REGULAR channel | `infra/session/main.tf` | 2026-10-15 |
+| GKE (session cluster) | `1.36.4-gke.1495002`, REGULAR channel (the newest version all three us-central1 L4 zones offer; `1.36.4-gke.1391002` was already gone from -c) | `infra/session/main.tf` | 2026-10-15 |
 | actionlint (Docker image) | `rhysd/actionlint:1.7.12@sha256:b1934ee5…` | `ci.yml` | 2026-10-15 |
 | Trivy (Docker image; not `trivy-action`, whose tags were hijacked in March 2026) | `aquasec/trivy:0.75.0@sha256:af6acf9a…` | `ci.yml` | 2026-10-15 |
 | `actions/checkout` | v7.0.1 (`3d3c42e5…`) | all workflows | 2026-10-15 |

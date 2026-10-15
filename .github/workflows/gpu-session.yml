@@ -25,6 +25,7 @@ jobs:
     env:
       CLOUDSDK_CORE_DISABLE_PROMPTS: "1"
       PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      ZONE: us-central1-a
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -49,6 +50,9 @@ jobs:
       - name: gcloud configuration
         run: |
           gcloud config configurations create ai-platform
+          # kubectl's auth plugin needs an active account in this configuration, not just the
+          # credential file override that the other gcloud commands use.
+          gcloud auth login --cred-file="$GOOGLE_APPLICATION_CREDENTIALS" --quiet
           gcloud config set project "$PROJECT_ID"
 
       # A cluster that already exists belongs to someone else (e.g. a laptop session); leave it alone.
@@ -62,9 +66,13 @@ jobs:
         timeout-minutes: 40
         run: make up
 
+      # If make down fails, gcloud still deletes the cluster so the bill stops, and a second
+      # make down (now "no cluster") clears Terraform state. The run stays red.
+      # shortcut: PVC disks can't be deleted once the cluster is gone; make status lists them.
+      # Revisit when a layer adds PVCs (P1).
       - name: make down
         if: always() && steps.precheck.outcome == 'success'
-        run: make down
+        run: make down || { gcloud container clusters delete ai-platform --location="$ZONE" --quiet; make down; exit 1; }
 
       - name: make status
         if: always()

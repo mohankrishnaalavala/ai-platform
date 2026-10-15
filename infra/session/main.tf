@@ -26,7 +26,7 @@ module "cluster" {
   name                 = "ai-platform"
   project_id           = var.project_id
   zone                 = var.zone
-  gke_version          = "1.36.4-gke.1391002" # REGULAR default per `gcloud container get-server-config`, 2026-10-15
+  gke_version          = "1.36.4-gke.1495002" # newest REGULAR version offered in us-central1-a, -b and -c, 2026-10-15
   network_id           = local.foundation.network_id
   subnet_id            = local.foundation.subnet_id
   pods_range_name      = local.foundation.pods_range_name

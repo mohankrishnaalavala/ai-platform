@@ -1,5 +1,5 @@
 # NVIDIA L4 pool that scales from 0, so no GPU VM exists until a pod asks for one.
-# GKE installs the driver and adds the GPU taint and accelerator label itself.
+# GKE installs the driver and adds the accelerator label itself.
 resource "google_container_node_pool" "this" {
   name               = var.name
   cluster            = var.cluster
@@ -32,6 +32,14 @@ resource "google_container_node_pool" "this" {
 
     gcfs_config {
       enabled = true
+    }
+
+    # Declared here, not left to GKE: the autoscaler plans from the pool's config, and without
+    # the taint it started a GPU node for kube-dns. Pods that request a GPU tolerate it automatically.
+    taint {
+      key    = "nvidia.com/gpu"
+      value  = "present"
+      effect = "NO_SCHEDULE"
     }
   }
 
