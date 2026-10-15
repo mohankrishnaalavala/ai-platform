@@ -5,6 +5,7 @@
 *.tfvars
 !*.tfvars.example
 crash.log
+*.tfplan
 # Secrets
 .env
 .env.*

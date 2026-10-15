@@ -5,7 +5,8 @@ Every workflow pins actions by commit SHA and logs in to GCP with Workload Ident
 | File | Trigger | Built in |
 |---|---|---|
 | `ci.yml` | pull_request | P0 |
-| `claude-review.yml` | pull_request (set up with `/install-github-app`) | P0 |
+| `claude-review.yml` | pull_request | later |
+| `foundation.yml` | workflow_dispatch from main (plan + apply `infra/foundation/`) | P0 |
 | `cost-guard.yml` | schedule (nightly) + workflow_dispatch | P0 |
 | `gpu-session.yml` | workflow_dispatch (inputs: project, action = test/bench) | P0 → P1 |
 | `deploy.yml` | push to main (only if a session cluster exists) | P1 |
