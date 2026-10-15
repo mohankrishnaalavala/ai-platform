@@ -2,7 +2,7 @@
 
 A GPU sandbox on Google Cloud where nothing expensive exists until a session starts. CI logs in without keys, and a nightly job removes anything left running.
 
-**Status:** day-1 setup in progress. Nothing is deployed yet. Idle cost: $[X] per month (not measured yet).
+**Status:** bootstrap done: state bucket, `terraform` service account and keyless login for GitHub exist. No cluster yet. Idle cost: $[X] per month (not measured yet).
 
 ## Day-1 setup (manual, one time)
 
@@ -33,8 +33,17 @@ Run on macOS. Replace `<PROJECT_ID>`, `<BILLING_ACCOUNT_ID>` and `<you>` with yo
    gcloud billing projects link <PROJECT_ID> --billing-account=<BILLING_ACCOUNT_ID>
    ```
 
+4. **Bootstrap** (once; safe to run again). It turns on the APIs, deletes the `default` network (its firewall rules allow SSH from anywhere), and creates the Terraform state bucket, a `terraform` service account and keyless login for GitHub Actions. No service account key is ever created.
+
+   ```bash
+   cp infra/bootstrap/.env.example infra/bootstrap/.env   # fill in your values; .env is gitignored
+   infra/bootstrap/bootstrap.sh
+   ```
+
+   It stops before changing anything if the `ai-platform` configuration points at another project or account, or the billing account is not the project's. A second run only prints "skipped". If the `default` network ever comes back, a re-run deletes it again.
+
 Still to do:
 
 - Upgrade the billing account from the free trial. Trial accounts cannot use GPUs.
 - Request GPU quota in `us-central1`: `GPUS_ALL_REGIONS` ≥ 2, `PREEMPTIBLE_NVIDIA_L4_GPUS` ≥ 2 and `NVIDIA_L4_GPUS` ≥ 1.
-- Confirm which zones have L4 GPUs: `gcloud compute accelerator-types list --filter="name=nvidia-l4"`.
+- Confirm which zones have L4 GPUs: `gcloud compute accelerator-types list --filter="name:nvidia-l4" --format="value(name,zone.basename())"`. (`name=nvidia-l4` matches nothing on current gcloud versions.)
