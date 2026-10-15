@@ -11,7 +11,7 @@ Built in [P0](../projects/00-foundation/).
 
 Rules:
 - Every resource that supports labels is labeled `app=ai-platform`, `layer=0X`, `owner`, and `session` for session resources. (Networks, subnets and firewall rules don't take labels.)
-- `profile = "dev"` (default) or `"enterprise"` (adds Cloud SQL and managed monitoring).
+- A `profile` setting (`dev` or `enterprise`: Cloud SQL, managed monitoring) comes when a project needs it.
 - No Cloud NAT (network address translation) yet, so nodes can't reach the internet. The first project that needs it adds it to `session/`, so `make down` removes it.
 - Terraform never uses keys: GitHub Actions logs in through Workload Identity Federation, and the laptop impersonates the same service accounts.
 - Pin provider versions; record them in `docs/versions.md`.

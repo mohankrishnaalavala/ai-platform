@@ -27,6 +27,14 @@ resource "google_project_iam_member" "deployer_gke" {
   member  = google_service_account.deployer.member
 }
 
+# Read-only: the Google provider lists instance groups when it reads node pools, and
+# `make status` and cost-guard list instances, disks and addresses.
+resource "google_project_iam_member" "deployer_compute_read" {
+  project = var.project_id
+  role    = "roles/compute.viewer"
+  member  = google_service_account.deployer.member
+}
+
 resource "google_storage_bucket_iam_member" "deployer_state" {
   bucket = "${var.project_id}-tfstate"
   role   = "roles/storage.objectAdmin"
