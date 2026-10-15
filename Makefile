@@ -25,7 +25,8 @@ OWNER = $(eval OWNER := $(shell $(gcloud_shell) projects describe $(PROJECT) --f
 
 # Terraform as a service account: $(call tf,deployer,session) apply ...
 # An empty token stops the line; otherwise Terraform would fall back to machine-wide credentials.
-as = export GOOGLE_OAUTH_ACCESS_TOKEN="$$(gcloud auth print-access-token --impersonate-service-account=$(1)@$(PROJECT).iam.gserviceaccount.com)" && [ -n "$$GOOGLE_OAUTH_ACCESS_TOKEN" ] &&
+# In GitHub Actions the WIF login already is that service account, so it isn't impersonated again.
+as = export GOOGLE_OAUTH_ACCESS_TOKEN="$$(gcloud auth print-access-token $(if $(GITHUB_ACTIONS),,--impersonate-service-account=$(1)@$(PROJECT).iam.gserviceaccount.com))" && [ -n "$$GOOGLE_OAUTH_ACCESS_TOKEN" ] &&
 tf = $(call as,$(1)) terraform -chdir=infra/$(2) init -input=false -reconfigure -backend-config="bucket=$(PROJECT)-tfstate" >/dev/null && terraform -chdir=infra/$(2)
 session_vars = -var="project_id=$(PROJECT)" -var="owner=$(OWNER)" -var="session=$(SESSION)" -var="zone=$(ZONE)"
 

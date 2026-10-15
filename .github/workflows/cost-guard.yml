@@ -1,0 +1,99 @@
+# Nightly janitor, as the deployer service account: destroys session clusters older than
+# max_age_hours (default 8) and opens an issue saying what it did. Runs from main only.
+name: cost-guard
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      max_age_hours:
+        description: Destroy clusters older than this many hours (0 = every cluster)
+        default: "8"
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+# Shares the group with gpu-session, so it never destroys a cluster a session is still using.
+concurrency:
+  group: session
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  guard:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CLOUDSDK_CORE_DISABLE_PROMPTS: "1"
+      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      MAX_AGE_HOURS: ${{ inputs.max_age_hours || '8' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: deployer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        with:
+          version: 587.0.0
+          install_components: gke-gcloud-auth-plugin
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.5.7
+          terraform_wrapper: false
+
+      - name: gcloud configuration
+        run: |
+          gcloud config configurations create ai-platform
+          gcloud config set project "$PROJECT_ID"
+
+      # `make down` deletes PVCs first and keeps the Terraform state right. If it fails, or the
+      # cluster isn't the Terraform one, gcloud deletes the cluster so the bill still stops.
+      - name: destroy old clusters
+        run: |
+          [[ "$MAX_AGE_HOURS" =~ ^[0-9]+$ ]] || { echo "max_age_hours must be a whole number"; exit 1; }
+          clusters=$(gcloud container clusters list --format='value(name,location,createTime.date("%s", tz=UTC))')
+          now=$(date +%s); bad=""
+          while read -r name zone created; do
+            [ -n "$name" ] || continue
+            created=${created%.*}  # gcloud prints epoch seconds as e.g. 1792096974.0
+            age=$(( (now - created) / 3600 ))
+            if [ $(( now - created )) -lt $(( MAX_AGE_HOURS * 3600 )) ]; then
+              echo "$name in $zone is ${age}h old: kept"; continue
+            fi
+            # </dev/null: commands inside the loop must not read the remaining cluster lines.
+            if [ "$name" = ai-platform ] && make down ZONE="$zone" </dev/null; then outcome="destroyed with make down"
+            elif gcloud container clusters delete "$name" --location="$zone" --quiet </dev/null; then outcome="deleted with gcloud (make down failed or not a Terraform cluster)"
+            else outcome="FAILED to delete: delete it by hand"; bad=1; fi
+            echo "$name: $outcome"
+            echo "- \`$name\` in $zone, ${age}h old: $outcome" >> report.md
+          done <<< "$clusters"
+          [ -f report.md ] || echo "no cluster older than ${MAX_AGE_HOURS}h"
+          [ -z "$bad" ] || { echo "a cluster could not be deleted"; exit 1; }
+
+      - name: make status
+        if: always()
+        # stdout only: gcloud errors can name the project, and status.txt goes into the issue.
+        run: make status | tee status.txt
+
+      - name: open an issue
+        if: always() && hashFiles('report.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          fence='```'
+          { echo; echo "\`make status\` afterwards:"; echo "$fence"; cat status.txt; echo "$fence"; echo "Run: $RUN_URL"; } >> report.md
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "cost-guard removed a session cluster ($(date -u +%F))" --body-file report.md
