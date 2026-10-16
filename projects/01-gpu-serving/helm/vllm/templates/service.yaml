@@ -1,0 +1,15 @@
+# Inside the cluster only: no load balancer, no node port.
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm
+  labels: {{- include "vllm.labels" . | trim | nindent 4 }}
+    app.kubernetes.io/name: vllm
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: vllm
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http

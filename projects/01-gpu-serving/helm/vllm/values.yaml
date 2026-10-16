@@ -1,0 +1,41 @@
+# Defaults: the optimized path (image from Artifact Registry with image streaming, weights from the
+# models bucket through Cloud Storage FUSE). Layer a model config on top (-f config/models/<x>.yaml),
+# and values-baseline.yaml for the baseline cold start. deploy.sh sets the project-specific values.
+
+# From the model config.
+name: ""
+model:
+  hfId: ""
+  revision: ""
+  bucketPath: ""
+image:
+  repository: vllm/vllm-openai
+  tag: ""
+  digest: ""
+vllm:
+  maxModelLen: 8192
+  gpuMemoryUtilization: 0.90
+  quantization: null
+gpu: nvidia-l4  # GKE's accelerator label; the pod only lands on that GPU
+
+# Set by deploy.sh: <region>-docker.pkg.dev/<project>/images, and <project>-models.
+registry: ""
+modelsBucket: ""
+
+# gcs: weights from the models bucket. hf: vLLM downloads them from Hugging Face at start (baseline).
+weightsSource: gcs
+nodePool: gpu
+
+# On every object, with owner and session set by deploy.sh.
+labels:
+  app: ai-platform
+  layer: "01"
+  owner: ""
+  session: ""
+
+resources:
+  requests:
+    cpu: "2"
+    memory: 16Gi
+  limits:
+    nvidia.com/gpu: 1

@@ -1,0 +1,5 @@
+# Baseline cold start: the image from Docker Hub and the weights from Hugging Face, through Cloud NAT,
+# on the pool without image streaming. Only for measuring what the optimized path saves.
+registry: docker.io/vllm
+weightsSource: hf
+nodePool: gpu-baseline

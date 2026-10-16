@@ -1,0 +1,8 @@
+# P1's namespaces. owner and session are added by deploy.sh (kubectl label).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vllm
+  labels:
+    app: ai-platform
+    layer: "01"

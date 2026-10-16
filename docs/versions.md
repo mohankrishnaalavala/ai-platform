@@ -19,3 +19,5 @@ Record every pinned version here when you add it (Terraform providers, GKE versi
 | vLLM image | `vllm/vllm-openai:v0.30.0`, linux/amd64 manifest `sha256:5f5e5352…` (released 2026-09-22; v0.31.0 was 11 days old) | `config/models/*.yaml`; copied to Artifact Registry by `mirror.yml` | 2026-10-16 |
 | Model | `Qwen/Qwen2.5-7B-Instruct`, revision `a09a3545…` (Apache 2.0, not gated) | `config/models/*.yaml` | 2026-10-16 |
 | crane (go-containerregistry) | v0.22.1, release tarball checked by sha256 `0ab7a1d6…` | `mirror.yml` | 2026-10-16 |
+| Helm | v4.3.0 (2026-09-09), release tarball checked by sha256 `86584a54…` | `ci.yml` | 2026-10-16 |
+| kubeconform (Docker image), Kubernetes schemas 1.36.0 | `ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43…` | `projects/01-gpu-serving/tests/charts.sh` | 2026-10-16 |
