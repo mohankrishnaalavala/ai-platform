@@ -33,12 +33,13 @@ tf = $(call as,$(1)) terraform -chdir=infra/$(2) init -input=false -reconfigure 
 session_vars = -var="project_id=$(PROJECT)" -var="owner=$(OWNER)" -var="session=$(SESSION)" -var="zone=$(ZONE)" \
 	$(if $(PROFILE),-var="autoscaling_profile=$(PROFILE)")
 
-.PHONY: help check-project up down status test park foundation-plan foundation-apply
+.PHONY: help check-project up down status test bench park foundation-plan foundation-apply
 
 help:
 	@echo "make up | down | status        session cluster (cloud, costs money while up)"
 	@echo "make up LAYERS=01               also deploy those layers (each project's deploy.sh)"
 	@echo "make test P=00                 run one project's tests"
+	@echo "make bench [CONFIG=… SCENARIOS=… CONCURRENCY=…]  P1 benchmarks, from a Job in the session cluster"
 	@echo "make foundation-plan | -apply  the always-on foundation, as the terraform service account"
 	@echo "make park CONFIRM=yes          empty Artifact Registry and the buckets (keeps Terraform state)"
 
@@ -91,6 +92,11 @@ test:
 	@t=$$(ls projects/$(P)-*/tests/run.sh 2>/dev/null | head -1); \
 	[ -n "$$t" ] || { echo "no tests for P=$(P) yet"; exit 1; }; \
 	bash "$$t"
+
+# P1 benchmarks against the running session (make up LAYERS=01). CONFIG, SCENARIOS and
+# CONCURRENCY pass through from the environment; results go to the results bucket.
+bench: check-project
+	ZONE=$(ZONE) bash projects/01-gpu-serving/bench/bench.sh
 
 foundation-plan: check-project
 	@email=$$(gcloud config get account) && \
