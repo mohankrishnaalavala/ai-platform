@@ -39,6 +39,13 @@ jobs:
       - name: shellcheck
         run: git ls-files -z '*.sh' | xargs -0 docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:v0.11.0@sha256:61862eba1fcf09a484ebcc6feea46f1782532571a34ed51fedf90dd25f925a8d
 
+      - name: ruff
+        run: docker run --rm -v "$PWD:/io" -w /io ghcr.io/astral-sh/ruff:0.16.9@sha256:fd4a00e8f586c07495822a1c93702737b9a98d826b76d460caa514df7794f259 check .
+
+      # Standard library only, so the runner's Python needs nothing installed.
+      - name: unit tests
+        run: python3 -m unittest discover -s scripts -v
+
       - name: actionlint
         run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 -color
 

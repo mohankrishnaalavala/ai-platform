@@ -1,0 +1,17 @@
+# Qwen2.5-7B-Instruct served by vLLM on one NVIDIA L4. This file is also a Helm values file for
+# the vLLM chart. Its config hash (scripts/config_hash.py) names every results folder.
+# The BF16 and FP8 files must differ only in `name` and `quantization`, so their numbers compare.
+name: qwen2.5-7b-fp8
+model:
+  hfId: Qwen/Qwen2.5-7B-Instruct  # Apache 2.0, not gated
+  revision: a09a35458c702b33eeacc393d103063234e8bc28
+  bucketPath: Qwen2.5-7B-Instruct/a09a35458c702b33eeacc393d103063234e8bc28  # in the models bucket
+image:
+  repository: vllm/vllm-openai  # Docker Hub; mirror.yml copies it to Artifact Registry as images/vllm-openai
+  tag: v0.30.0
+  digest: sha256:8a69ffad015f138d7170c4ddc429e230a3bc1c1719f67e14324749df200a4b90
+vllm:
+  maxModelLen: 8192
+  gpuMemoryUtilization: 0.90
+  quantization: fp8  # null: BF16 weights as published; fp8: vLLM compresses them to FP8 while loading
+gpu: nvidia-l4

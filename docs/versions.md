@@ -15,3 +15,6 @@ Record every pinned version here when you add it (Terraform providers, GKE versi
 | `hashicorp/setup-terraform` | v4.0.1 (`dfe3c3f8…`) | all workflows | 2026-10-15 |
 | `google-github-actions/auth` | v3.0.0 (`7c6bc770…`) | `gpu-session.yml`, `cost-guard.yml` | 2026-10-15 |
 | `google-github-actions/setup-gcloud` | v3.0.1 (`aa5489c8…`), gcloud CLI 587.0.0 | `gpu-session.yml`, `cost-guard.yml` | 2026-10-15 |
+| ruff (Docker image) | `ghcr.io/astral-sh/ruff:0.16.9@sha256:fd4a00e8…` | `ci.yml` | 2026-10-16 |
+| vLLM image | `vllm/vllm-openai:v0.30.0@sha256:8a69ffad…` (released 2026-09-22; v0.31.0 was 11 days old) | `config/models/*.yaml` | 2026-10-16 |
+| Model | `Qwen/Qwen2.5-7B-Instruct`, revision `a09a3545…` (Apache 2.0, not gated) | `config/models/*.yaml` | 2026-10-16 |
