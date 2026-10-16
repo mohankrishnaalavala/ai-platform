@@ -62,6 +62,75 @@ module "deployer_wif" {
   workflows          = ["gpu-session.yml", "cost-guard.yml"]
 }
 
+# The session's Cloud Router and NAT. The custom role (router create/update/delete only) is
+# created by bootstrap.sh, so the terraform account needs no role-admin rights.
+resource "google_project_iam_member" "deployer_session_nat" {
+  project = var.project_id
+  role    = "projects/${var.project_id}/roles/sessionNat"
+  member  = google_service_account.deployer.member
+}
+
+# Create-only: gpu-session.yml uploads its cold-start and scale-out timings, and can't overwrite.
+resource "google_storage_bucket_iam_member" "deployer_results" {
+  bucket = local.results_bucket
+  role   = "roles/storage.objectCreator"
+  member = google_service_account.deployer.member
+}
+
+# --- Mirror: what mirror.yml acts as. Copies the vLLM image and the model weights in, once.
+resource "google_service_account" "mirror" {
+  account_id   = "mirror"
+  display_name = "Mirror (image and weights)"
+  description  = "Copies the vLLM image into Artifact Registry and model weights into the models bucket. No keys: mirror.yml logs in through WIF."
+}
+
+resource "google_artifact_registry_repository_iam_member" "mirror_push" {
+  location   = google_artifact_registry_repository.images.location
+  repository = google_artifact_registry_repository.images.name
+  role       = "roles/artifactregistry.writer"
+  member     = google_service_account.mirror.member
+}
+
+# Create and read, never overwrite or delete. Reading lets a re-run skip files already copied.
+resource "google_storage_bucket_iam_member" "mirror_models" {
+  for_each = toset(["roles/storage.objectCreator", "roles/storage.objectViewer"])
+
+  bucket = local.models_bucket
+  role   = each.value
+  member = google_service_account.mirror.member
+}
+
+module "mirror_wif" {
+  source = "../modules/github-wif"
+
+  service_account_id = google_service_account.mirror.name
+  project_number     = data.google_project.this.number
+  github_repo        = var.github_repo
+  workflows          = ["mirror.yml"]
+}
+
+# --- Pods in the session cluster, through GKE Workload Identity: IAM grants go straight to the
+# Kubernetes service account (namespace vllm), so no Google service account or key is involved.
+# The Workload Identity pool these name exists once a session cluster has been created.
+locals {
+  # From the module's output, not typed out, so the grants wait until the buckets exist.
+  models_bucket  = module.buckets.names[index(module.buckets.names, "${var.project_id}-models")]
+  results_bucket = module.buckets.names[index(module.buckets.names, "${var.project_id}-results")]
+  k8s_sa         = "principal://iam.googleapis.com/projects/${data.google_project.this.number}/locations/global/workloadIdentityPools/${var.project_id}.svc.id.goog/subject/ns/vllm/sa"
+}
+
+resource "google_storage_bucket_iam_member" "vllm_reads_models" {
+  bucket = local.models_bucket
+  role   = "roles/storage.objectViewer"
+  member = "${local.k8s_sa}/vllm"
+}
+
+resource "google_storage_bucket_iam_member" "bench_writes_results" {
+  bucket = local.results_bucket
+  role   = "roles/storage.objectCreator"
+  member = "${local.k8s_sa}/bench"
+}
+
 # --- GKE nodes run as their own account, not the default Compute Engine one (which has Editor).
 resource "google_service_account" "gke_nodes" {
   account_id   = "gke-nodes"
@@ -72,6 +141,13 @@ resource "google_service_account" "gke_nodes" {
 resource "google_project_iam_member" "gke_nodes_default" {
   project = var.project_id
   role    = "roles/container.defaultNodeServiceAccount"
+  member  = google_service_account.gke_nodes.member
+}
+
+# GKE's image streaming docs require this for node accounts that aren't the Compute Engine default.
+resource "google_project_iam_member" "gke_nodes_image_streaming" {
+  project = var.project_id
+  role    = "roles/serviceusage.serviceUsageConsumer"
   member  = google_service_account.gke_nodes.member
 }
 

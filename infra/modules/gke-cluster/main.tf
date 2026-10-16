@@ -57,6 +57,11 @@ resource "google_container_cluster" "this" {
     enabled = true
   }
 
+  # Only the profile: node auto-provisioning stays off, the pools autoscale on their own.
+  cluster_autoscaling {
+    autoscaling_profile = var.autoscaling_profile
+  }
+
   lifecycle {
     ignore_changes = [node_config] # only describes the removed default pool
   }

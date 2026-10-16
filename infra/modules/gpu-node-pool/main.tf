@@ -31,7 +31,7 @@ resource "google_container_node_pool" "this" {
     }
 
     gcfs_config {
-      enabled = true
+      enabled = var.image_streaming
     }
 
     # Declared here, not left to GKE: the autoscaler plans from the pool's config, and without

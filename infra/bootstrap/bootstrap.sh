@@ -186,6 +186,26 @@ else
     --member="user:$USER_EMAIL" >/dev/null
 fi
 
+# --- 8. Custom role for the session's Cloud Router and NAT (P1). Created here by the owner, so the
+# terraform service account needs no role-admin rights; the foundation grants it to the deployer.
+nat_perms="compute.networks.updatePolicy,compute.routers.create,compute.routers.delete,compute.routers.get,compute.routers.update"
+role_json=$(gcloud iam roles describe sessionNat --project="$PROJECT_ID" --format=json 2>/dev/null || true)
+if [ -z "$role_json" ]; then
+  log "creating custom role sessionNat"
+  gcloud iam roles create sessionNat --project="$PROJECT_ID" --title="Session Cloud NAT" \
+    --description="Create and delete the session's Cloud Router and NAT. Granted to the deployer." \
+    --permissions="$nat_perms" --stage=GA >/dev/null
+  role_json=$(gcloud iam roles describe sessionNat --project="$PROJECT_ID" --format=json)
+elif jq -e '.deleted == true' <<<"$role_json" >/dev/null; then
+  log "undeleting custom role sessionNat (deleted roles keep their name for a while)"
+  gcloud iam roles undelete sessionNat --project="$PROJECT_ID" >/dev/null
+  role_json=$(gcloud iam roles describe sessionNat --project="$PROJECT_ID" --format=json)
+else
+  log "custom role sessionNat: exists, skipped"
+fi
+jq -e --arg p "$nat_perms" '(.includedPermissions | sort | join(",")) == $p' <<<"$role_json" >/dev/null \
+  || die "custom role sessionNat has other permissions than $nat_perms. Fix by hand; bootstrap won't change them silently."
+
 log ""
 log "Done. Next steps need these:"
 log "  terraform service account: $sa"

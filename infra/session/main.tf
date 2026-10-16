@@ -33,6 +33,7 @@ module "cluster" {
   services_range_name  = local.foundation.services_range_name
   node_service_account = local.foundation.gke_nodes_email
   node_labels          = local.labels
+  autoscaling_profile  = var.autoscaling_profile
 }
 
 module "gpu_pool" {
@@ -43,4 +44,37 @@ module "gpu_pool" {
   node_service_account = local.foundation.gke_nodes_email
   spot                 = var.gpu_spot
   node_labels          = local.labels
+}
+
+# For the baseline cold start only: GKE now streams public Docker Hub images too, so without
+# this pool the "slow" baseline would quietly be half optimized. Both GPU pools look alike to the
+# autoscaler, so every GPU pod must pick one with nodeSelector cloud.google.com/gke-nodepool.
+module "gpu_baseline_pool" {
+  source = "../modules/gpu-node-pool"
+
+  name                 = "gpu-baseline"
+  cluster              = module.cluster.name
+  zone                 = var.zone
+  node_service_account = local.foundation.gke_nodes_email
+  spot                 = var.gpu_spot
+  max_nodes            = 1
+  image_streaming      = false
+  node_labels          = local.labels
+}
+
+# Outbound internet for the private nodes: Prometheus and KEDA images, and the baseline cold
+# start (Docker Hub, Hugging Face). Google assigns the NAT IP; nothing can connect in.
+# Routers and NATs take no labels, so `make status` lists routers.
+resource "google_compute_router" "nat" {
+  name    = "ai-platform-nat"
+  region  = regex("^(.+)-[a-z]$", var.zone)[0]
+  network = local.foundation.network_id
+}
+
+resource "google_compute_router_nat" "this" {
+  name                               = "ai-platform-nat"
+  router                             = google_compute_router.nat.name
+  region                             = google_compute_router.nat.region
+  nat_ip_allocate_option             = "AUTO_ONLY"
+  source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
 }

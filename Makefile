@@ -12,8 +12,10 @@ unexport GOOGLE_APPLICATION_CREDENTIALS GOOGLE_CREDENTIALS GOOGLE_BACKEND_CREDEN
 	GOOGLE_IMPERSONATE_SERVICE_ACCOUNT GOOGLE_BACKEND_IMPERSONATE_SERVICE_ACCOUNT \
 	GOOGLE_CLOUD_KEYFILE_JSON GCLOUD_KEYFILE_JSON CLOUDSDK_CORE_PROJECT
 
-ZONE ?= us-central1-a
+ZONE ?= us-central1-c
 LAYERS ?=
+# Cluster autoscaler profile (BALANCED or OPTIMIZE_UTILIZATION); empty keeps Terraform's default.
+PROFILE ?=
 P ?= 00
 SESSION := $(shell date -u +%Y%m%dt%H%Mz)
 
@@ -28,7 +30,8 @@ OWNER = $(eval OWNER := $(shell $(gcloud_shell) projects describe $(PROJECT) --f
 # In GitHub Actions the WIF login already is that service account, so it isn't impersonated again.
 as = export GOOGLE_OAUTH_ACCESS_TOKEN="$$(gcloud auth print-access-token $(if $(GITHUB_ACTIONS),,--impersonate-service-account=$(1)@$(PROJECT).iam.gserviceaccount.com))" && [ -n "$$GOOGLE_OAUTH_ACCESS_TOKEN" ] &&
 tf = $(call as,$(1)) terraform -chdir=infra/$(2) init -input=false -reconfigure -backend-config="bucket=$(PROJECT)-tfstate" >/dev/null && terraform -chdir=infra/$(2)
-session_vars = -var="project_id=$(PROJECT)" -var="owner=$(OWNER)" -var="session=$(SESSION)" -var="zone=$(ZONE)"
+session_vars = -var="project_id=$(PROJECT)" -var="owner=$(OWNER)" -var="session=$(SESSION)" -var="zone=$(ZONE)" \
+	$(if $(PROFILE),-var="autoscaling_profile=$(PROFILE)")
 
 .PHONY: help check-project up down status test park foundation-plan foundation-apply
 
@@ -72,7 +75,7 @@ down: check-project
 # an unlabeled leftover still bills. Exits 1 if anything billable remains or a list fails.
 status: check-project
 	@n=0; \
-	for kind in "container clusters" "compute instances" "compute disks" "compute forwarding-rules" "compute addresses"; do \
+	for kind in "container clusters" "compute instances" "compute disks" "compute forwarding-rules" "compute addresses" "compute routers"; do \
 		found=$$(gcloud $$kind list --format='value(name)') || found="LIST FAILED"; \
 		printf '%-26s %s\n' "$$kind:" "$${found:-none}"; \
 		[ -z "$$found" ] || n=$$((n + 1)); \
