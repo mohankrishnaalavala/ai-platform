@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Deploy P1 into the running session cluster: the namespace, then vLLM with one model config.
+# Deploy P1 into the running session cluster: namespaces, Prometheus, KEDA, then vLLM with one
+# model config. Prometheus and KEDA images come through Cloud NAT, pinned by chart version.
 # Usage (from the repo root):
 #   ZONE=us-central1-c [CONFIG=config/models/qwen2.5-7b-fp8.yaml] [VARIANT=baseline] projects/01-gpu-serving/deploy.sh
 # Defaults: the BF16 config and the optimized path (Artifact Registry + weights from Cloud Storage).
@@ -18,7 +19,15 @@ session=$(gcloud container clusters describe ai-platform --location="${ZONE:?set
   || { echo "kubectl doesn't point at this session's cluster (run make up first)"; exit 1; }
 
 kubectl apply -f "$here/helm/namespaces.yaml"
-kubectl label namespace vllm owner="$owner" session="$session" --overwrite
+kubectl label namespace vllm monitoring keda owner="$owner" session="$session" --overwrite
+
+# KEDA's ScaledObject (in the vLLM chart) needs both running first.
+helm upgrade --install prometheus oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack --version 91.9.0 \
+  -n monitoring -f "$here/helm/prometheus.yaml" --set-string commonLabels.owner="$owner" --set-string commonLabels.session="$session" \
+  --wait --timeout 10m
+helm upgrade --install keda keda --repo https://kedacore.github.io/charts --version 2.21.0 \
+  -n keda -f "$here/helm/keda.yaml" --set-string additionalLabels.owner="$owner" --set-string additionalLabels.session="$session" \
+  --wait --timeout 10m
 
 args=(-f "$config" --set modelsBucket="$project-models" --set-string labels.owner="$owner" --set-string labels.session="$session")
 case "${VARIANT:-optimized}" in

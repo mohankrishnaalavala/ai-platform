@@ -1,0 +1,26 @@
+# Scale on the requests waiting in vLLM's queue, not on CPU: the GPU saturates while the CPU idles.
+# The metric is per pod, so the query sums it. Prometheus and KEDA are installed first (deploy.sh).
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: vllm
+  labels: {{- include "vllm.labels" . | trim | nindent 4 }}
+spec:
+  scaleTargetRef:
+    name: vllm
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  pollingInterval: 15
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        # KEDA's cooldownPeriod only applies to scaling to 0; with a minimum of 1 this is the knob.
+        scaleDown:
+          stabilizationWindowSeconds: 300
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus-operated.monitoring.svc:9090
+        query: sum(vllm:num_requests_waiting{namespace="vllm"})
+        # Per replica: a second replica is wanted once more than 5 requests wait.
+        threshold: "5"
