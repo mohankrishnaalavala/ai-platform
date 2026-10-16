@@ -1,0 +1,65 @@
+# Minimal Prometheus for P1 (kube-prometheus-stack 91.9.0): the operator and one Prometheus that
+# scrapes vLLM, enough for KEDA and the benchmarks. Full monitoring comes in P3.
+# No storage volume and 1 day of retention, so nothing outlives the session.
+# The chart sets its own `app` label, so app=ai-platform is on the namespace; owner and session
+# are added by deploy.sh.
+commonLabels:
+  layer: "01"
+
+defaultRules:
+  create: false
+alertmanager:
+  enabled: false
+grafana:
+  enabled: false
+kubeStateMetrics:
+  enabled: false
+nodeExporter:
+  enabled: false
+kubeApiServer:
+  enabled: false
+kubelet:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+coreDns:
+  enabled: false
+kubeDns:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+prometheusOperator:
+  # The control plane can't reach webhook ports on private nodes, and nothing here needs them.
+  admissionWebhooks:
+    enabled: false
+  tls:
+    enabled: false
+  kubeletService:
+    enabled: false
+  serviceMonitor:
+    selfMonitor: false
+
+prometheus:
+  serviceMonitor:
+    selfMonitor: false
+  prometheusSpec:
+    retention: 1d
+    scrapeInterval: 15s
+    # Also pick up ServiceMonitors that this release didn't create.
+    serviceMonitorSelectorNilUsesHelmValues: false
+  additionalServiceMonitors:
+    - name: vllm
+      namespaceSelector:
+        matchNames: [vllm]
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: vllm
+      endpoints:
+        - port: http
+          path: /metrics
+          interval: 15s

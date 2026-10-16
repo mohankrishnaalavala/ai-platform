@@ -53,12 +53,13 @@ up: check-project
 	kubectl get nodes
 
 # Helm releases and PVCs go first: a PVC left behind becomes a persistent disk that keeps billing.
+# Releases go newest first, so vLLM's ScaledObject is removed while KEDA can still clear its finalizer.
 # Only a confirmed "not found" (404) skips that step; any other describe error stops `down`.
 down: check-project
 	@set -o pipefail; \
 	if err=$$(gcloud container clusters describe ai-platform --location=$(ZONE) 2>&1 >/dev/null); then \
 		gcloud container clusters get-credentials ai-platform --location=$(ZONE) --dns-endpoint || exit 1; \
-		releases=$$(helm list -A -o json | jq -r '.[] | "\(.name) \(.namespace)"') || exit 1; \
+		releases=$$(helm list -A -o json | jq -r 'sort_by(.updated) | reverse | .[] | "\(.name) \(.namespace)"') || exit 1; \
 		while read -r name ns; do \
 			[ -z "$$name" ] || helm uninstall "$$name" -n "$$ns" --wait || exit 1; \
 		done <<< "$$releases"; \

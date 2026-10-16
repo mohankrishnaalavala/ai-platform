@@ -21,3 +21,6 @@ Record every pinned version here when you add it (Terraform providers, GKE versi
 | crane (go-containerregistry) | v0.22.1, release tarball checked by sha256 `0ab7a1d6…` | `mirror.yml` | 2026-10-16 |
 | Helm | v4.3.0 (2026-09-09), release tarball checked by sha256 `86584a54…` | `ci.yml` | 2026-10-16 |
 | kubeconform (Docker image), Kubernetes schemas 1.36.0 | `ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43…` | `projects/01-gpu-serving/tests/charts.sh` | 2026-10-16 |
+| kube-prometheus-stack (Helm chart, OCI) | 91.9.0 (2026-10-02; operator v0.94.1), chart digest `sha256:04047e50…` | `projects/01-gpu-serving/deploy.sh`, `tests/charts.sh` | 2026-10-16 |
+| KEDA (Helm chart) | 2.21.0 (2026-09-23; supports Kubernetes 1.34–1.36) | `projects/01-gpu-serving/deploy.sh`, `tests/charts.sh` | 2026-10-16 |
+| CRDs-catalog (schemas for kubeconform) | commit `d373c2da…` (2026-09-29) | `projects/01-gpu-serving/tests/charts.sh` | 2026-10-16 |

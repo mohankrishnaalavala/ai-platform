@@ -1,0 +1,11 @@
+# KEDA 2.21.0: scales vLLM on the requests waiting in its queue, read from Prometheus.
+# On private GKE nodes the control plane reaches pods only on ports 443 and 10250, so the metrics
+# server listens on 10250 instead of 6443, and the admission webhooks are off.
+# The chart sets its own `app` label, so app=ai-platform is on the namespace; owner and session
+# are added by deploy.sh.
+additionalLabels:
+  layer: "01"
+webhooks:
+  enabled: false
+service:
+  portHttpsTarget: 10250

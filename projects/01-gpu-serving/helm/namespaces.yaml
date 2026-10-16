@@ -6,3 +6,19 @@ metadata:
   labels:
     app: ai-platform
     layer: "01"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    app: ai-platform
+    layer: "01"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: keda
+  labels:
+    app: ai-platform
+    layer: "01"
