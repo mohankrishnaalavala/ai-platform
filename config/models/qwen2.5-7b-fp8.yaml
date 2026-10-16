@@ -9,7 +9,7 @@ model:
 image:
   repository: vllm/vllm-openai  # Docker Hub; mirror.yml copies it to Artifact Registry as images/vllm-openai
   tag: v0.30.0
-  digest: sha256:8a69ffad015f138d7170c4ddc429e230a3bc1c1719f67e14324749df200a4b90
+  digest: sha256:5f5e535216848d0c52159c8c13a0af04be5f6fe1a84e79914300610796f76d40  # linux/amd64 manifest: GKE nodes are amd64, so only it is copied
 vllm:
   maxModelLen: 8192
   gpuMemoryUtilization: 0.90
