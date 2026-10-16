@@ -2,7 +2,7 @@
 
 A GPU sandbox on Google Cloud where nothing expensive exists until a session starts. CI logs in without keys, and a nightly job removes anything left running.
 
-**Status:** bootstrap and foundation done. The session cluster has made two clean round trips (`make up` 11m39s and 11m56s, `make down` 10m18s and 10m24s; [results](results/round-trip-2026-10-15.md)). The GPU node hasn't started yet: no L4 capacity in the zones tried. Laptop mode is not part of P0. Idle cost: $[X] per month (not measured yet).
+**Status:** bootstrap and foundation done. The session cluster has made two clean round trips (`make up` 11m39s and 11m56s, `make down` 10m18s and 10m24s; [results](results/round-trip-2026-10-15.md)). A spot L4 node has started from zero with Google-managed drivers and no NAT, and the nightly cleanup job has destroyed a deliberately forgotten cluster. Laptop mode is not part of P0. Idle cost: $[X] per month (not measured yet).
 
 ## Day-1 setup (manual, one time)
 
