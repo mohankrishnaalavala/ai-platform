@@ -1,0 +1,23 @@
+{
+ "config": "qwen2.5-7b-bf16",
+ "config_hash": "0000000000000000",
+ "session": "20261016t0000z",
+ "machine": "g2-standard-8",
+ "gpu": "nvidia-l4",
+ "spot": "true",
+ "vllm_image": "sha256:0",
+ "gke": "v0",
+ "date": "20261016-000000",
+ "scenario": "chat",
+ "max_concurrency": 8,
+ "completed": 80,
+ "failed": 0,
+ "p50_ttft_ms": 101.0,
+ "p95_ttft_ms": 205.0,
+ "p50_tpot_ms": 25.5,
+ "output_throughput": 300.0,
+ "synthetic": true,
+ "revision": "0000000000000000000000000000000000000000",
+ "vllm_version": "0.0.0",
+ "p99_ttft_ms": 255.0
+}
