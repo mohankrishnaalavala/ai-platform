@@ -34,3 +34,9 @@ variable "node_labels" {
   description = "Labels on the node VMs and their boot disks (app, layer, owner, session)."
   type        = map(string)
 }
+
+variable "image_streaming" {
+  description = "Stream container images instead of pulling them whole. Off only for the baseline cold start."
+  type        = bool
+  default     = true
+}

@@ -19,6 +19,10 @@ output "deployer_email" {
   value = google_service_account.deployer.email
 }
 
+output "mirror_email" {
+  value = google_service_account.mirror.email
+}
+
 output "gke_nodes_email" {
   value = google_service_account.gke_nodes.email
 }

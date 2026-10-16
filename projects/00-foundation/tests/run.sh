@@ -20,7 +20,7 @@ check "every kube-system pod is Running or Completed" \
 vms=$(gcloud compute instances list --format='value(name,networkInterfaces[0].accessConfigs[0].natIP)')
 check "no VM has an external IP" "$(awk 'NF > 1' <<< "$vms")"
 
-ip=$(gcloud container clusters describe ai-platform --location="${ZONE:-us-central1-a}" \
+ip=$(gcloud container clusters describe ai-platform --location="${ZONE:-us-central1-c}" \
   --format='value(controlPlaneEndpointsConfig.ipEndpointsConfig.enabled)' | tr '[:upper:]' '[:lower:]')
 check "control plane: IP endpoints off" "$([ "$ip" = false ] || echo "enabled=${ip:-unset}")"
 

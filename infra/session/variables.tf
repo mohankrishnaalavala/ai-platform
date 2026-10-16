@@ -21,7 +21,7 @@ variable "session" {
 variable "zone" {
   description = "Zone with L4 GPUs. If spot capacity runs out, try another."
   type        = string
-  default     = "us-central1-a"
+  default     = "us-central1-c" # where a spot L4 last started (2026-10-16)
 
   validation {
     condition     = can(regex("^us-central1-[abc]$", var.zone))
@@ -33,4 +33,15 @@ variable "gpu_spot" {
   description = "Use spot VMs for the GPU pool. Set false if spot capacity isn't available."
   type        = bool
   default     = true
+}
+
+variable "autoscaling_profile" {
+  description = "Cluster autoscaler profile. OPTIMIZE_UTILIZATION removes idle nodes sooner (cold-start runs)."
+  type        = string
+  default     = "BALANCED"
+
+  validation {
+    condition     = contains(["BALANCED", "OPTIMIZE_UTILIZATION"], var.autoscaling_profile)
+    error_message = "autoscaling_profile must be BALANCED or OPTIMIZE_UTILIZATION."
+  }
 }

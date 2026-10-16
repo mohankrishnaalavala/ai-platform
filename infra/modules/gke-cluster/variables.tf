@@ -53,3 +53,8 @@ variable "node_labels" {
   description = "Labels on the node VMs and their boot disks (app, layer, owner, session)."
   type        = map(string)
 }
+
+variable "autoscaling_profile" {
+  description = "Cluster autoscaler profile: BALANCED or OPTIMIZE_UTILIZATION."
+  type        = string
+}
