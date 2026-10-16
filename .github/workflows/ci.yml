@@ -43,8 +43,12 @@ jobs:
         run: docker run --rm -v "$PWD:/io" -w /io ghcr.io/astral-sh/ruff:0.16.9@sha256:fd4a00e8f586c07495822a1c93702737b9a98d826b76d460caa514df7794f259 check .
 
       # Standard library only, so the runner's Python needs nothing installed.
+      # Every folder with test_*.py. Tests that need a session cluster skip themselves.
       - name: unit tests
-        run: python3 -m unittest discover -s scripts -v
+        run: |
+          for d in $(git ls-files '*test_*.py' | xargs -n1 dirname | sort -u); do
+            python3 -m unittest discover -s "$d" -v
+          done
 
       - name: install helm
         run: |

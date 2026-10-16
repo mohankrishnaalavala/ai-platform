@@ -37,6 +37,7 @@ session_vars = -var="project_id=$(PROJECT)" -var="owner=$(OWNER)" -var="session=
 
 help:
 	@echo "make up | down | status        session cluster (cloud, costs money while up)"
+	@echo "make up LAYERS=01               also deploy those layers (each project's deploy.sh)"
 	@echo "make test P=00                 run one project's tests"
 	@echo "make foundation-plan | -apply  the always-on foundation, as the terraform service account"
 	@echo "make park CONFIRM=yes          empty Artifact Registry and the buckets (keeps Terraform state)"
@@ -47,10 +48,13 @@ check-project:
 		|| { echo "the ai-platform gcloud configuration does not point at the platform project"; exit 1; }
 
 up: check-project
-	@[ -z "$(LAYERS)" ] || { echo "deploying LAYERS starts in P1"; exit 1; }
 	$(call tf,deployer,session) apply -input=false -auto-approve $(session_vars)
 	gcloud container clusters get-credentials ai-platform --location=$(ZONE) --dns-endpoint
 	kubectl get nodes
+	@for l in $(LAYERS); do d=$$(ls -d projects/$$l-*/ 2>/dev/null | head -1); \
+		[ -f "$${d}deploy.sh" ] || { echo "no deploy.sh for layer $$l"; exit 1; }; \
+		ZONE=$(ZONE) bash "$${d}deploy.sh" || exit 1; \
+	done
 
 # Helm releases and PVCs go first: a PVC left behind becomes a persistent disk that keeps billing.
 # Releases go newest first, so vLLM's ScaledObject is removed while KEDA can still clear its finalizer.
