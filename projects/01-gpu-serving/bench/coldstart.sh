@@ -97,6 +97,7 @@ print(time.time())' "$hf")
     removal_wait_s="$removal" scaled_by="$scaled_by" vllm_pods_seen="$seen" \
     machine="$(jq -r '.metadata.labels["node.kubernetes.io/instance-type"]' "$out/node.json")" \
     spot="$(jq -r '.metadata.labels["cloud.google.com/gke-spot"] // "false"' "$out/node.json")" \
+    gpu_zone="$(jq -r '.metadata.labels["topology.kubernetes.io/zone"]' "$out/node.json")" cluster_zone="$ZONE" \
     gke="$(jq -r .status.nodeInfo.kubeletVersion "$out/node.json")" > "$out/$variant-$n.json"
   cat "$out/$variant-$n.json"
   for f in pod events node; do scrub "$out/$f.json" "$out/$variant-$n-$f.json"; done

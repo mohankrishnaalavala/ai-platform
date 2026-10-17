@@ -11,6 +11,8 @@ data "terraform_remote_state" "foundation" {
 
 locals {
   foundation = data.terraform_remote_state.foundation.outputs
+  # Every us-central1 zone with L4 GPUs; the GPU pools may use any of them.
+  l4_zones = ["us-central1-a", "us-central1-b", "us-central1-c"]
   # On every resource that takes labels, including node VMs and disks (make status, cost-guard).
   labels = {
     app     = "ai-platform"
@@ -41,6 +43,7 @@ module "gpu_pool" {
 
   cluster              = module.cluster.name
   zone                 = var.zone
+  node_locations       = local.l4_zones
   node_service_account = local.foundation.gke_nodes_email
   spot                 = var.gpu_spot
   node_labels          = local.labels
@@ -55,6 +58,7 @@ module "gpu_baseline_pool" {
   name                 = "gpu-baseline"
   cluster              = module.cluster.name
   zone                 = var.zone
+  node_locations       = local.l4_zones
   node_service_account = local.foundation.gke_nodes_email
   spot                 = var.gpu_spot
   max_nodes            = 1

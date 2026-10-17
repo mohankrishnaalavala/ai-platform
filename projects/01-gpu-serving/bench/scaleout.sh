@@ -96,9 +96,13 @@ kubectl get events -n vllm -o json | jq '[.items[] | select(.involvedObject.name
   | {reason, object: .involvedObject.name, message, first: .firstTimestamp, last: (.lastTimestamp // .eventTime)}]' \
   > "$out/scaleout-events.json"
 # Failures here must not stop the upload below: the series and the verdict matter more.
-mig=$(gcloud container node-pools describe gpu --cluster=ai-platform --location="$ZONE" --format='value(instanceGroupUrls[0].basename())' || true)
-gcloud compute instance-groups managed list-errors "$mig" --zone="$ZONE" --format=json > "$out/gpu-group-errors.json" \
-  || echo '"could not list the GPU group errors"' > "$out/gpu-group-errors.json"
+# The GPU pool has one node group per zone (.../zones/<zone>/instanceGroupManagers/<name>).
+urls=$(gcloud container node-pools describe gpu --cluster=ai-platform --location="$ZONE" --format='value(instanceGroupUrls)' | tr ';' ' ' || true)
+for url in $urls; do
+  z=${url#*/zones/}; z=${z%%/*}
+  echo "== $z"
+  gcloud compute instance-groups managed list-errors "${url##*/}" --zone="$z" --format=json || echo '"could not list"'
+done > "$out/gpu-group-errors.txt"
 second=$(kubectl get pods -n vllm -l app.kubernetes.io/name=vllm --sort-by=.metadata.creationTimestamp -o name | sed -n 2p)
 if [ -n "$second" ] && [ "$(kubectl get -n vllm "$second" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')" = True ]; then
   # Proof that replica 2 served traffic: its own request counter, read until it moves (up to 60 s).
@@ -113,7 +117,7 @@ print(int(sum(float(l.split()[-1]) for l in m.splitlines() if l.startswith("vllm
   done
   verdict="replica 2: ready; it had served $served requests at $(date -u +%FT%TZ)"
 else
-  verdict="replica 2: NOT ready (pod ${second:-not created}, phase $(kubectl get -n vllm "${second:-pod/none}" -o jsonpath='{.status.phase}' 2>/dev/null || echo none)); see scaleout-events.json and gpu-group-errors.json"
+  verdict="replica 2: NOT ready (pod ${second:-not created}, phase $(kubectl get -n vllm "${second:-pod/none}" -o jsonpath='{.status.phase}' 2>/dev/null || echo none)); see scaleout-events.json and gpu-group-errors.txt"
 fi
 echo "$verdict" | tee "$out/verdict.txt"
 for f in "$out"/*; do sed -i.bak "s/$project/<project>/g" "$f" && rm -f "$f.bak"; done

@@ -16,10 +16,14 @@ on:
         options: [shakedown, full]
         default: shakedown
       zone:
-        description: Zone with L4 GPUs (try another if spot capacity runs out)
+        description: Zone of the cluster (GPU nodes may start in any us-central1 zone with L4s)
         type: choice
         options: [us-central1-c, us-central1-a, us-central1-b]
         default: us-central1-c
+      spot:
+        description: Spot GPU nodes (cheaper); untick for on-demand (costs more; the L4 quota is 1 either way) if spot L4s run out in every zone
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -49,6 +53,7 @@ jobs:
       FP8: config/models/qwen2.5-7b-fp8.yaml
       # The full run's cold starts wait for idle GPU nodes to go; this profile removes them sooner.
       PROFILE: ${{ inputs.mode == 'full' && 'OPTIMIZE_UTILIZATION' || 'BALANCED' }}
+      SPOT: ${{ inputs.spot }}
       # Every measurement ends by this many minutes after the job starts, leaving time for diagnostics.
       MEASURE_MINUTES: ${{ inputs.mode == 'full' && 330 || 130 }}
     steps:

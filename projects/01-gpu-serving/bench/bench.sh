@@ -35,13 +35,17 @@ machine=$(jq -r '.metadata.labels["node.kubernetes.io/instance-type"]' <<< "$nod
 gpu=$(jq -r '.metadata.labels["cloud.google.com/gke-accelerator"]' <<< "$node_json")
 spot=$(jq -r '.metadata.labels["cloud.google.com/gke-spot"] // "false"' <<< "$node_json")
 gke=$(jq -r '.status.nodeInfo.kubeletVersion' <<< "$node_json")
+gpu_zone=$(jq -r '.metadata.labels["topology.kubernetes.io/zone"]' <<< "$node_json")
+# The client's zone too: GPU nodes may start in another zone than the system node, which adds latency.
+client_zone=$(kubectl get nodes -l cloud.google.com/gke-nodepool="${BENCH_POOL:-system}" \
+  -o jsonpath='{.items[0].metadata.labels.topology\.kubernetes\.io/zone}')
 image=$(kubectl get deployment vllm -n vllm -o jsonpath='{.spec.template.spec.containers[0].image}')
 # Only the digest goes into the results: the registry path contains the project ID.
 digest=${image##*@}
 [[ "$digest" == sha256:* ]] || { echo "the vLLM image isn't pinned by digest"; exit 1; }
 hash=$(python3 "$here/../../../scripts/config_hash.py" "$config")
 results="gs://$project-results/p1/$hash/$session/bench/$(date -u +%Y%m%dt%H%M%Sz)"
-meta="config=$name config_hash=$hash revision=$rev session=$session machine=$machine gpu=$gpu spot=$spot vllm_image=$digest gke=$gke"
+meta="config=$name config_hash=$hash revision=$rev session=$session machine=$machine gpu=$gpu gpu_zone=$gpu_zone client_zone=$client_zone spot=$spot vllm_image=$digest gke=$gke"
 labels="app=ai-platform layer=01 owner=$owner session=$session"
 
 cleanup() { kubectl delete job bench -n vllm --ignore-not-found --wait=false; kubectl delete configmap bench-scripts -n vllm --ignore-not-found; }
