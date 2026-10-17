@@ -37,4 +37,8 @@ case "${VARIANT:-optimized}" in
 esac
 helm upgrade --install vllm "$here/helm/vllm" -n vllm "${args[@]}"
 # A cold GPU node, the image and 15 GB of weights: this can take a while.
-kubectl rollout status deployment/vllm -n vllm --timeout=40m
+kubectl rollout status deployment/vllm -n vllm --timeout=40m || {
+  # Say why: a GPU stockout or quota shows in the pod's events (FailedScaleUp), not in the rollout.
+  kubectl get events -n vllm --sort-by=.lastTimestamp | tail -30
+  exit 1
+}

@@ -16,6 +16,8 @@ ZONE ?= us-central1-c
 LAYERS ?=
 # Cluster autoscaler profile (BALANCED or OPTIMIZE_UTILIZATION); empty keeps Terraform's default.
 PROFILE ?=
+# Spot GPU nodes (true) or on-demand (false); empty keeps Terraform's default (spot).
+SPOT ?=
 P ?= 00
 SESSION := $(shell date -u +%Y%m%dt%H%Mz)
 
@@ -31,7 +33,7 @@ OWNER = $(eval OWNER := $(shell $(gcloud_shell) projects describe $(PROJECT) --f
 as = export GOOGLE_OAUTH_ACCESS_TOKEN="$$(gcloud auth print-access-token $(if $(GITHUB_ACTIONS),,--impersonate-service-account=$(1)@$(PROJECT).iam.gserviceaccount.com))" && [ -n "$$GOOGLE_OAUTH_ACCESS_TOKEN" ] &&
 tf = $(call as,$(1)) terraform -chdir=infra/$(2) init -input=false -reconfigure -backend-config="bucket=$(PROJECT)-tfstate" >/dev/null && terraform -chdir=infra/$(2)
 session_vars = -var="project_id=$(PROJECT)" -var="owner=$(OWNER)" -var="session=$(SESSION)" -var="zone=$(ZONE)" \
-	$(if $(PROFILE),-var="autoscaling_profile=$(PROFILE)")
+	$(if $(PROFILE),-var="autoscaling_profile=$(PROFILE)") $(if $(SPOT),-var="gpu_spot=$(SPOT)")
 
 .PHONY: help check-project up down status test bench park foundation-plan foundation-apply
 

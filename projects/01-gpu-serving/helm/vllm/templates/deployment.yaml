@@ -12,6 +12,9 @@ spec:
   # second GPU that the quota doesn't allow.
   strategy:
     type: Recreate
+  # A cold GPU node, the image and 15 GB of weights can take longer than the default 10 minutes.
+  # Longer than deploy.sh's 40-minute wait, so that wait reports the timeout.
+  progressDeadlineSeconds: 2700
   selector:
     matchLabels:
       app.kubernetes.io/name: vllm

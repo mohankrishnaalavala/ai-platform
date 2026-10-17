@@ -33,7 +33,8 @@ def summary(runs, scenarios, concurrencies):
     lines += [
         f"- Config: `{first['config']}`, hash `{first['config_hash']}`, model revision `{first['revision']}`",
         f"- Session: {first['session']}, date: {first.get('date', '[X]')}",
-        f"- Hardware: {first['machine']}, 1x {first['gpu']}, spot: {first['spot']}",
+        (f"- Hardware: {first['machine']}, 1x {first['gpu']}, spot: {first['spot']}; GPU zone "
+         f"{first.get('gpu_zone', '[X]')}, client zone {first.get('client_zone', '[X]')}"),
         f"- Software: vLLM {first['vllm_version']} (image `{first['vllm_image']}`), GKE {first['gke']}",
         ("- Method: `vllm bench serve` as a Job inside the cluster; random prompts of fixed length "
          f"({lengths}); prompts = max(20, 10 x concurrency) after max(2, concurrency) warm-up requests; seed 0"),

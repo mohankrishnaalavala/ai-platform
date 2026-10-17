@@ -40,3 +40,8 @@ variable "image_streaming" {
   type        = bool
   default     = true
 }
+
+variable "node_locations" {
+  description = "Zones the pool's nodes may start in (same region as the cluster)."
+  type        = list(string)
+}

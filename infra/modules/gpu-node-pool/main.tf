@@ -1,14 +1,18 @@
-# NVIDIA L4 pool that scales from 0, so no GPU VM exists until a pod asks for one.
+# NVIDIA L4 pool that scales from 0, so no GPU VM exists until a pod asks for one. Its nodes may
+# start in any of node_locations: spot L4s run out zone by zone, so the autoscaler takes a free one.
 # GKE installs the driver and adds the accelerator label itself.
 resource "google_container_node_pool" "this" {
   name               = var.name
   cluster            = var.cluster
   location           = var.zone
+  node_locations     = var.node_locations
   initial_node_count = 0
 
+  # Totals across the zones (the per-zone min/max would allow one node per zone).
   autoscaling {
-    min_node_count = 0 # never change: an idle GPU node is the biggest cost risk
-    max_node_count = var.max_nodes
+    total_min_node_count = 0 # never change: an idle GPU node is the biggest cost risk
+    total_max_node_count = var.max_nodes
+    location_policy      = "ANY" # any zone with a GPU free, not spread evenly
   }
 
   node_config {
