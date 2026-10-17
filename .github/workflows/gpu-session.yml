@@ -3,6 +3,7 @@
 # Runs from main only: the WIF provider trusts no other branch.
 #   shakedown: smoke tests, one short benchmark and one node-removal timing (estimate: 1-1.5 h)
 #   full:      every benchmark (BF16 and FP8), the scale-out test, 3+3 cold starts (estimate: 3.5-5 h)
+#   bf16-bench: only the BF16 benchmarks, to redo a run that was invalid (estimate: 1-1.5 h)
 # Results go to the results bucket as each step finishes, so a run that ends early keeps them.
 # Teardown is its own job with its own time limit, so it runs in full even after the session job
 # fails, times out or is cancelled. cost-guard (nightly, clusters older than 8 h) is the backstop.
@@ -13,7 +14,7 @@ on:
       mode:
         description: What to run
         type: choice
-        options: [shakedown, full]
+        options: [shakedown, full, bf16-bench]
         default: shakedown
       zone:
         description: Zone of the cluster (GPU nodes may start in any us-central1 zone with L4s)
@@ -127,8 +128,8 @@ jobs:
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'shakedown' }}
         run: CONFIG=$BF16 timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) projects/01-gpu-serving/bench/coldstart.sh removal
 
-      - name: "full: BF16 benchmarks"
-        if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'full' }}
+      - name: "full or bf16-bench: BF16 benchmarks"
+        if: ${{ !cancelled() && steps.up.outcome == 'success' && (inputs.mode == 'full' || inputs.mode == 'bf16-bench') }}
         run: CONFIG=$BF16 timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) make bench
 
       - name: "full: FP8 benchmarks"
