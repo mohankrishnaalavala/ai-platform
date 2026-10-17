@@ -24,11 +24,19 @@ check "KEDA's metrics API is available" "$([ "$api" = True ] || echo "Available=
 ready=$(kubectl get scaledobject vllm -n vllm -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' || true)
 check "the ScaledObject is ready" "$([ "$ready" = True ] || echo "Ready=${ready:-missing}")"
 metric=$(kubectl get --raw "/apis/external.metrics.k8s.io/v1beta1/namespaces/vllm/s0-prometheus?labelSelector=scaledobject.keda.sh%2Fname%3Dvllm" 2>&1 || true)
-check "KEDA reads the queue length from Prometheus" "$(jq -e '.items[0].value' <<< "$metric" >/dev/null 2>&1 || echo "no value: ${metric:0:200}")"
-# Through the pod, not the API server's service proxy: the control plane can't reach port 9090.
-up=$(kubectl exec -n monitoring statefulset/prometheus-prometheus-kube-prometheus-prometheus -c prometheus -- \
-  wget -qO- 'http://localhost:9090/api/v1/query?query=up%7Bnamespace%3D%22vllm%22%7D' 2>/dev/null | jq -r '.data.result[].value[1]' | sort -u || true)
-check "Prometheus scrapes vLLM" "$([ "$up" = 1 ] || echo "up=${up:-no target}")"
+check "KEDA's queue-length metric answers" "$(jq -e '.items[0].value' <<< "$metric" >/dev/null 2>&1 || echo "no value: ${metric:0:200}")"
+# A port-forward, not the API server's service proxy (the control plane can't reach port 9090) and
+# not exec (the Prometheus image is distroless: no shell, no wget).
+kubectl port-forward -n monitoring svc/prometheus-operated 19090:9090 >/dev/null &
+pf2=$!
+trap 'kill $pf $pf2 2>/dev/null' EXIT
+for _ in $(seq 30); do curl -sf http://localhost:19090/-/ready >/dev/null && break; sleep 1; done
+query() { curl -sS --get http://localhost:19090/api/v1/query --data-urlencode "query=$1" 2>&1 || true; }
+up=$(query 'up{namespace="vllm"}')
+check "Prometheus scrapes vLLM" "$([ "$(jq -r '.data.result[].value[1]' <<< "$up" 2>/dev/null | sort -u)" = 1 ] || echo "${up:0:300}")"
+# KEDA counts an empty result as 0, so also check that the series it scales on exists.
+waiting=$(query 'vllm:num_requests_waiting{namespace="vllm"}')
+check "Prometheus has vLLM's queue length" "$(jq -e '.data.result | length > 0' <<< "$waiting" >/dev/null 2>&1 || echo "${waiting:0:300}")"
 
 if [ $fail -ne 0 ]; then echo "some P1 checks failed"; exit 1; fi
 echo "all P1 checks passed"
