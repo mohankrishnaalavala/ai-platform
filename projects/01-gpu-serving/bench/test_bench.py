@@ -1,10 +1,12 @@
-"""Unit tests for summary.py, upload.py and timings.py. Run: python3 -m unittest discover -s projects/01-gpu-serving/bench"""
+"""Unit tests for summary.py, upload.py, timings.py and cost.py. Run: python3 -m unittest discover -s projects/01-gpu-serving/bench"""
 import io
+import json
 import os
 import unittest
 import urllib.error
 from unittest import mock
 
+import cost
 import summary
 import timings
 import upload
@@ -106,6 +108,42 @@ class TimingsTest(unittest.TestCase):
             p = timings.phases(*args, T0, T0 + 335)
             self.assertFalse(p["valid"])
             self.assertEqual(len(p["problems"]), 1)
+
+
+# Synthetic prices and run (round numbers to check the arithmetic), not real prices or results.
+RUN = {"scenario": "chat", "max_concurrency": 32, "config_hash": "0" * 16, "failed": 0,
+       "output_throughput": 500.0, "duration": 100.0, "total_input_tokens": 400_000, "total_output_tokens": 50_000}
+
+
+def prices(spot=0.36):
+    with open(os.path.join(os.path.dirname(__file__), "prices.json")) as f:
+        p = json.load(f)
+    p["gpu_node"].update(spot_per_hour=spot, on_demand_per_hour=None, date="2026-10-16")
+    p["hosted"][0].update(input_per_1m=0.1, output_per_1m=0.4, source="https://example.test", date="2026-10-16")
+    return p
+
+
+class CostTest(unittest.TestCase):
+    def test_cost_per_million_and_break_even(self):
+        text = cost.report(prices(), [RUN])
+        # 0.36 $/h / (500 tok/s x 3600) x 1e6 = $0.20; hosted: (0.04 + 0.02) $ per 100 s = $2.16/h; 0.36 / 2.16
+        self.assertIn("| GPU node only | $0.20 | [X] |", text)
+        self.assertIn("| Qwen2.5-7B-Instruct, pay per token (host to be chosen) | $2.16 | 17% | [X] |", text)
+
+    def test_missing_prices_print_x_never_a_number(self):
+        text = cost.report(prices(spot=None), [RUN])
+        self.assertIn("| GPU node only | [X] | [X] |", text)
+        self.assertIn("| Claude Haiku (current version) | [X] | [X] | [X] |", text)
+
+    def test_a_price_without_source_or_date_counts_as_missing(self):
+        p = prices()
+        p["gpu_node"]["date"] = None
+        self.assertIn("| GPU node only | [X] | [X] |", cost.report(p, [RUN]))
+
+    def test_invalid_or_partial_load_runs_are_refused(self):
+        for run in [dict(RUN, failed=3), dict(RUN, max_concurrency=8), dict(RUN, output_throughput=0)]:
+            with self.assertRaises(SystemExit):
+                cost.report(prices(), [run])
 
 
 if __name__ == "__main__":
