@@ -1,0 +1,1 @@
+vLLM pod changed during the run (before: 38a0e389-ef06-4986-b20a-e145d6495a4c gke-ai-platform-gpu-42cbf5fc-fhf8 0; after: gone): spot interruption? Re-run.

@@ -1,0 +1,303 @@
+[
+  {
+    "reason": "SuccessfulRescale",
+    "object": "keda-hpa-vllm",
+    "message": "New size: 2; reason: external metric s0-prometheus(&LabelSelector{MatchLabels:map[string]string{scaledobject.keda.sh/name: vllm,},MatchExpressions:[]LabelSelectorRequirement{},}) above target",
+    "first": "2026-10-17T05:32:51Z",
+    "last": "2026-10-17T05:57:24Z"
+  },
+  {
+    "reason": "SuccessfulRescale",
+    "object": "keda-hpa-vllm",
+    "message": "New size: 1; reason: external metric s0-prometheus(&LabelSelector{MatchLabels:map[string]string{scaledobject.keda.sh/name: vllm,},MatchExpressions:[]LabelSelectorRequirement{},}) below target",
+    "first": "2026-10-17T05:37:51Z",
+    "last": "2026-10-17T05:51:08Z"
+  },
+  {
+    "reason": "FailedScheduling",
+    "object": "vllm-56bc47dfbd-kgvql",
+    "message": "0/2 nodes are available: 1 Insufficient memory, 1 Insufficient nvidia.com/gpu, 1 node(s) didn't match Pod's node affinity/selector. no new claims to deallocate, preemption: 0/2 nodes are available: 1 No preemption victims found for incoming pod, 1 Preemption is not helpful for scheduling.",
+    "first": "2026-10-17T05:32:51Z",
+    "last": "2026-10-17T05:32:51Z"
+  },
+  {
+    "reason": "TriggeredScaleUp",
+    "object": "vllm-56bc47dfbd-kgvql",
+    "message": "Pod triggered scale-up: [{https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-b/instanceGroups/gke-ai-platform-gpu-0a016820-grp 0->1 (max: 1)}]",
+    "first": "2026-10-17T05:32:55Z",
+    "last": "2026-10-17T05:32:55Z"
+  },
+  {
+    "reason": "FailedScaleUp",
+    "object": "vllm-56bc47dfbd-kgvql",
+    "message": "Node scale up in zones us-central1-b associated with this pod failed: GCE quota exceeded. Pod is at risk of not being scheduled.",
+    "first": "2026-10-17T05:33:07Z",
+    "last": "2026-10-17T05:33:07Z"
+  },
+  {
+    "reason": "NotTriggerScaleUp",
+    "object": "vllm-56bc47dfbd-kgvql",
+    "message": "Pod didn't trigger scale-up: 3 in backoff after failed scale-up, 3 node(s) didn't match Pod's node affinity/selector",
+    "first": "2026-10-17T05:33:35Z",
+    "last": "2026-10-17T05:33:35Z"
+  },
+  {
+    "reason": "FailedScheduling",
+    "object": "vllm-56bc47dfbd-kxcxk",
+    "message": "0/2 nodes are available: 1 Insufficient memory, 1 Insufficient nvidia.com/gpu, 1 node(s) didn't match Pod's node affinity/selector. no new claims to deallocate, preemption: 0/2 nodes are available: 1 No preemption victims found for incoming pod, 1 Preemption is not helpful for scheduling.",
+    "first": "2026-10-17T05:57:24Z",
+    "last": "2026-10-17T06:02:25Z"
+  },
+  {
+    "reason": "TriggeredScaleUp",
+    "object": "vllm-56bc47dfbd-kxcxk",
+    "message": "Pod triggered scale-up: [{https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-b/instanceGroups/gke-ai-platform-gpu-0a016820-grp 0->1 (max: 1)}]",
+    "first": "2026-10-17T05:57:27Z",
+    "last": "2026-10-17T05:57:27Z"
+  },
+  {
+    "reason": "FailedScaleUp",
+    "object": "vllm-56bc47dfbd-kxcxk",
+    "message": "Node scale up in zones us-central1-b associated with this pod failed: GCE quota exceeded. Pod is at risk of not being scheduled.",
+    "first": "2026-10-17T05:57:42Z",
+    "last": "2026-10-17T05:57:42Z"
+  },
+  {
+    "reason": "NotTriggerScaleUp",
+    "object": "vllm-56bc47dfbd-kxcxk",
+    "message": "Pod didn't trigger scale-up: 3 node(s) didn't match Pod's node affinity/selector, 3 in backoff after failed scale-up",
+    "first": "2026-10-17T05:58:10Z",
+    "last": "2026-10-17T06:03:13Z"
+  },
+  {
+    "reason": "FailedScheduling",
+    "object": "vllm-56bc47dfbd-n9ws2",
+    "message": "0/2 nodes are available: 1 Insufficient memory, 1 Insufficient nvidia.com/gpu, 1 node(s) didn't match Pod's node affinity/selector. no new claims to deallocate, preemption: 0/2 nodes are available: 1 No preemption victims found for incoming pod, 1 Preemption is not helpful for scheduling.",
+    "first": "2026-10-17T05:46:08Z",
+    "last": "2026-10-17T05:46:08Z"
+  },
+  {
+    "reason": "NotTriggerScaleUp",
+    "object": "vllm-56bc47dfbd-n9ws2",
+    "message": "Pod didn't trigger scale-up: 3 node(s) didn't match Pod's node affinity/selector, 3 in backoff after failed scale-up",
+    "first": "2026-10-17T05:46:08Z",
+    "last": "2026-10-17T05:46:08Z"
+  },
+  {
+    "reason": "NotTriggerScaleUp",
+    "object": "vllm-56bc47dfbd-n9ws2",
+    "message": "Pod didn't trigger scale-up: 3 in backoff after failed scale-up, 3 node(s) didn't match Pod's node affinity/selector",
+    "first": "2026-10-17T05:47:12Z",
+    "last": "2026-10-17T05:51:09Z"
+  },
+  {
+    "reason": "FailedScheduling",
+    "object": "vllm-56bc47dfbd-pgstm",
+    "message": "0/2 nodes are available: 1 node(s) didn't match Pod's node affinity/selector, 1 node(s) had untolerated taint(s). no new claims to deallocate, preemption: 0/2 nodes are available: 2 Preemption is not helpful for scheduling.",
+    "first": "2026-10-17T05:06:37Z",
+    "last": "2026-10-17T05:07:49Z"
+  },
+  {
+    "reason": "NotTriggerScaleUp",
+    "object": "vllm-56bc47dfbd-pgstm",
+    "message": "Pod didn't trigger scale-up: 3 node(s) didn't match Pod's node affinity/selector, 3 in backoff after failed scale-up",
+    "first": "2026-10-17T05:06:37Z",
+    "last": "2026-10-17T05:06:37Z"
+  },
+  {
+    "reason": "FailedScheduling",
+    "object": "vllm-56bc47dfbd-pgstm",
+    "message": "0/2 nodes are available: 1 Insufficient nvidia.com/gpu, 1 node(s) didn't match Pod's node affinity/selector. no new claims to deallocate, preemption: 0/2 nodes are available: 2 Preemption is not helpful for scheduling.",
+    "first": "2026-10-17T05:07:50Z",
+    "last": "2026-10-17T05:07:53Z"
+  },
+  {
+    "reason": "TriggeredScaleUp",
+    "object": "vllm-56bc47dfbd-pgstm",
+    "message": "Pod triggered scale-up: [{https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-c/instanceGroups/gke-ai-platform-gpu-a15555ac-grp 0->1 (max: 1)}]",
+    "first": "2026-10-17T05:08:00Z",
+    "last": "2026-10-17T05:08:00Z"
+  },
+  {
+    "reason": "FailedScaleUp",
+    "object": "vllm-56bc47dfbd-pgstm",
+    "message": "Node scale up in zones us-central1-c associated with this pod failed: GCE quota exceeded. Pod is at risk of not being scheduled.",
+    "first": "2026-10-17T05:08:18Z",
+    "last": "2026-10-17T05:08:18Z"
+  },
+  {
+    "reason": "Scheduled",
+    "object": "vllm-56bc47dfbd-pgstm",
+    "message": "Successfully assigned vllm/vllm-56bc47dfbd-pgstm to gke-ai-platform-gpu-42cbf5fc-fhf8",
+    "first": "2026-10-17T05:08:35Z",
+    "last": "2026-10-17T05:08:35Z"
+  },
+  {
+    "reason": "Pulling",
+    "object": "vllm-56bc47dfbd-pgstm",
+    "message": "Pulling image \"us-central1-artifactregistry.gcr.io/gke-release/gke-release/gcs-fuse-csi-driver-sidecar-mounter:v1.23.33-gke.8@sha256:6ca3e7a9ece8d6da6da6d29fa43ff1031134cc2ca4569e572eb3ae79ca729d0b\"",
+    "first": "2026-10-17T05:08:36Z",
+    "last": "2026-10-17T05:08:36Z"
+  },
+  {
+    "reason": "Pulled",
+    "object": "vllm-56bc47dfbd-pgstm",
+    "message": "Successfully pulled image \"us-central1-artifactregistry.gcr.io/gke-release/gke-release/gcs-fuse-csi-driver-sidecar-mounter:v1.23.33-gke.8@sha256:6ca3e7a9ece8d6da6da6d29fa43ff1031134cc2ca4569e572eb3ae79ca729d0b\" in 618ms (618ms including waiting). Image size: 41851104 bytes.",
+    "first": "2026-10-17T05:08:37Z",
+    "last": "2026-10-17T05:08:37Z"
+  },
+  {
+    "reason": "Created",
+    "object": "vllm-56bc47dfbd-pgstm",
+    "message": "Container created",
+    "first": "2026-10-17T05:08:37Z",
+    "last": "2026-10-17T05:08:37Z"
+  },
+  {
+    "reason": "Started",
+    "object": "vllm-56bc47dfbd-pgstm",
+    "message": "Container started",
+    "first": "2026-10-17T05:08:37Z",
+    "last": "2026-10-17T05:08:37Z"
+  },
+  {
+    "reason": "Pulling",
+    "object": "vllm-56bc47dfbd-pgstm",
+    "message": "Pulling image \"us-central1-docker.pkg.dev/<project>/images/vllm-openai@sha256:5f5e535216848d0c52159c8c13a0af04be5f6fe1a84e79914300610796f76d40\"",
+    "first": "2026-10-17T05:08:37Z",
+    "last": "2026-10-17T05:08:37Z"
+  },
+  {
+    "reason": "Pulled",
+    "object": "vllm-56bc47dfbd-pgstm",
+    "message": "Successfully pulled image \"us-central1-docker.pkg.dev/<project>/images/vllm-openai@sha256:5f5e535216848d0c52159c8c13a0af04be5f6fe1a84e79914300610796f76d40\" in 3.949s (3.949s including waiting). Image size: 8730576300 bytes.",
+    "first": "2026-10-17T05:08:41Z",
+    "last": "2026-10-17T05:08:41Z"
+  },
+  {
+    "reason": "Created",
+    "object": "vllm-56bc47dfbd-pgstm",
+    "message": "Container created",
+    "first": "2026-10-17T05:08:41Z",
+    "last": "2026-10-17T05:08:41Z"
+  },
+  {
+    "reason": "Started",
+    "object": "vllm-56bc47dfbd-pgstm",
+    "message": "Container started",
+    "first": "2026-10-17T05:08:41Z",
+    "last": "2026-10-17T05:08:41Z"
+  },
+  {
+    "reason": "Unhealthy",
+    "object": "vllm-56bc47dfbd-pgstm",
+    "message": "Readiness probe failed: Get \"http://10.20.1.7:8000/health\": dial tcp 10.20.1.7:8000: connect: connection refused",
+    "first": "2026-10-17T05:08:41Z",
+    "last": "2026-10-17T05:13:44Z"
+  },
+  {
+    "reason": "FailedScheduling",
+    "object": "vllm-56bc47dfbd-vc5jt",
+    "message": "0/2 nodes are available: 1 Insufficient memory, 1 Insufficient nvidia.com/gpu, 1 node(s) didn't match Pod's node affinity/selector. no new claims to deallocate, preemption: 0/2 nodes are available: 1 No preemption victims found for incoming pod, 1 Preemption is not helpful for scheduling.",
+    "first": "2026-10-17T05:38:22Z",
+    "last": "2026-10-17T05:38:22Z"
+  },
+  {
+    "reason": "NotTriggerScaleUp",
+    "object": "vllm-56bc47dfbd-vc5jt",
+    "message": "Pod didn't trigger scale-up: 3 node(s) didn't match Pod's node affinity/selector, 3 in backoff after failed scale-up",
+    "first": "2026-10-17T05:38:22Z",
+    "last": "2026-10-17T05:38:22Z"
+  },
+  {
+    "reason": "SuccessfulCreate",
+    "object": "vllm-56bc47dfbd",
+    "message": "Created pod: vllm-56bc47dfbd-pgstm",
+    "first": "2026-10-17T05:06:37Z",
+    "last": "2026-10-17T05:06:37Z"
+  },
+  {
+    "reason": "SuccessfulCreate",
+    "object": "vllm-56bc47dfbd",
+    "message": "Created pod: vllm-56bc47dfbd-kgvql",
+    "first": "2026-10-17T05:32:51Z",
+    "last": "2026-10-17T05:32:51Z"
+  },
+  {
+    "reason": "SuccessfulDelete",
+    "object": "vllm-56bc47dfbd",
+    "message": "Deleted pod: vllm-56bc47dfbd-kgvql",
+    "first": "2026-10-17T05:37:51Z",
+    "last": "2026-10-17T05:37:51Z"
+  },
+  {
+    "reason": "SuccessfulCreate",
+    "object": "vllm-56bc47dfbd",
+    "message": "Created pod: vllm-56bc47dfbd-vc5jt",
+    "first": "2026-10-17T05:38:22Z",
+    "last": "2026-10-17T05:38:22Z"
+  },
+  {
+    "reason": "SuccessfulDelete",
+    "object": "vllm-56bc47dfbd",
+    "message": "Deleted pod: vllm-56bc47dfbd-vc5jt",
+    "first": "2026-10-17T05:43:22Z",
+    "last": "2026-10-17T05:43:22Z"
+  },
+  {
+    "reason": "SuccessfulCreate",
+    "object": "vllm-56bc47dfbd",
+    "message": "Created pod: vllm-56bc47dfbd-n9ws2",
+    "first": "2026-10-17T05:46:08Z",
+    "last": "2026-10-17T05:46:08Z"
+  },
+  {
+    "reason": "SuccessfulDelete",
+    "object": "vllm-56bc47dfbd",
+    "message": "Deleted pod: vllm-56bc47dfbd-n9ws2",
+    "first": "2026-10-17T05:51:08Z",
+    "last": "2026-10-17T05:51:08Z"
+  },
+  {
+    "reason": "SuccessfulCreate",
+    "object": "vllm-56bc47dfbd",
+    "message": "Created pod: vllm-56bc47dfbd-kxcxk",
+    "first": "2026-10-17T05:57:24Z",
+    "last": "2026-10-17T05:57:24Z"
+  },
+  {
+    "reason": "Unhealthy",
+    "object": "vllm-89c78f787-cfpjz",
+    "message": "Readiness probe failed: Get \"http://10.20.1.7:8000/health\": dial tcp 10.20.1.7:8000: connect: connection refused",
+    "first": "2026-10-17T05:04:49Z",
+    "last": "2026-10-17T05:06:34Z"
+  },
+  {
+    "reason": "TaintManagerEviction",
+    "object": "vllm-89c78f787-cfpjz",
+    "message": "Cancelling deletion of Pod vllm/vllm-89c78f787-cfpjz",
+    "first": "2026-10-17T05:07:41Z",
+    "last": "2026-10-17T05:07:41Z"
+  },
+  {
+    "reason": "ScalingReplicaSet",
+    "object": "vllm",
+    "message": "Scaled up replica set vllm-56bc47dfbd from 0 to 1",
+    "first": "2026-10-17T05:06:37Z",
+    "last": "2026-10-17T05:06:37Z"
+  },
+  {
+    "reason": "ScalingReplicaSet",
+    "object": "vllm",
+    "message": "Scaled up replica set vllm-56bc47dfbd from 1 to 2",
+    "first": "2026-10-17T05:32:51Z",
+    "last": "2026-10-17T05:57:24Z"
+  },
+  {
+    "reason": "ScalingReplicaSet",
+    "object": "vllm",
+    "message": "Scaled down replica set vllm-56bc47dfbd from 2 to 1",
+    "first": "2026-10-17T05:37:51Z",
+    "last": "2026-10-17T05:51:08Z"
+  }
+]
