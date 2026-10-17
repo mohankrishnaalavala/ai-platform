@@ -119,7 +119,9 @@ def prices(spot=0.36):
     with open(os.path.join(os.path.dirname(__file__), "prices.json")) as f:
         p = json.load(f)
     p["gpu_node"].update(spot_per_hour=spot, on_demand_per_hour=None, date="2026-10-16")
-    p["hosted"][0].update(input_per_1m=0.1, output_per_1m=0.4, source="https://example.test", date="2026-10-16")
+    # Fixed names and one unpriced API, so the tests don't depend on the real prices in the file.
+    p["hosted"][0].update(name="Hosted A", input_per_1m=0.1, output_per_1m=0.4, source="https://example.test", date="2026-10-16")
+    p["hosted"][1].update(name="Hosted B", input_per_1m=None, output_per_1m=None)
     return p
 
 
@@ -128,12 +130,12 @@ class CostTest(unittest.TestCase):
         text = cost.report(prices(), [RUN])
         # 0.36 $/h / (500 tok/s x 3600) x 1e6 = $0.20; hosted: (0.04 + 0.02) $ per 100 s = $2.16/h; 0.36 / 2.16
         self.assertIn("| GPU node only | $0.20 | [X] |", text)
-        self.assertIn("| Qwen2.5-7B-Instruct, pay per token (host to be chosen) | $2.16 | 17% | [X] |", text)
+        self.assertIn("| Hosted A | $2.16 | 17% | [X] |", text)
 
     def test_missing_prices_print_x_never_a_number(self):
         text = cost.report(prices(spot=None), [RUN])
         self.assertIn("| GPU node only | [X] | [X] |", text)
-        self.assertIn("| Claude Haiku (current version) | [X] | [X] | [X] |", text)
+        self.assertIn("| Hosted B | [X] | [X] | [X] |", text)
 
     def test_a_price_without_source_or_date_counts_as_missing(self):
         p = prices()
