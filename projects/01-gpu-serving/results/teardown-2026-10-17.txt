@@ -1,0 +1,47 @@
+make status at the end of each P1 gpu-session.yml run (the teardown job's last make status), 2026-10-17.
+Copied from the GitHub Actions logs with: gh run view <run> --log, teardown job only, timestamps kept. Project ID is masked (***) by GitHub.
+
+== run 38987993132 (started 2026-10-17T00:47:37Z, session job failure; shakedown run 1: spot L4 stockout in us-central1-c)
+2026-10-17T01:20:17.1625803Z container clusters:        none
+2026-10-17T01:20:18.0459289Z compute instances:         none
+2026-10-17T01:20:18.9215253Z compute disks:             none
+2026-10-17T01:20:19.7999066Z compute forwarding-rules:  none
+2026-10-17T01:20:20.6535982Z compute addresses:         none
+2026-10-17T01:20:21.4536638Z compute routers:           none
+2026-10-17T01:20:21.4537184Z nothing billable is running
+
+== run 38990828133 (started 2026-10-17T01:26:00Z, session job failure; shakedown run 2: vLLM crashed on VLLM_PORT)
+2026-10-17T02:38:29.7927355Z container clusters:        none
+2026-10-17T02:38:30.9175673Z compute instances:         none
+2026-10-17T02:38:32.1594157Z compute disks:             none
+2026-10-17T02:38:33.3707209Z compute forwarding-rules:  none
+2026-10-17T02:38:34.6038084Z compute addresses:         none
+2026-10-17T02:38:35.6741668Z compute routers:           none
+2026-10-17T02:38:35.6742406Z nothing billable is running
+
+== run 38996818017 (started 2026-10-17T02:55:47Z, session job failure; shakedown run 3: green except the Prometheus check)
+2026-10-17T03:53:10.0461636Z container clusters:        none
+2026-10-17T03:53:11.1133290Z compute instances:         none
+2026-10-17T03:53:12.1425138Z compute disks:             none
+2026-10-17T03:53:13.0869476Z compute forwarding-rules:  none
+2026-10-17T03:53:14.0782426Z compute addresses:         none
+2026-10-17T03:53:15.0301642Z compute routers:           none
+2026-10-17T03:53:15.0302754Z nothing billable is running
+
+== run 39002887059 (started 2026-10-17T04:31:27Z, session job failure; session 2, full run: BF16 benchmarks invalid, spot preemption)
+2026-10-17T07:38:36.8853206Z container clusters:        none
+2026-10-17T07:38:37.9959267Z compute instances:         none
+2026-10-17T07:38:39.0847485Z compute disks:             none
+2026-10-17T07:38:40.1178958Z compute forwarding-rules:  none
+2026-10-17T07:38:41.2269072Z compute addresses:         none
+2026-10-17T07:38:42.3255499Z compute routers:           none
+2026-10-17T07:38:42.3256821Z nothing billable is running
+
+== run 39028242900 (started 2026-10-17T11:19:13Z, session job success; session 3, bf16-bench on on-demand)
+2026-10-17T13:08:53.2431031Z container clusters:        none
+2026-10-17T13:08:54.2892330Z compute instances:         none
+2026-10-17T13:08:55.3388335Z compute disks:             none
+2026-10-17T13:08:56.4316679Z compute forwarding-rules:  none
+2026-10-17T13:08:57.5653999Z compute addresses:         none
+2026-10-17T13:08:58.6899899Z compute routers:           none
+2026-10-17T13:08:58.6900875Z nothing billable is running
