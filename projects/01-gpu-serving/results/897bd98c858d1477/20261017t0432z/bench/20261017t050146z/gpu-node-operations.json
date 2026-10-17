@@ -1,0 +1,102 @@
+[
+  {
+    "operationType": "insert",
+    "targetLink": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instances/gke-ai-platform-gpu-42cbf5fc-fhf8",
+    "zone": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a",
+    "insertTime": "2026-10-16T21:55:07.003-07:00",
+    "startTime": "2026-10-16T21:55:07.071-07:00",
+    "endTime": "2026-10-16T21:55:16.234-07:00",
+    "status": "DONE",
+    "statusMessage": null
+  },
+  {
+    "operationType": "compute.instances.preempted",
+    "targetLink": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instances/gke-ai-platform-gpu-42cbf5fc-fhf8",
+    "zone": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a",
+    "insertTime": "2026-10-16T22:03:01.837-07:00",
+    "startTime": "2026-10-16T22:03:01.837-07:00",
+    "endTime": "2026-10-16T22:03:01.837-07:00",
+    "status": "DONE",
+    "statusMessage": "Instance was preempted."
+  },
+  {
+    "operationType": "compute.instances.repair.recreateInstance",
+    "targetLink": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instances/gke-ai-platform-gpu-42cbf5fc-fhf8",
+    "zone": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a",
+    "insertTime": "2026-10-16T22:03:06.993-07:00",
+    "startTime": "2026-10-16T22:03:06.993-07:00",
+    "endTime": "2026-10-16T22:03:06.993-07:00",
+    "status": "DONE",
+    "statusMessage": "Instance Group Manager 'gke-ai-platform-gpu-42cbf5fc-grp' initiated recreateInstance on instance 'projects/<project-number>/zones/us-central1-a/instances/gke-ai-platform-gpu-42cbf5fc-fhf8'. Reason: Instance eligible for repair: instance should be RUNNING, but is STOPPING."
+  },
+  {
+    "operationType": "delete",
+    "targetLink": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instances/gke-ai-platform-gpu-42cbf5fc-fhf8",
+    "zone": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a",
+    "insertTime": "2026-10-16T22:03:09.124-07:00",
+    "startTime": "2026-10-16T22:03:17.318-07:00",
+    "endTime": "2026-10-16T22:03:21.282-07:00",
+    "status": "DONE",
+    "statusMessage": null
+  },
+  {
+    "operationType": "insert",
+    "targetLink": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instances/gke-ai-platform-gpu-42cbf5fc-fhf8",
+    "zone": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a",
+    "insertTime": "2026-10-16T22:03:22.672-07:00",
+    "startTime": "2026-10-16T22:03:22.721-07:00",
+    "endTime": "2026-10-16T22:03:30.502-07:00",
+    "status": "DONE",
+    "statusMessage": null
+  },
+  {
+    "operationType": "compute.instances.preempted",
+    "targetLink": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instances/gke-ai-platform-gpu-42cbf5fc-fhf8",
+    "zone": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a",
+    "insertTime": "2026-10-16T22:06:54.175-07:00",
+    "startTime": "2026-10-16T22:06:54.175-07:00",
+    "endTime": "2026-10-16T22:06:54.175-07:00",
+    "status": "DONE",
+    "statusMessage": "Instance was preempted."
+  },
+  {
+    "operationType": "compute.instances.repair.recreateInstance",
+    "targetLink": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instances/gke-ai-platform-gpu-42cbf5fc-fhf8",
+    "zone": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a",
+    "insertTime": "2026-10-16T22:07:01.053-07:00",
+    "startTime": "2026-10-16T22:07:01.053-07:00",
+    "endTime": "2026-10-16T22:07:01.053-07:00",
+    "status": "DONE",
+    "statusMessage": "Instance Group Manager 'gke-ai-platform-gpu-42cbf5fc-grp' initiated recreateInstance on instance 'projects/<project-number>/zones/us-central1-a/instances/gke-ai-platform-gpu-42cbf5fc-fhf8'. Reason: Instance eligible for repair: instance should be RUNNING, but is STOPPING."
+  },
+  {
+    "operationType": "delete",
+    "targetLink": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instances/gke-ai-platform-gpu-42cbf5fc-fhf8",
+    "zone": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a",
+    "insertTime": "2026-10-16T22:07:02.477-07:00",
+    "startTime": "2026-10-16T22:07:04.192-07:00",
+    "endTime": "2026-10-16T22:07:08.339-07:00",
+    "status": "DONE",
+    "statusMessage": null
+  },
+  {
+    "operationType": "insert",
+    "targetLink": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instances/gke-ai-platform-gpu-42cbf5fc-fhf8",
+    "zone": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a",
+    "insertTime": "2026-10-16T22:07:09.668-07:00",
+    "startTime": "2026-10-16T22:07:09.714-07:00",
+    "endTime": "2026-10-16T22:07:21.835-07:00",
+    "status": "DONE",
+    "statusMessage": null
+  },
+  {
+    "operationType": "delete",
+    "targetLink": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instances/gke-ai-platform-gpu-42cbf5fc-fhf8",
+    "zone": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a",
+    "insertTime": "2026-10-16T23:13:42.458-07:00",
+    "startTime": "2026-10-16T23:13:42.476-07:00",
+    "endTime": "2026-10-16T23:14:18.645-07:00",
+    "status": "DONE",
+    "statusMessage": null
+  }
+]

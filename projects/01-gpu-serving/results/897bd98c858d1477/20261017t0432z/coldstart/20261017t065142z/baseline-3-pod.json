@@ -1,0 +1,286 @@
+{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "creationTimestamp": "2026-10-17T07:17:34Z",
+        "generateName": "vllm-6d9c959d8-",
+        "generation": 1,
+        "labels": {
+            "app": "ai-platform",
+            "app.kubernetes.io/name": "vllm",
+            "layer": "01",
+            "model-config": "qwen2.5-7b-bf16",
+            "owner": "mohan",
+            "pod-template-hash": "6d9c959d8",
+            "session": "20261017t0432z",
+            "topology.kubernetes.io/region": "us-central1",
+            "topology.kubernetes.io/zone": "us-central1-a"
+        },
+        "name": "vllm-6d9c959d8-tt78t",
+        "namespace": "vllm",
+        "ownerReferences": [
+            {
+                "apiVersion": "apps/v1",
+                "blockOwnerDeletion": true,
+                "controller": true,
+                "kind": "ReplicaSet",
+                "name": "vllm-6d9c959d8",
+                "uid": "9b88701d-b273-4c95-ba31-8fc6960f68d2"
+            }
+        ],
+        "resourceVersion": "1792222056625007003",
+        "uid": "6e485be4-b2b9-486f-b705-cd78957e6f62"
+    },
+    "spec": {
+        "containers": [
+            {
+                "args": [
+                    "Qwen/Qwen2.5-7B-Instruct",
+                    "--revision=a09a35458c702b33eeacc393d103063234e8bc28",
+                    "--served-model-name=Qwen/Qwen2.5-7B-Instruct",
+                    "--max-model-len=8192",
+                    "--gpu-memory-utilization=0.9",
+                    "--port=8000"
+                ],
+                "command": [
+                    "vllm",
+                    "serve"
+                ],
+                "env": [
+                    {
+                        "name": "VLLM_NO_USAGE_STATS",
+                        "value": "1"
+                    },
+                    {
+                        "name": "DO_NOT_TRACK",
+                        "value": "1"
+                    }
+                ],
+                "image": "docker.io/vllm/vllm-openai@sha256:5f5e535216848d0c52159c8c13a0af04be5f6fe1a84e79914300610796f76d40",
+                "imagePullPolicy": "IfNotPresent",
+                "name": "vllm",
+                "ports": [
+                    {
+                        "containerPort": 8000,
+                        "name": "http",
+                        "protocol": "TCP"
+                    }
+                ],
+                "readinessProbe": {
+                    "failureThreshold": 3,
+                    "httpGet": {
+                        "path": "/health",
+                        "port": "http",
+                        "scheme": "HTTP"
+                    },
+                    "periodSeconds": 5,
+                    "successThreshold": 1,
+                    "timeoutSeconds": 1
+                },
+                "resources": {
+                    "limits": {
+                        "nvidia.com/gpu": "1"
+                    },
+                    "requests": {
+                        "cpu": "2",
+                        "memory": "16Gi",
+                        "nvidia.com/gpu": "1"
+                    }
+                },
+                "securityContext": {
+                    "allowPrivilegeEscalation": false,
+                    "seccompProfile": {
+                        "type": "RuntimeDefault"
+                    }
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/dev/shm",
+                        "name": "shm"
+                    },
+                    {
+                        "mountPath": "/root/.cache/huggingface",
+                        "name": "models"
+                    }
+                ]
+            }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": false,
+        "nodeName": "gke-ai-platform-gpu-baseline-6abd3288-m6b4",
+        "nodeSelector": {
+            "cloud.google.com/gke-accelerator": "nvidia-l4",
+            "cloud.google.com/gke-nodepool": "gpu-baseline"
+        },
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "gke.io/optimize-utilization-scheduler",
+        "securityContext": {},
+        "serviceAccount": "vllm",
+        "serviceAccountName": "vllm",
+        "terminationGracePeriodSeconds": 30,
+        "tolerations": [
+            {
+                "effect": "NoSchedule",
+                "key": "nvidia.com/gpu",
+                "operator": "Exists"
+            },
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/not-ready",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            },
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/unreachable",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            }
+        ],
+        "volumes": [
+            {
+                "emptyDir": {
+                    "medium": "Memory",
+                    "sizeLimit": "2Gi"
+                },
+                "name": "shm"
+            },
+            {
+                "emptyDir": {},
+                "name": "models"
+            }
+        ]
+    },
+    "status": {
+        "allocatedResources": {
+            "cpu": "2",
+            "memory": "16Gi",
+            "nvidia.com/gpu": "1"
+        },
+        "conditions": [
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-10-17T07:19:32Z",
+                "observedGeneration": 1,
+                "status": "True",
+                "type": "PodReadyToStartContainers"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-10-17T07:19:31Z",
+                "observedGeneration": 1,
+                "status": "True",
+                "type": "Initialized"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-10-17T07:27:36Z",
+                "observedGeneration": 1,
+                "status": "True",
+                "type": "Ready"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-10-17T07:27:36Z",
+                "observedGeneration": 1,
+                "status": "True",
+                "type": "ContainersReady"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-10-17T07:19:31Z",
+                "observedGeneration": 1,
+                "status": "True",
+                "type": "PodScheduled"
+            }
+        ],
+        "containerStatuses": [
+            {
+                "allocatedResources": {
+                    "cpu": "2",
+                    "memory": "16Gi",
+                    "nvidia.com/gpu": "1"
+                },
+                "allocatedResourcesStatus": [
+                    {
+                        "name": "nvidia.com/gpu",
+                        "resources": [
+                            {
+                                "health": "Healthy",
+                                "resourceID": "nvidia0"
+                            }
+                        ]
+                    }
+                ],
+                "containerID": "containerd://c0f35b1f1b3916b4be70cfb41e0c3a311402b6f223ede29f2ce42c6be62bb964",
+                "image": "sha256:d076d77d8dade699041dbcb6bb989a058e51b532e6367f13f80b5a4e63ee5c53",
+                "imageID": "docker.io/vllm/vllm-openai@sha256:5f5e535216848d0c52159c8c13a0af04be5f6fe1a84e79914300610796f76d40",
+                "lastState": {},
+                "name": "vllm",
+                "ready": true,
+                "resources": {
+                    "limits": {
+                        "nvidia.com/gpu": "1"
+                    },
+                    "requests": {
+                        "cpu": "2",
+                        "memory": "16Gi",
+                        "nvidia.com/gpu": "1"
+                    }
+                },
+                "restartCount": 0,
+                "started": true,
+                "state": {
+                    "running": {
+                        "startedAt": "2026-10-17T07:23:33Z"
+                    }
+                },
+                "user": {
+                    "linux": {
+                        "gid": 0,
+                        "supplementalGroups": [
+                            0
+                        ],
+                        "uid": 0
+                    }
+                },
+                "volumeMounts": [
+                    {
+                        "mountPath": "/dev/shm",
+                        "name": "shm"
+                    },
+                    {
+                        "mountPath": "/root/.cache/huggingface",
+                        "name": "models"
+                    }
+                ]
+            }
+        ],
+        "hostIP": "10.10.0.45",
+        "hostIPs": [
+            {
+                "ip": "10.10.0.45"
+            }
+        ],
+        "observedGeneration": 1,
+        "phase": "Running",
+        "podIP": "10.20.1.7",
+        "podIPs": [
+            {
+                "ip": "10.20.1.7"
+            }
+        ],
+        "qosClass": "Burstable",
+        "resources": {
+            "requests": {
+                "cpu": "1999m",
+                "memory": "16Gi"
+            }
+        },
+        "startTime": "2026-10-17T07:19:31Z"
+    }
+}

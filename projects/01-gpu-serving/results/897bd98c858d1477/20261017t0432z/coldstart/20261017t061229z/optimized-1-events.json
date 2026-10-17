@@ -1,0 +1,492 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "v1",
+            "count": 3,
+            "eventTime": null,
+            "firstTimestamp": "2026-10-17T06:14:28Z",
+            "involvedObject": {
+                "apiVersion": "v1",
+                "kind": "Pod",
+                "name": "vllm-89c78f787-52lp9",
+                "namespace": "vllm",
+                "resourceVersion": "1792217668510511004",
+                "uid": "8305522a-efed-4854-8781-1cf7a7e3501d"
+            },
+            "kind": "Event",
+            "lastTimestamp": "2026-10-17T06:24:55Z",
+            "message": "0/1 nodes are available: 1 node(s) didn't match Pod's node affinity/selector. no new claims to deallocate, preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+            "metadata": {
+                "creationTimestamp": "2026-10-17T06:14:28Z",
+                "name": "vllm-89c78f787-52lp9.18df3c795565e0bc",
+                "namespace": "vllm",
+                "resourceVersion": "1792218295273327009",
+                "uid": "27988c2f-a634-4755-abae-4ab02f70f78f"
+            },
+            "reason": "FailedScheduling",
+            "reportingComponent": "gke.io/optimize-utilization-scheduler",
+            "reportingInstance": "",
+            "source": {
+                "component": "gke.io/optimize-utilization-scheduler"
+            },
+            "type": "Warning"
+        },
+        {
+            "apiVersion": "v1",
+            "count": 105,
+            "eventTime": null,
+            "firstTimestamp": "2026-10-17T06:14:28Z",
+            "involvedObject": {
+                "apiVersion": "v1",
+                "kind": "Pod",
+                "name": "vllm-89c78f787-52lp9",
+                "namespace": "vllm",
+                "resourceVersion": "1792217668560159004",
+                "uid": "8305522a-efed-4854-8781-1cf7a7e3501d"
+            },
+            "kind": "Event",
+            "lastTimestamp": "2026-10-17T06:24:32Z",
+            "message": "Pod didn't trigger scale-up: 3 node(s) didn't match Pod's node affinity/selector, 3 in backoff after failed scale-up",
+            "metadata": {
+                "creationTimestamp": "2026-10-17T06:14:28Z",
+                "name": "vllm-89c78f787-52lp9.18df3c7966441bdf",
+                "namespace": "vllm",
+                "resourceVersion": "1792218272644127001",
+                "uid": "f754ea09-6257-4937-a317-15e2a5a2b31f"
+            },
+            "reason": "NotTriggerScaleUp",
+            "reportingComponent": "cluster-autoscaler",
+            "reportingInstance": "",
+            "source": {
+                "component": "cluster-autoscaler"
+            },
+            "type": "Normal"
+        },
+        {
+            "apiVersion": "v1",
+            "count": 1,
+            "eventTime": null,
+            "firstTimestamp": "2026-10-17T06:27:40Z",
+            "involvedObject": {
+                "apiVersion": "v1",
+                "kind": "Pod",
+                "name": "vllm-89c78f787-52lp9",
+                "namespace": "vllm",
+                "resourceVersion": "1792217668875007004",
+                "uid": "8305522a-efed-4854-8781-1cf7a7e3501d"
+            },
+            "kind": "Event",
+            "lastTimestamp": "2026-10-17T06:27:40Z",
+            "message": "Pod triggered scale-up: [{https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-b/instanceGroups/gke-ai-platform-gpu-0a016820-grp 0-\u003e1 (max: 2)}]",
+            "metadata": {
+                "creationTimestamp": "2026-10-17T06:27:40Z",
+                "name": "vllm-89c78f787-52lp9.18df3d31b27491d8",
+                "namespace": "vllm",
+                "resourceVersion": "1792218460386591023",
+                "uid": "bd1cc70e-c7b8-40a8-aef1-f4e203e45080"
+            },
+            "reason": "TriggeredScaleUp",
+            "reportingComponent": "cluster-autoscaler",
+            "reportingInstance": "",
+            "source": {
+                "component": "cluster-autoscaler"
+            },
+            "type": "Normal"
+        },
+        {
+            "apiVersion": "v1",
+            "count": 2,
+            "eventTime": null,
+            "firstTimestamp": "2026-10-17T06:28:15Z",
+            "involvedObject": {
+                "apiVersion": "v1",
+                "kind": "Pod",
+                "name": "vllm-89c78f787-52lp9",
+                "namespace": "vllm",
+                "resourceVersion": "1792217668875007004",
+                "uid": "8305522a-efed-4854-8781-1cf7a7e3501d"
+            },
+            "kind": "Event",
+            "lastTimestamp": "2026-10-17T06:28:16Z",
+            "message": "0/2 nodes are available: 1 node(s) didn't match Pod's node affinity/selector, 1 node(s) had untolerated taint(s). no new claims to deallocate, preemption: 0/2 nodes are available: 2 Preemption is not helpful for scheduling.",
+            "metadata": {
+                "creationTimestamp": "2026-10-17T06:28:15Z",
+                "name": "vllm-89c78f787-52lp9.18df3d39eda3f6bc",
+                "namespace": "vllm",
+                "resourceVersion": "1792218497042895019",
+                "uid": "0b6beec3-6a05-4546-9bd1-34aff6e23386"
+            },
+            "reason": "FailedScheduling",
+            "reportingComponent": "gke.io/optimize-utilization-scheduler",
+            "reportingInstance": "",
+            "source": {
+                "component": "gke.io/optimize-utilization-scheduler"
+            },
+            "type": "Warning"
+        },
+        {
+            "apiVersion": "v1",
+            "count": 1,
+            "eventTime": null,
+            "firstTimestamp": "2026-10-17T06:28:20Z",
+            "involvedObject": {
+                "apiVersion": "v1",
+                "kind": "Pod",
+                "name": "vllm-89c78f787-52lp9",
+                "namespace": "vllm",
+                "resourceVersion": "1792218495805423004",
+                "uid": "8305522a-efed-4854-8781-1cf7a7e3501d"
+            },
+            "kind": "Event",
+            "lastTimestamp": "2026-10-17T06:28:20Z",
+            "message": "0/2 nodes are available: 1 Insufficient nvidia.com/gpu, 1 node(s) didn't match Pod's node affinity/selector. no new claims to deallocate, preemption: 0/2 nodes are available: 2 Preemption is not helpful for scheduling.",
+            "metadata": {
+                "creationTimestamp": "2026-10-17T06:28:20Z",
+                "name": "vllm-89c78f787-52lp9.18df3d3af0dcc240",
+                "namespace": "vllm",
+                "resourceVersion": "1792218500091759002",
+                "uid": "48136693-89a8-4923-94f0-92b1e9a4c997"
+            },
+            "reason": "FailedScheduling",
+            "reportingComponent": "gke.io/optimize-utilization-scheduler",
+            "reportingInstance": "",
+            "source": {
+                "component": "gke.io/optimize-utilization-scheduler"
+            },
+            "type": "Warning"
+        },
+        {
+            "apiVersion": "v1",
+            "count": 1,
+            "eventTime": null,
+            "firstTimestamp": "2026-10-17T06:29:06Z",
+            "involvedObject": {
+                "apiVersion": "v1",
+                "kind": "Pod",
+                "name": "vllm-89c78f787-52lp9",
+                "namespace": "vllm",
+                "resourceVersion": "1792218500102415004",
+                "uid": "8305522a-efed-4854-8781-1cf7a7e3501d"
+            },
+            "kind": "Event",
+            "lastTimestamp": "2026-10-17T06:29:06Z",
+            "message": "Successfully assigned vllm/vllm-89c78f787-52lp9 to gke-ai-platform-gpu-0a016820-99xr",
+            "metadata": {
+                "creationTimestamp": "2026-10-17T06:29:06Z",
+                "name": "vllm-89c78f787-52lp9.18df3d45d8b03cfa",
+                "namespace": "vllm",
+                "resourceVersion": "1792218546926143014",
+                "uid": "5e03d222-55af-4a99-958a-554d3b315d05"
+            },
+            "reason": "Scheduled",
+            "reportingComponent": "gke.io/optimize-utilization-scheduler",
+            "reportingInstance": "",
+            "source": {
+                "component": "gke.io/optimize-utilization-scheduler"
+            },
+            "type": "Normal"
+        },
+        {
+            "apiVersion": "v1",
+            "count": 1,
+            "eventTime": null,
+            "firstTimestamp": "2026-10-17T06:29:08Z",
+            "involvedObject": {
+                "apiVersion": "v1",
+                "fieldPath": "spec.initContainers{gke-gcsfuse-sidecar}",
+                "kind": "Pod",
+                "name": "vllm-89c78f787-52lp9",
+                "namespace": "vllm",
+                "resourceVersion": "1792218546908255004",
+                "uid": "8305522a-efed-4854-8781-1cf7a7e3501d"
+            },
+            "kind": "Event",
+            "lastTimestamp": "2026-10-17T06:29:08Z",
+            "message": "Pulling image \"us-central1-artifactregistry.gcr.io/gke-release/gke-release/gcs-fuse-csi-driver-sidecar-mounter:v1.23.33-gke.8@sha256:6ca3e7a9ece8d6da6da6d29fa43ff1031134cc2ca4569e572eb3ae79ca729d0b\"",
+            "metadata": {
+                "creationTimestamp": "2026-10-17T06:29:08Z",
+                "name": "vllm-89c78f787-52lp9.18df3d462271a062",
+                "namespace": "vllm",
+                "resourceVersion": "1792218548166815022",
+                "uid": "e6d632ff-076c-4e28-a8f6-5cf06a080ed1"
+            },
+            "reason": "Pulling",
+            "reportingComponent": "kubelet",
+            "reportingInstance": "gke-ai-platform-gpu-0a016820-99xr",
+            "source": {
+                "component": "kubelet",
+                "host": "gke-ai-platform-gpu-0a016820-99xr"
+            },
+            "type": "Normal"
+        },
+        {
+            "apiVersion": "v1",
+            "count": 1,
+            "eventTime": null,
+            "firstTimestamp": "2026-10-17T06:29:09Z",
+            "involvedObject": {
+                "apiVersion": "v1",
+                "fieldPath": "spec.initContainers{gke-gcsfuse-sidecar}",
+                "kind": "Pod",
+                "name": "vllm-89c78f787-52lp9",
+                "namespace": "vllm",
+                "resourceVersion": "1792218546908255004",
+                "uid": "8305522a-efed-4854-8781-1cf7a7e3501d"
+            },
+            "kind": "Event",
+            "lastTimestamp": "2026-10-17T06:29:09Z",
+            "message": "Successfully pulled image \"us-central1-artifactregistry.gcr.io/gke-release/gke-release/gcs-fuse-csi-driver-sidecar-mounter:v1.23.33-gke.8@sha256:6ca3e7a9ece8d6da6da6d29fa43ff1031134cc2ca4569e572eb3ae79ca729d0b\" in 1.131s (1.131s including waiting). Image size: 41851104 bytes.",
+            "metadata": {
+                "creationTimestamp": "2026-10-17T06:29:09Z",
+                "name": "vllm-89c78f787-52lp9.18df3d4665e51f13",
+                "namespace": "vllm",
+                "resourceVersion": "1792218549295103024",
+                "uid": "11901eee-5ff8-4c4f-b7e6-3449c047b42f"
+            },
+            "reason": "Pulled",
+            "reportingComponent": "kubelet",
+            "reportingInstance": "gke-ai-platform-gpu-0a016820-99xr",
+            "source": {
+                "component": "kubelet",
+                "host": "gke-ai-platform-gpu-0a016820-99xr"
+            },
+            "type": "Normal"
+        },
+        {
+            "apiVersion": "v1",
+            "count": 1,
+            "eventTime": null,
+            "firstTimestamp": "2026-10-17T06:29:09Z",
+            "involvedObject": {
+                "apiVersion": "v1",
+                "fieldPath": "spec.initContainers{gke-gcsfuse-sidecar}",
+                "kind": "Pod",
+                "name": "vllm-89c78f787-52lp9",
+                "namespace": "vllm",
+                "resourceVersion": "1792218546908255004",
+                "uid": "8305522a-efed-4854-8781-1cf7a7e3501d"
+            },
+            "kind": "Event",
+            "lastTimestamp": "2026-10-17T06:29:09Z",
+            "message": "Container created",
+            "metadata": {
+                "creationTimestamp": "2026-10-17T06:29:09Z",
+                "name": "vllm-89c78f787-52lp9.18df3d4667abf42e",
+                "namespace": "vllm",
+                "resourceVersion": "1792218549324271024",
+                "uid": "b46f5fc2-b7ba-498a-9ae3-bacadc04f087"
+            },
+            "reason": "Created",
+            "reportingComponent": "kubelet",
+            "reportingInstance": "gke-ai-platform-gpu-0a016820-99xr",
+            "source": {
+                "component": "kubelet",
+                "host": "gke-ai-platform-gpu-0a016820-99xr"
+            },
+            "type": "Normal"
+        },
+        {
+            "apiVersion": "v1",
+            "count": 1,
+            "eventTime": null,
+            "firstTimestamp": "2026-10-17T06:29:09Z",
+            "involvedObject": {
+                "apiVersion": "v1",
+                "fieldPath": "spec.initContainers{gke-gcsfuse-sidecar}",
+                "kind": "Pod",
+                "name": "vllm-89c78f787-52lp9",
+                "namespace": "vllm",
+                "resourceVersion": "1792218546908255004",
+                "uid": "8305522a-efed-4854-8781-1cf7a7e3501d"
+            },
+            "kind": "Event",
+            "lastTimestamp": "2026-10-17T06:29:09Z",
+            "message": "Container started",
+            "metadata": {
+                "creationTimestamp": "2026-10-17T06:29:09Z",
+                "name": "vllm-89c78f787-52lp9.18df3d466ebd14a1",
+                "namespace": "vllm",
+                "resourceVersion": "1792218549445135004",
+                "uid": "dd35e3e3-dd84-4fdf-ade3-29132be82094"
+            },
+            "reason": "Started",
+            "reportingComponent": "kubelet",
+            "reportingInstance": "gke-ai-platform-gpu-0a016820-99xr",
+            "source": {
+                "component": "kubelet",
+                "host": "gke-ai-platform-gpu-0a016820-99xr"
+            },
+            "type": "Normal"
+        },
+        {
+            "apiVersion": "v1",
+            "count": 1,
+            "eventTime": null,
+            "firstTimestamp": "2026-10-17T06:29:09Z",
+            "involvedObject": {
+                "apiVersion": "v1",
+                "fieldPath": "spec.containers{vllm}",
+                "kind": "Pod",
+                "name": "vllm-89c78f787-52lp9",
+                "namespace": "vllm",
+                "resourceVersion": "1792218546908255004",
+                "uid": "8305522a-efed-4854-8781-1cf7a7e3501d"
+            },
+            "kind": "Event",
+            "lastTimestamp": "2026-10-17T06:29:09Z",
+            "message": "Pulling image \"us-central1-docker.pkg.dev/<project>/images/vllm-openai@sha256:5f5e535216848d0c52159c8c13a0af04be5f6fe1a84e79914300610796f76d40\"",
+            "metadata": {
+                "creationTimestamp": "2026-10-17T06:29:09Z",
+                "name": "vllm-89c78f787-52lp9.18df3d466f72f548",
+                "namespace": "vllm",
+                "resourceVersion": "1792218549466511017",
+                "uid": "fe73540c-b1f8-4daf-a103-49d0e219e1d2"
+            },
+            "reason": "Pulling",
+            "reportingComponent": "kubelet",
+            "reportingInstance": "gke-ai-platform-gpu-0a016820-99xr",
+            "source": {
+                "component": "kubelet",
+                "host": "gke-ai-platform-gpu-0a016820-99xr"
+            },
+            "type": "Normal"
+        },
+        {
+            "apiVersion": "v1",
+            "count": 1,
+            "eventTime": null,
+            "firstTimestamp": "2026-10-17T06:29:12Z",
+            "involvedObject": {
+                "apiVersion": "v1",
+                "fieldPath": "spec.containers{vllm}",
+                "kind": "Pod",
+                "name": "vllm-89c78f787-52lp9",
+                "namespace": "vllm",
+                "resourceVersion": "1792218546908255004",
+                "uid": "8305522a-efed-4854-8781-1cf7a7e3501d"
+            },
+            "kind": "Event",
+            "lastTimestamp": "2026-10-17T06:29:12Z",
+            "message": "Successfully pulled image \"us-central1-docker.pkg.dev/<project>/images/vllm-openai@sha256:5f5e535216848d0c52159c8c13a0af04be5f6fe1a84e79914300610796f76d40\" in 2.906s (2.906s including waiting). Image size: 8730576300 bytes.",
+            "metadata": {
+                "creationTimestamp": "2026-10-17T06:29:12Z",
+                "name": "vllm-89c78f787-52lp9.18df3d471cb22539",
+                "namespace": "vllm",
+                "resourceVersion": "1792218552361375020",
+                "uid": "1bef4e8a-5317-479a-a87c-2b65ea40fddc"
+            },
+            "reason": "Pulled",
+            "reportingComponent": "kubelet",
+            "reportingInstance": "gke-ai-platform-gpu-0a016820-99xr",
+            "source": {
+                "component": "kubelet",
+                "host": "gke-ai-platform-gpu-0a016820-99xr"
+            },
+            "type": "Normal"
+        },
+        {
+            "apiVersion": "v1",
+            "count": 1,
+            "eventTime": null,
+            "firstTimestamp": "2026-10-17T06:29:12Z",
+            "involvedObject": {
+                "apiVersion": "v1",
+                "fieldPath": "spec.containers{vllm}",
+                "kind": "Pod",
+                "name": "vllm-89c78f787-52lp9",
+                "namespace": "vllm",
+                "resourceVersion": "1792218546908255004",
+                "uid": "8305522a-efed-4854-8781-1cf7a7e3501d"
+            },
+            "kind": "Event",
+            "lastTimestamp": "2026-10-17T06:29:12Z",
+            "message": "Container created",
+            "metadata": {
+                "creationTimestamp": "2026-10-17T06:29:12Z",
+                "name": "vllm-89c78f787-52lp9.18df3d4720c9ef22",
+                "namespace": "vllm",
+                "resourceVersion": "1792218552436127015",
+                "uid": "239de44a-92b9-44a6-bdbf-2fb1379d5034"
+            },
+            "reason": "Created",
+            "reportingComponent": "kubelet",
+            "reportingInstance": "gke-ai-platform-gpu-0a016820-99xr",
+            "source": {
+                "component": "kubelet",
+                "host": "gke-ai-platform-gpu-0a016820-99xr"
+            },
+            "type": "Normal"
+        },
+        {
+            "apiVersion": "v1",
+            "count": 1,
+            "eventTime": null,
+            "firstTimestamp": "2026-10-17T06:29:12Z",
+            "involvedObject": {
+                "apiVersion": "v1",
+                "fieldPath": "spec.containers{vllm}",
+                "kind": "Pod",
+                "name": "vllm-89c78f787-52lp9",
+                "namespace": "vllm",
+                "resourceVersion": "1792218546908255004",
+                "uid": "8305522a-efed-4854-8781-1cf7a7e3501d"
+            },
+            "kind": "Event",
+            "lastTimestamp": "2026-10-17T06:29:12Z",
+            "message": "Container started",
+            "metadata": {
+                "creationTimestamp": "2026-10-17T06:29:12Z",
+                "name": "vllm-89c78f787-52lp9.18df3d4729696b44",
+                "namespace": "vllm",
+                "resourceVersion": "1792218552575087003",
+                "uid": "91b529df-9663-4cf4-92df-1d93db9fb0ba"
+            },
+            "reason": "Started",
+            "reportingComponent": "kubelet",
+            "reportingInstance": "gke-ai-platform-gpu-0a016820-99xr",
+            "source": {
+                "component": "kubelet",
+                "host": "gke-ai-platform-gpu-0a016820-99xr"
+            },
+            "type": "Normal"
+        },
+        {
+            "apiVersion": "v1",
+            "count": 25,
+            "eventTime": null,
+            "firstTimestamp": "2026-10-17T06:29:12Z",
+            "involvedObject": {
+                "apiVersion": "v1",
+                "fieldPath": "spec.containers{vllm}",
+                "kind": "Pod",
+                "name": "vllm-89c78f787-52lp9",
+                "namespace": "vllm",
+                "resourceVersion": "1792218546908255004",
+                "uid": "8305522a-efed-4854-8781-1cf7a7e3501d"
+            },
+            "kind": "Event",
+            "lastTimestamp": "2026-10-17T06:31:06Z",
+            "message": "Readiness probe failed: Get \"http://10.20.1.7:8000/health\": dial tcp 10.20.1.7:8000: connect: connection refused",
+            "metadata": {
+                "creationTimestamp": "2026-10-17T06:29:12Z",
+                "name": "vllm-89c78f787-52lp9.18df3d4729aab397",
+                "namespace": "vllm",
+                "resourceVersion": "1792218666921503021",
+                "uid": "f70868a7-0ba9-41e8-a710-425aafb13baf"
+            },
+            "reason": "Unhealthy",
+            "reportingComponent": "kubelet",
+            "reportingInstance": "gke-ai-platform-gpu-0a016820-99xr",
+            "source": {
+                "component": "kubelet",
+                "host": "gke-ai-platform-gpu-0a016820-99xr"
+            },
+            "type": "Warning"
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": ""
+    }
+}

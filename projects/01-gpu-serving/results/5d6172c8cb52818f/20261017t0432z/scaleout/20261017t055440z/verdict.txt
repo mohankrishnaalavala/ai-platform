@@ -1,0 +1,1 @@
+replica 2: NOT ready (pod pod/vllm-56bc47dfbd-kxcxk, phase Pending); see scaleout-events.json and gpu-group-errors.txt

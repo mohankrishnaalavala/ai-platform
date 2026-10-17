@@ -1,0 +1,219 @@
+== us-central1-a
+[
+  {
+    "error": {
+      "code": "QUOTA_EXCEEDED",
+      "message": "Instance 'gke-ai-platform-gpu-42cbf5fc-p48g' creation failed: Quota 'PREEMPTIBLE_NVIDIA_L4_GPUS' exceeded.  Limit: 1.0 in region us-central1."
+    },
+    "instanceActionDetails": {
+      "action": "CREATING",
+      "instance": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instances/gke-ai-platform-gpu-42cbf5fc-p48g",
+      "version": {
+        "instanceTemplate": "https://www.googleapis.com/compute/v1/projects/<project>/regions/us-central1/instanceTemplates/gke-ai-platform-gpu-42cbf5fc",
+        "name": ""
+      }
+    },
+    "timestamp": "2026-10-16T22:58:03.060-07:00"
+  },
+  {
+    "error": {
+      "code": "QUOTA_EXCEEDED",
+      "message": "Instance 'gke-ai-platform-gpu-42cbf5fc-mvl4' creation failed: Quota 'PREEMPTIBLE_NVIDIA_L4_GPUS' exceeded.  Limit: 1.0 in region us-central1."
+    },
+    "instanceActionDetails": {
+      "action": "CREATING",
+      "instance": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instances/gke-ai-platform-gpu-42cbf5fc-mvl4",
+      "version": {
+        "instanceTemplate": "https://www.googleapis.com/compute/v1/projects/<project>/regions/us-central1/instanceTemplates/gke-ai-platform-gpu-42cbf5fc",
+        "name": ""
+      }
+    },
+    "timestamp": "2026-10-16T22:33:32.533-07:00"
+  },
+  {
+    "error": {
+      "code": "QUOTA_EXCEEDED",
+      "message": "Instance 'gke-ai-platform-gpu-42cbf5fc-kkgm' creation failed: Quota 'PREEMPTIBLE_NVIDIA_L4_GPUS' exceeded.  Limit: 1.0 in region us-central1."
+    },
+    "instanceActionDetails": {
+      "action": "CREATING",
+      "instance": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instances/gke-ai-platform-gpu-42cbf5fc-kkgm",
+      "version": {
+        "instanceTemplate": "https://www.googleapis.com/compute/v1/projects/<project>/regions/us-central1/instanceTemplates/gke-ai-platform-gpu-42cbf5fc",
+        "name": ""
+      }
+    },
+    "timestamp": "2026-10-16T22:08:25.957-07:00"
+  },
+  {
+    "error": {
+      "code": "QUOTA_EXCEEDED",
+      "message": "Instance 'gke-ai-platform-gpu-42cbf5fc-h89z' creation failed: Quota 'PREEMPTIBLE_NVIDIA_L4_GPUS' exceeded.  Limit: 1.0 in region us-central1."
+    },
+    "instanceActionDetails": {
+      "action": "CREATING",
+      "instance": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instances/gke-ai-platform-gpu-42cbf5fc-h89z",
+      "version": {
+        "instanceTemplate": "https://www.googleapis.com/compute/v1/projects/<project>/regions/us-central1/instanceTemplates/gke-ai-platform-gpu-42cbf5fc",
+        "name": ""
+      }
+    },
+    "timestamp": "2026-10-16T22:03:09.263-07:00"
+  }
+]
+== us-central1-b
+[
+  {
+    "error": {
+      "code": "QUOTA_EXCEEDED",
+      "message": "Instance 'gke-ai-platform-gpu-0a016820-zdp9' creation failed: Quota 'PREEMPTIBLE_NVIDIA_L4_GPUS' exceeded.  Limit: 1.0 in region us-central1."
+    },
+    "instanceActionDetails": {
+      "action": "CREATING",
+      "instance": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-b/instances/gke-ai-platform-gpu-0a016820-zdp9",
+      "version": {
+        "instanceTemplate": "https://www.googleapis.com/compute/v1/projects/<project>/regions/us-central1/instanceTemplates/gke-ai-platform-gpu-0a016820",
+        "name": ""
+      }
+    },
+    "timestamp": "2026-10-16T22:57:33.858-07:00"
+  },
+  {
+    "error": {
+      "code": "QUOTA_EXCEEDED",
+      "message": "Instance 'gke-ai-platform-gpu-0a016820-dn8j' creation failed: Quota 'PREEMPTIBLE_NVIDIA_L4_GPUS' exceeded.  Limit: 1.0 in region us-central1."
+    },
+    "instanceActionDetails": {
+      "action": "CREATING",
+      "instance": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-b/instances/gke-ai-platform-gpu-0a016820-dn8j",
+      "version": {
+        "instanceTemplate": "https://www.googleapis.com/compute/v1/projects/<project>/regions/us-central1/instanceTemplates/gke-ai-platform-gpu-0a016820",
+        "name": ""
+      }
+    },
+    "timestamp": "2026-10-16T22:33:00.698-07:00"
+  },
+  {
+    "error": {
+      "code": "ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS",
+      "message": "Instance 'gke-ai-platform-gpu-0a016820-r569' creation failed: The zone 'projects/<project>/zones/us-central1-b' does not have enough resources available to fulfill the request.  '(resource type:compute)'."
+    },
+    "instanceActionDetails": {
+      "action": "CREATING",
+      "instance": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-b/instances/gke-ai-platform-gpu-0a016820-r569",
+      "version": {
+        "instanceTemplate": "https://www.googleapis.com/compute/v1/projects/<project>/regions/us-central1/instanceTemplates/gke-ai-platform-gpu-0a016820",
+        "name": ""
+      }
+    },
+    "timestamp": "2026-10-16T22:02:45.230-07:00"
+  },
+  {
+    "error": {
+      "code": "ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS",
+      "message": "Instance 'gke-ai-platform-gpu-0a016820-r569' creation failed: The zone 'projects/<project>/zones/us-central1-b' does not have enough resources available to fulfill the request.  '(resource type:compute)'."
+    },
+    "instanceActionDetails": {
+      "action": "CREATING",
+      "instance": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-b/instances/gke-ai-platform-gpu-0a016820-r569",
+      "version": {
+        "instanceTemplate": "https://www.googleapis.com/compute/v1/projects/<project>/regions/us-central1/instanceTemplates/gke-ai-platform-gpu-0a016820",
+        "name": ""
+      }
+    },
+    "timestamp": "2026-10-16T22:02:37.162-07:00"
+  },
+  {
+    "error": {
+      "code": "ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS",
+      "message": "Instance 'gke-ai-platform-gpu-0a016820-dg8w' creation failed: The zone 'projects/<project>/zones/us-central1-b' does not have enough resources available to fulfill the request.  '(resource type:compute)'."
+    },
+    "instanceActionDetails": {
+      "action": "CREATING",
+      "instance": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-b/instances/gke-ai-platform-gpu-0a016820-dg8w",
+      "version": {
+        "instanceTemplate": "https://www.googleapis.com/compute/v1/projects/<project>/regions/us-central1/instanceTemplates/gke-ai-platform-gpu-0a016820",
+        "name": ""
+      }
+    },
+    "timestamp": "2026-10-16T21:55:01.239-07:00"
+  },
+  {
+    "error": {
+      "code": "ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS",
+      "message": "Instance 'gke-ai-platform-gpu-0a016820-dg8w' creation failed: The zone 'projects/<project>/zones/us-central1-b' does not have enough resources available to fulfill the request.  '(resource type:compute)'."
+    },
+    "instanceActionDetails": {
+      "action": "CREATING",
+      "instance": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-b/instances/gke-ai-platform-gpu-0a016820-dg8w",
+      "version": {
+        "instanceTemplate": "https://www.googleapis.com/compute/v1/projects/<project>/regions/us-central1/instanceTemplates/gke-ai-platform-gpu-0a016820",
+        "name": ""
+      }
+    },
+    "timestamp": "2026-10-16T21:54:54.663-07:00"
+  }
+]
+== us-central1-c
+[
+  {
+    "error": {
+      "code": "ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS",
+      "message": "Instance 'gke-ai-platform-gpu-a15555ac-crww' creation failed: The zone 'projects/<project>/zones/us-central1-c' does not have enough resources available to fulfill the request.  '(resource type:compute)'."
+    },
+    "instanceActionDetails": {
+      "action": "CREATING",
+      "instance": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-c/instances/gke-ai-platform-gpu-a15555ac-crww",
+      "version": {
+        "instanceTemplate": "https://www.googleapis.com/compute/v1/projects/<project>/regions/us-central1/instanceTemplates/gke-ai-platform-gpu-a15555ac",
+        "name": ""
+      }
+    },
+    "timestamp": "2026-10-16T22:57:48.361-07:00"
+  },
+  {
+    "error": {
+      "code": "ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS",
+      "message": "Instance 'gke-ai-platform-gpu-a15555ac-blkh' creation failed: The zone 'projects/<project>/zones/us-central1-c' does not have enough resources available to fulfill the request.  '(resource type:compute)'."
+    },
+    "instanceActionDetails": {
+      "action": "CREATING",
+      "instance": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-c/instances/gke-ai-platform-gpu-a15555ac-blkh",
+      "version": {
+        "instanceTemplate": "https://www.googleapis.com/compute/v1/projects/<project>/regions/us-central1/instanceTemplates/gke-ai-platform-gpu-a15555ac",
+        "name": ""
+      }
+    },
+    "timestamp": "2026-10-16T22:33:13.861-07:00"
+  },
+  {
+    "error": {
+      "code": "QUOTA_EXCEEDED",
+      "message": "Instance 'gke-ai-platform-gpu-a15555ac-lb7d' creation failed: Quota 'PREEMPTIBLE_NVIDIA_L4_GPUS' exceeded.  Limit: 1.0 in region us-central1."
+    },
+    "instanceActionDetails": {
+      "action": "CREATING",
+      "instance": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-c/instances/gke-ai-platform-gpu-a15555ac-lb7d",
+      "version": {
+        "instanceTemplate": "https://www.googleapis.com/compute/v1/projects/<project>/regions/us-central1/instanceTemplates/gke-ai-platform-gpu-a15555ac",
+        "name": ""
+      }
+    },
+    "timestamp": "2026-10-16T22:08:08.201-07:00"
+  },
+  {
+    "error": {
+      "code": "ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS",
+      "message": "Instance 'gke-ai-platform-gpu-a15555ac-zt78' creation failed: The zone 'projects/<project>/zones/us-central1-c' does not have enough resources available to fulfill the request.  '(resource type:compute)'."
+    },
+    "instanceActionDetails": {
+      "action": "CREATING",
+      "instance": "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-c/instances/gke-ai-platform-gpu-a15555ac-zt78",
+      "version": {
+        "instanceTemplate": "https://www.googleapis.com/compute/v1/projects/<project>/regions/us-central1/instanceTemplates/gke-ai-platform-gpu-a15555ac",
+        "name": ""
+      }
+    },
+    "timestamp": "2026-10-16T22:02:57.530-07:00"
+  }
+]
