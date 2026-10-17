@@ -1,0 +1,15 @@
+{
+  "note": "Every price is entered by hand from its source page, with the date it was read. null means not looked up yet; cost.py prints [X] for anything that depends on it.",
+  "gpu_node": {"name": "g2-standard-8 (1x NVIDIA L4), us-central1", "spot_per_hour": null, "on_demand_per_hour": null,
+               "source": "https://cloud.google.com/compute/vm-instance-pricing", "date": null},
+  "system_node": {"name": "e2-standard-4, us-central1, on-demand", "per_hour": null,
+                  "source": "https://cloud.google.com/compute/vm-instance-pricing", "date": null},
+  "nat": {"name": "Cloud NAT: gateway for 2 VMs plus 1 IP (data processed is extra, per GiB)", "per_hour": null,
+          "source": "https://cloud.google.com/nat/pricing", "date": null},
+  "hosted": [
+    {"name": "Qwen2.5-7B-Instruct, pay per token (host to be chosen)", "input_per_1m": null, "output_per_1m": null,
+     "source": null, "date": null},
+    {"name": "Claude Haiku (current version)", "input_per_1m": null, "output_per_1m": null,
+     "source": null, "date": null}
+  ]
+}
