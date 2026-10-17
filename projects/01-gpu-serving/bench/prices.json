@@ -1,15 +1,19 @@
 {
-  "note": "Every price is entered by hand from its source page, with the date it was read. null means not looked up yet; cost.py prints [X] for anything that depends on it.",
-  "gpu_node": {"name": "g2-standard-8 (1x NVIDIA L4), us-central1", "spot_per_hour": null, "on_demand_per_hour": null,
-               "source": "https://cloud.google.com/compute/vm-instance-pricing", "date": null},
-  "system_node": {"name": "e2-standard-4, us-central1, on-demand", "per_hour": null,
-                  "source": "https://cloud.google.com/compute/vm-instance-pricing", "date": null},
-  "nat": {"name": "Cloud NAT: gateway for 2 VMs plus 1 IP (data processed is extra, per GiB)", "per_hour": null,
-          "source": "https://cloud.google.com/nat/pricing", "date": null},
+  "note": "Every price is entered by hand from its source page, with the date it was read. null means not looked up yet; cost.py prints [X] for anything that depends on it. Google list prices in USD, before any credits or discounts.",
+  "gpu_node": {"name": "g2-standard-8 (1x NVIDIA L4), us-central1", "spot_per_hour": 0.510832, "on_demand_per_hour": 0.853624271,
+               "math": "8 vCPU + 32 GiB + 1 L4. Spot: 8 x 0.01495 (59A6-9C49-BDDB) + 32 x 0.001751 (BF80-650A-78E6) + 0.3352 (AEC2-3D5C-61BF). On-demand: 8 x 0.024988212 (D18E-3563-415F) + 32 x 0.002927448 (F0A4-E3D3-33BD) + 0.560040239 (A88A-5A60-E821)",
+               "source": "https://cloudbilling.googleapis.com/v1/services/6F81-5844-456A/skus (Cloud Billing Catalog API, Compute Engine); raw SKUs in results/prices-2026-10-17-gcp-skus.json", "date": "2026-10-17"},
+  "system_node": {"name": "e2-standard-4, us-central1, on-demand", "per_hour": 0.13402284,
+                  "math": "4 x 0.02181159 (CF4E-A0C7-E3BF) + 16 GiB x 0.00292353 (F449-33EC-A5EF)",
+                  "source": "https://cloudbilling.googleapis.com/v1/services/6F81-5844-456A/skus (Cloud Billing Catalog API, Compute Engine); raw SKUs in results/prices-2026-10-17-gcp-skus.json", "date": "2026-10-17"},
+  "nat": {"name": "Cloud NAT: gateway for 2 VMs plus at least 1 IP (data processed is extra, $0.045 per GiB; actual IP count not checked)", "per_hour": 0.0078,
+          "math": "0.0014 x 2 VMs (32E2-4EFC-EF9F) + 0.005 x 1 IP (8515-9425-D2CE)",
+          "source": "https://cloud.google.com/nat/pricing", "date": "2026-10-17"},
   "hosted": [
-    {"name": "Qwen2.5-7B-Instruct, pay per token (host to be chosen)", "input_per_1m": null, "output_per_1m": null,
-     "source": null, "date": null},
-    {"name": "Claude Haiku (current version)", "input_per_1m": null, "output_per_1m": null,
-     "source": null, "date": null}
+    {"name": "Qwen2.5 7B Instruct Turbo, Together AI serverless", "input_per_1m": 0.30, "output_per_1m": 0.30,
+     "source": "https://www.together.ai/pricing", "date": "2026-10-17",
+     "caveat": "Together's Turbo variant; its precision was not checked, so it is not shown to match Qwen2.5-7B-Instruct as served here"},
+    {"name": "Claude Haiku 5.5 (prompts up to 100,000 tokens)", "input_per_1m": 0.10, "output_per_1m": 0.50,
+     "source": "https://platform.claude.com/docs/en/about-claude/pricing", "date": "2026-10-17"}
   ]
 }
