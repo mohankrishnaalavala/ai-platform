@@ -24,3 +24,4 @@ Record every pinned version here when you add it (Terraform providers, GKE versi
 | kube-prometheus-stack (Helm chart, OCI) | 91.9.0 (2026-10-02; operator v0.94.1), chart digest `sha256:04047e50…` | `projects/01-gpu-serving/deploy.sh`, `tests/charts.sh` | 2026-10-16 |
 | KEDA (Helm chart) | 2.21.0 (2026-09-23; supports Kubernetes 1.34–1.36) | `projects/01-gpu-serving/deploy.sh`, `tests/charts.sh` | 2026-10-16 |
 | CRDs-catalog (schemas for kubeconform) | commit `d373c2da…` (2026-09-29) | `projects/01-gpu-serving/tests/charts.sh` | 2026-10-16 |
+| `actions/upload-artifact` | v7.0.1 (`043fb46d…`, 2026-04-10; v7.0.2 was 9 days old) | `gpu-session.yml` | 2026-10-16 |
