@@ -49,6 +49,7 @@ spec:
     spec:
       restartPolicy: Never
       automountServiceAccountToken: false
+      enableServiceLinks: false  # else VLLM_PORT=tcp://... breaks vLLM's CLI
       nodeSelector:
         cloud.google.com/gke-nodepool: system
       containers:

@@ -70,6 +70,7 @@ spec:
     spec:
       serviceAccountName: bench
       restartPolicy: Never
+      enableServiceLinks: false  # else VLLM_PORT=tcp://... breaks vLLM's CLI
       # The system node, so the client doesn't take CPU from the server it measures.
       nodeSelector:
         cloud.google.com/gke-nodepool: ${BENCH_POOL:-system}

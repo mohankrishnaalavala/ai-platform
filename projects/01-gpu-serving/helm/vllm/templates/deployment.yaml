@@ -33,6 +33,9 @@ spec:
       {{- end }}
     spec:
       serviceAccountName: vllm
+      # Kubernetes would set VLLM_PORT=tcp://... for the Service named vllm, and vLLM reads
+      # VLLM_PORT as its own setting and refuses to start. Same in every pod that runs vLLM code.
+      enableServiceLinks: false
       # Both GPU pools look alike to the autoscaler, so the pod names its pool.
       nodeSelector:
         cloud.google.com/gke-nodepool: {{ .Values.nodePool }}
