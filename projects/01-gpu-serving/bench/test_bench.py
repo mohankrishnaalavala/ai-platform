@@ -1,4 +1,4 @@
-"""Unit tests for summary.py and upload.py. Run: python3 -m unittest discover -s projects/01-gpu-serving/bench"""
+"""Unit tests for summary.py, upload.py and timings.py. Run: python3 -m unittest discover -s projects/01-gpu-serving/bench"""
 import io
 import os
 import unittest
@@ -6,6 +6,7 @@ import urllib.error
 from unittest import mock
 
 import summary
+import timings
 import upload
 
 TESTDATA = os.path.join(os.path.dirname(__file__), "testdata")  # synthetic, not results
@@ -55,6 +56,56 @@ class UploadTest(unittest.TestCase):
     def test_destination_must_be_a_gs_prefix(self):
         with self.assertRaises(SystemExit):
             upload.main("b/p", ["f"])
+
+
+# Synthetic pod and events in the shape the Kubernetes API returns, not measurements.
+POD = {
+    "metadata": {"creationTimestamp": "2026-10-17T01:00:00Z"},
+    "status": {"conditions": [
+        {"type": "PodScheduled", "status": "True", "lastTransitionTime": "2026-10-17T01:02:00Z"},
+        {"type": "Initialized", "status": "True", "lastTransitionTime": "2026-10-17T01:02:05Z"},
+        {"type": "Ready", "status": "True", "lastTransitionTime": "2026-10-17T01:05:30Z"},
+    ]},
+}
+EVENTS = {"items": [
+    {"reason": "Pulled", "involvedObject": {"fieldPath": "spec.initContainers{gke-gcsfuse-sidecar}"},
+     "lastTimestamp": "2026-10-17T01:02:03Z", "message": "sidecar"},
+    {"reason": "Pulled", "involvedObject": {"fieldPath": "spec.containers{vllm}"}, "lastTimestamp": None,
+     "eventTime": "2026-10-17T01:02:30.123456Z",
+     "message": 'Successfully pulled image "us-central1-docker.pkg.dev/my-project/images/vllm-openai@sha256:0" in 25s'},
+]}
+
+
+NODE = {"metadata": {"creationTimestamp": "2026-10-17T01:01:20Z"}}
+T0 = 1792198800.0  # 2026-10-17T01:00:00Z
+
+
+class TimingsTest(unittest.TestCase):
+    def test_phases_come_from_the_vllm_container_and_add_up(self):
+        p = timings.phases(POD, EVENTS, NODE, T0, T0 + 335)
+        self.assertEqual((p["node_ready_s"], p["image_pulled_s"], p["model_loaded_s"], p["first_token_s"]),
+                         (120.0, 30.0, 180.0, 5.0))
+        self.assertEqual(p["total_s"], 335.0)
+        self.assertTrue(p["valid"])
+
+    def test_the_image_path_with_the_project_is_dropped(self):
+        note = timings.phases(POD, EVENTS, NODE, T0, T0 + 335)["pulled_message"]
+        self.assertNotIn("my-project", note)
+        self.assertIn("in 25s", note)
+
+    def test_a_pod_that_is_not_ready_is_an_error(self):
+        pod = {"metadata": POD["metadata"], "status": {"conditions": POD["status"]["conditions"][:1]}}
+        with self.assertRaises(SystemExit):
+            timings.phases(pod, EVENTS, NODE, T0, 0.0)
+
+    def test_warm_node_warm_image_and_restarts_make_a_run_invalid(self):
+        old_node = {"metadata": {"creationTimestamp": "2026-10-17T00:30:00Z"}}
+        warm = {"items": [dict(EVENTS["items"][1], message='Container image "x" already present on machine')]}
+        restarted = dict(POD, status=dict(POD["status"], containerStatuses=[{"name": "vllm", "restartCount": 1}]))
+        for args in [(POD, EVENTS, old_node), (POD, warm, NODE), (restarted, EVENTS, NODE)]:
+            p = timings.phases(*args, T0, T0 + 335)
+            self.assertFalse(p["valid"])
+            self.assertEqual(len(p["problems"]), 1)
 
 
 if __name__ == "__main__":
