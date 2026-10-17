@@ -95,7 +95,8 @@ done
 kubectl get events -n vllm -o json | jq '[.items[] | select(.involvedObject.name | test("^vllm|^keda-hpa-vllm"))
   | {reason, object: .involvedObject.name, message, first: .firstTimestamp, last: (.lastTimestamp // .eventTime)}]' \
   > "$out/scaleout-events.json"
-mig=$(gcloud container node-pools describe gpu --cluster=ai-platform --location="$ZONE" --format='value(instanceGroupUrls[0].basename())')
+# Failures here must not stop the upload below: the series and the verdict matter more.
+mig=$(gcloud container node-pools describe gpu --cluster=ai-platform --location="$ZONE" --format='value(instanceGroupUrls[0].basename())' || true)
 gcloud compute instance-groups managed list-errors "$mig" --zone="$ZONE" --format=json > "$out/gpu-group-errors.json" \
   || echo '"could not list the GPU group errors"' > "$out/gpu-group-errors.json"
 second=$(kubectl get pods -n vllm -l app.kubernetes.io/name=vllm --sort-by=.metadata.creationTimestamp -o name | sed -n 2p)
@@ -106,7 +107,7 @@ if [ -n "$second" ] && [ "$(kubectl get -n vllm "$second" -o jsonpath='{.status.
     served=$(kubectl exec -n vllm "$second" -c vllm -- python3 -c '
 import urllib.request
 m = urllib.request.urlopen("http://localhost:8000/metrics").read().decode()
-print(int(sum(float(l.split()[-1]) for l in m.splitlines() if l.startswith("vllm:request_success_total"))))')
+print(int(sum(float(l.split()[-1]) for l in m.splitlines() if l.startswith("vllm:request_success_total"))))' || echo 0)
     [ "$served" -gt 0 ] && break
     sleep 5
   done
