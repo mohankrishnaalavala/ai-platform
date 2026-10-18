@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620" viewBox="0 0 1000 620" role="img" font-family="Arial, Helvetica, sans-serif">
   <title>ai-platform architecture</title>
-  <desc>Apps and AI agents call two gateways. The action gateway guards infrastructure changes, sends approvals to Slack and writes an audit log; it uses the LLM gateway for risk summaries. The LLM gateway routes to self-hosted model serving on an L4 GPU with fallback to the Claude API. The release gate and observability span all layers. Everything sits on a Terraform foundation with a per-session GKE cluster.</desc>
+  <desc>Apps and AI agents call two gateways. The action gateway guards infrastructure changes, sends approvals to Slack and writes an audit log; it uses the LLM gateway for risk summaries. The LLM gateway routes to self-hosted model serving on an L4 GPU with fallback to Gemini on Vertex AI, reached without an API key. The release gate and observability span all layers. Everything sits on a Terraform foundation with a per-session GKE cluster.</desc>
   <defs>
     <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#5F5E5A"/>
@@ -68,10 +68,10 @@
   <text x="635" y="313" font-size="12" fill="#534AB7" text-anchor="middle">vLLM on NVIDIA L4 (spot)</text>
   <text x="635" y="330" font-size="12" fill="#534AB7" text-anchor="middle">KEDA autoscaling on queue</text>
 
-  <!-- LLM gw -> Claude (right lane) -->
+  <!-- LLM gw -> hosted fallback (right lane) -->
   <path d="M750 215 H765 V400 H754" fill="none" stroke="#5F5E5A" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#a)"/>
   <rect x="520" y="370" width="230" height="60" rx="8" fill="#F1EFE8" stroke="#888780"/>
-  <text x="635" y="395" font-size="14" font-weight="bold" fill="#444441" text-anchor="middle">Claude API</text>
+  <text x="635" y="395" font-size="14" font-weight="bold" fill="#444441" text-anchor="middle">Gemini on Vertex AI</text>
   <text x="635" y="415" font-size="12" fill="#5F5E5A" text-anchor="middle">Hosted fallback (dashed path)</text>
 
   <!-- Foundation -->
