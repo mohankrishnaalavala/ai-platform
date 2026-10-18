@@ -5,6 +5,7 @@
 #   full:      every benchmark (BF16 and FP8), the scale-out test, 3+3 cold starts (estimate: 3.5-5 h)
 #   bf16-bench: only the BF16 benchmarks, to redo a run that was invalid (estimate: 1-1.5 h)
 #   gateway-shakedown: P2 only, no GPU: the gateway with the test-only mock, make test P=02 (estimate: 45-75 min)
+#   gateway-full: P1 (FP8) and P2: make test P=02, the gateway-overhead benchmark, then fallback after vLLM goes away (estimate: 1.5-2 h)
 # Results go to the results bucket as each step finishes, so a run that ends early keeps them.
 # Teardown is its own job with its own time limit, so it runs in full even after the session job
 # fails, times out or is cancelled. cost-guard (nightly, clusters older than 8 h) is the backstop.
@@ -15,7 +16,7 @@ on:
       mode:
         description: What to run
         type: choice
-        options: [shakedown, full, bf16-bench, gateway-shakedown]
+        options: [shakedown, full, bf16-bench, gateway-shakedown, gateway-full]
         default: shakedown
       zone:
         description: Zone of the cluster (GPU nodes may start in any us-central1 zone with L4s)
@@ -58,9 +59,10 @@ jobs:
       SPOT: ${{ inputs.spot }}
       # Every measurement ends by this many minutes after the job starts, leaving time for diagnostics.
       MEASURE_MINUTES: ${{ inputs.mode == 'full' && 330 || inputs.mode == 'gateway-shakedown' && 75 || 130 }}
-      # P1 (vLLM) or P2 (the gateway, no GPU: the GPU pool stays at 0 nodes).
-      LAYER: ${{ inputs.mode == 'gateway-shakedown' && '02' || '01' }}
-      MOCK_PROVIDER: ${{ inputs.mode == 'gateway-shakedown' && '1' || '' }}  # P2's test-only mock, for the PII test
+      # P1 (vLLM), P2 (the gateway; with no GPU the GPU pool stays at 0 nodes) or both.
+      LAYERS: ${{ inputs.mode == 'gateway-shakedown' && '02' || inputs.mode == 'gateway-full' && '01 02' || '01' }}
+      TEST_P: ${{ startsWith(inputs.mode, 'gateway-') && '02' || '01' }}
+      MOCK_PROVIDER: ${{ startsWith(inputs.mode, 'gateway-') && '1' || '' }}  # P2's test-only mock, for the PII test
     steps:
       - name: measurement deadline
         run: echo "MEASURE_UNTIL=$(( $(date +%s) + MEASURE_MINUTES * 60 ))" >> "$GITHUB_ENV"
@@ -115,14 +117,24 @@ jobs:
       - name: make up
         id: up
         timeout-minutes: 75
-        run: make up LAYERS="$LAYER"
+        # gateway-full serves FP8 (faster: fewer requests reach the 10 s stream timeout at 50 concurrent).
+        run: CONFIG=${{ inputs.mode == 'gateway-full' && '$FP8' || '' }} make up LAYERS="$LAYERS"
 
       # Each measuring step runs even if an earlier one failed (the run still ends red), and is cut off
       # at the deadline: `timeout` gets the seconds left (none left = the step fails at once).
       - name: make test (P1 smoke tests and autoscaling path, or every P2 check)
         if: ${{ !cancelled() && steps.up.outcome == 'success' }}
         timeout-minutes: 30
-        run: make test P="$LAYER"
+        run: make test P="$TEST_P"
+
+      - name: "gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)"
+        if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'gateway-full' }}
+        run: CONFIG=$FP8 timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) projects/02-llm-gateway/bench/overhead.sh
+
+      # Last: it takes vLLM away (KEDA paused at 0 replicas).
+      - name: "gateway-full: fallback after vLLM goes away"
+        if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'gateway-full' }}
+        run: timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) bash projects/02-llm-gateway/tests/run.sh vllm-down
 
       - name: "shakedown: one short benchmark (BF16, chat, concurrency 8)"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'shakedown' }}
@@ -186,7 +198,7 @@ jobs:
         if: ${{ always() && steps.diag.outcome == 'success' }}
         timeout-minutes: 10
         with:
-          name: ${{ inputs.mode == 'gateway-shakedown' && 'p2' || 'p1' }}-${{ inputs.mode }}-diagnostics
+          name: ${{ startsWith(inputs.mode, 'gateway-') && 'p2' || 'p1' }}-${{ inputs.mode }}-diagnostics
           path: diag/
           retention-days: 14
           if-no-files-found: ignore
