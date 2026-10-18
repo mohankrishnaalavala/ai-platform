@@ -1,0 +1,62 @@
+{{- if .Values.mockProvider.enabled }}
+# Test only, never a real route: the mock provider (tests/mock_provider/server.py, loaded into the
+# ConfigMap mock-provider by deploy.sh) records every request body, so the session's PII test can
+# prove what left the gateway. Reached through the alias chat-hosted-mock. Off unless MOCK_PROVIDER=1.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-provider
+  labels: {{- include "gateway.labels" . | trim | nindent 4 }}
+    app.kubernetes.io/name: mock-provider
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mock-provider
+  template:
+    metadata:
+      labels: {{- include "gateway.labels" . | trim | nindent 8 }}
+        app.kubernetes.io/name: mock-provider
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: mock-provider
+          image: {{ .Values.mockProvider.image }}
+          command: ["python3", "/app/server.py"]
+          env:
+            - {name: NAME, value: hosted-mock}
+          ports:
+            - {name: http, containerPort: 8000}
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 5
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 128Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: app, mountPath: /app, readOnly: true}
+      volumes:
+        - name: app
+          configMap:
+            name: mock-provider
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-provider
+  labels: {{- include "gateway.labels" . | trim | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: mock-provider
+  ports:
+    - {name: http, port: 8000, targetPort: http}
+{{- end }}

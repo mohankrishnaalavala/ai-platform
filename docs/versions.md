@@ -31,5 +31,5 @@ Record every pinned version here when you add it (Terraform providers, GKE versi
 | OpenTelemetry Collector contrib (image) | `otel/opentelemetry-collector-contrib:0.161.0@sha256:fd328de2…` | `projects/02-llm-gateway/helm/otel-collector.yaml` | 2026-10-18 |
 | Hosted model (Vertex AI, global endpoint) | `gemini-3.5-flash-lite` (`projects/02-llm-gateway/results/spike-2026-10-18.md`) | `projects/02-llm-gateway/helm/gateway/values.yaml` | 2026-10-18 |
 | yq (Docker image) | `mikefarah/yq:4.54.1@sha256:4b3d9475…` (2026-09-29) | `ci.yml` (job gateway) | 2026-10-18 |
-| Python (image for the mock provider) | `python:3.13-slim@sha256:70729b46…` | `projects/02-llm-gateway/tests/compose.yaml` | 2026-10-18 |
+| Python (image for the mock provider) | `python:3.13-slim@sha256:70729b46…` | `projects/02-llm-gateway/tests/compose.yaml`, `helm/gateway/values.yaml` | 2026-10-18 |
 | Presidio analyzer and anonymizer (images) | `mcr.microsoft.com/presidio-analyzer:2.2.362@sha256:286e3fa7…`, `presidio-anonymizer:2.2.362@sha256:a10a12a2…` (the newest on Microsoft's registry; 2.2.363 and 2.2.364 aren't published there) | `projects/02-llm-gateway/helm/gateway/values.yaml`, `tests/compose.yaml` | 2026-10-18 |
