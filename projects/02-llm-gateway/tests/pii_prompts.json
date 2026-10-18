@@ -1,0 +1,25 @@
+{
+  "note": "Fake PII for test_pii.py: reserved example.* domains, 555 and Ofcom drama phone numbers, and the card networks' published test numbers. Committed before the first run; never edited to make a run pass.",
+  "prompts": [
+    {"id": 1, "text": "Please email the invoice to jane.doe@example.com by Friday.", "pii": {"email": ["jane.doe@example.com"]}},
+    {"id": 2, "text": "Call me back on (212) 555-0143 after 3pm.", "pii": {"phone": ["(212) 555-0143"]}},
+    {"id": 3, "text": "The customer's card number is 4111 1111 1111 1111, expiring 09/28.", "pii": {"card": ["4111 1111 1111 1111"]}},
+    {"id": 4, "text": "Forward the ticket to m.chen@example.org and copy ops-team+alerts@example.net.", "pii": {"email": ["m.chen@example.org", "ops-team+alerts@example.net"]}},
+    {"id": 5, "text": "Our London office is on +44 20 7946 0958.", "pii": {"phone": ["+44 20 7946 0958"]}},
+    {"id": 6, "text": "Charge 5500 0000 0000 0004 for the annual plan.", "pii": {"card": ["5500 0000 0000 0004"]}},
+    {"id": 7, "text": "Her mobile is 646.555.0102 and her email is a.kumar@mail.example.co.uk.", "pii": {"phone": ["646.555.0102"], "email": ["a.kumar@mail.example.co.uk"]}},
+    {"id": 8, "text": "Refund the payment made with card 3782 822463 10005.", "pii": {"card": ["3782 822463 10005"]}},
+    {"id": 9, "text": "Reach the on-call engineer at 312-555-0177.", "pii": {"phone": ["312-555-0177"]}},
+    {"id": 10, "text": "Update the billing contact to j_smith77@example.io.", "pii": {"email": ["j_smith77@example.io"]}},
+    {"id": 11, "text": "The card on file, 4012888888881881, was declined twice.", "pii": {"card": ["4012888888881881"]}},
+    {"id": 12, "text": "Text 2125550186 when the order ships.", "pii": {"phone": ["2125550186"]}},
+    {"id": 13, "text": "Customer wrote from jane.doe@example.com about card 6011-1111-1111-1117.", "pii": {"email": ["jane.doe@example.com"], "card": ["6011-1111-1111-1117"]}},
+    {"id": 14, "text": "Escalate: the caller at +1 415 555 0199 says the charge on 4111 1111 1111 1111 is wrong.", "pii": {"phone": ["+1 415 555 0199"], "card": ["4111 1111 1111 1111"]}},
+    {"id": 15, "text": "Summarise this note: 'Contact m.chen@example.org or (212) 555-0143 for access.'", "pii": {"email": ["m.chen@example.org"], "phone": ["(212) 555-0143"]}},
+    {"id": 16, "text": "Please verify card number 5500-0000-0000-0004 for the customer.", "pii": {"card": ["5500-0000-0000-0004"]}},
+    {"id": 17, "text": "Send the contract to ops-team+alerts@example.net and call 646.555.0102 to confirm.", "pii": {"email": ["ops-team+alerts@example.net"], "phone": ["646.555.0102"]}},
+    {"id": 18, "text": "Write a polite reply to a.kumar@mail.example.co.uk declining the request.", "pii": {"email": ["a.kumar@mail.example.co.uk"]}},
+    {"id": 19, "text": "Billing issue: card 3782-822463-10005, phone 312-555-0177, email j_smith77@example.io.", "pii": {"card": ["3782-822463-10005"], "phone": ["312-555-0177"], "email": ["j_smith77@example.io"]}},
+    {"id": 20, "text": "My work number is 415-555-0199 ext. 12, please don't share it.", "pii": {"phone": ["415-555-0199"]}}
+  ]
+}
