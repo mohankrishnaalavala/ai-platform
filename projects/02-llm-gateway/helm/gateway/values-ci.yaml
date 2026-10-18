@@ -7,6 +7,11 @@ config:
         model: openai/qwen
         api_base: http://mock-vllm:8000/v1
         api_key: unused
+        # The same timeouts and price as values.yaml (Helm replaces lists); CI checks they match.
+        timeout: 30
+        stream_timeout: 10
+        input_cost_per_token: 0
+        output_cost_per_token: 0.00000075
     - model_name: chat-hosted
       litellm_params:
         model: openai/hosted

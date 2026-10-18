@@ -99,6 +99,14 @@ jobs:
           otel=$(docker run --rm -i "$YQ" '.image.repository + ":" + .image.tag + "@" + .image.digest' < ../helm/otel-collector.yaml)
           grep -qxF "    image: $otel" compose.yaml || { echo "compose.yaml doesn't use the collector image ($otel)"; exit 1; }
 
+      - name: CI's chat-default has the chart's timeouts and price
+        run: |
+          q='.config.model_list[] | select(.model_name == "chat-default") | .litellm_params | [.timeout, .stream_timeout, .input_cost_per_token, .output_cost_per_token]'
+          chart=$(docker run --rm -i "$YQ" -o=json "$q" < ../helm/gateway/values.yaml)
+          ci=$(docker run --rm -i "$YQ" -o=json "$q" < ../helm/gateway/values-ci.yaml)
+          [ "$chart" = "$ci" ] || { echo "values-ci.yaml differs from values.yaml: $ci vs $chart"; exit 1; }
+          echo "chat-default timeout, stream timeout, prices: $chart"
+
       - name: random secrets as files, the chart's config rendered
         run: |
           secrets="$RUNNER_TEMP/secrets" config="$RUNNER_TEMP/config"
@@ -118,6 +126,11 @@ jobs:
 
       - name: smoke tests
         run: GATEWAY_URL=http://127.0.0.1:4000 python3 -m unittest discover -s . -v
+
+      - name: fallback (the mock vLLM stopped)
+        run: |
+          docker compose stop mock-vllm
+          VLLM_DOWN=1 GATEWAY_URL=http://127.0.0.1:4000 python3 -m unittest test_fallback -v
 
       - name: container logs (keys scrubbed)
         if: failure()
