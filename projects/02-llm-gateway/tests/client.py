@@ -3,9 +3,14 @@ quote part of a key, and tests must never print one.
 Env: GATEWAY_URL (e.g. http://127.0.0.1:4000), MASTER_KEY."""
 import json
 import os
+import sys
 import time
 import urllib.error
 import urllib.request
+
+# The tests create teams with the real onboarding script, so CI runs it too.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scripts"))
+import onboard_team
 
 URL = os.environ.get("GATEWAY_URL", "")
 MASTER = os.environ.get("MASTER_KEY", "")
@@ -47,3 +52,10 @@ def new_key(alias):
 
 def delete_key(key):
     call("POST", "/key/delete", MASTER, {"keys": [key]})
+
+
+def new_team_key(name, budget_usd=10.0, rpm=100):
+    """A team made by onboard_team.py, and one key for it. The name gets a suffix, so re-runs don't clash."""
+    name = f"{name}-{int(time.time() * 1000) % 10**8}"
+    team_id = onboard_team.create_team(URL, MASTER, name, budget_usd, rpm)
+    return onboard_team.create_key(URL, MASTER, team_id, f"{name}-1")

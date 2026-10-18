@@ -35,13 +35,14 @@ tf = $(call as,$(1)) terraform -chdir=infra/$(2) init -input=false -reconfigure 
 session_vars = -var="project_id=$(PROJECT)" -var="owner=$(OWNER)" -var="session=$(SESSION)" -var="zone=$(ZONE)" \
 	$(if $(PROFILE),-var="autoscaling_profile=$(PROFILE)") $(if $(SPOT),-var="gpu_spot=$(SPOT)")
 
-.PHONY: help check-project up down status test bench park foundation-plan foundation-apply
+.PHONY: help check-project up down status test bench team park foundation-plan foundation-apply
 
 help:
 	@echo "make up | down | status        session cluster (cloud, costs money while up)"
 	@echo "make up LAYERS=01               also deploy those layers (each project's deploy.sh)"
 	@echo "make test P=00                 run one project's tests"
 	@echo "make bench [CONFIG=… SCENARIOS=… CONCURRENCY=…]  P1 benchmarks, from a Job in the session cluster"
+	@echo "make team NAME=… BUDGET_USD=… RPM=… [TPM=…]  P2: onboard a team on the gateway; prints its key once"
 	@echo "make foundation-plan | -apply  the always-on foundation, as the terraform service account"
 	@echo "make park CONFIRM=yes          empty Artifact Registry and the buckets (keeps Terraform state)"
 
@@ -99,6 +100,18 @@ test:
 # CONCURRENCY pass through from the environment; results go to the results bucket.
 bench: check-project
 	ZONE=$(ZONE) bash projects/01-gpu-serving/bench/bench.sh
+
+# P2: onboard a team on the running gateway (make up LAYERS=02). The master key is read as the deployer
+# straight into the script's environment, never printed; the team's key is printed once. NAME and the
+# numbers reach the script through the environment ($$NAME), never pasted into the shell line by Make.
+team: check-project
+	@[ -n "$$NAME" ] && [ -n "$$BUDGET_USD" ] && [ -n "$$RPM" ] || { echo "usage: make team NAME=payments BUDGET_USD=20 RPM=60 [TPM=100000]"; exit 1; }
+	@set -e; kubectl port-forward -n gateway svc/gateway 14000:4000 >/dev/null & pf=$$!; trap 'kill $$pf 2>/dev/null' EXIT; \
+	up=; for _ in $$(seq 30); do curl -sf http://127.0.0.1:14000/health/liveliness >/dev/null && up=1 && break; sleep 1; done; \
+	[ -n "$$up" ] || { echo "the gateway isn't reachable on 127.0.0.1:14000 (make up LAYERS=02? port in use?)"; exit 1; }; \
+	master=$$(gcloud secrets versions access latest --secret=litellm-master-key $(if $(GITHUB_ACTIONS),,--impersonate-service-account=deployer@$(PROJECT).iam.gserviceaccount.com) 2>/dev/null) || true; \
+	[ -n "$$master" ] || { echo "couldn't read the gateway's master key"; exit 1; }; \
+	LITELLM_MASTER_KEY="$$master" GATEWAY_URL=http://127.0.0.1:14000 python3 projects/02-llm-gateway/scripts/onboard_team.py "$$NAME" "$$BUDGET_USD" "$$RPM" $${TPM:+"$$TPM"}
 
 foundation-plan: check-project
 	@email=$$(gcloud config get account) && \
