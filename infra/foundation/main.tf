@@ -110,13 +110,15 @@ module "mirror_wif" {
 }
 
 # --- Pods in the session cluster, through GKE Workload Identity: IAM grants go straight to the
-# Kubernetes service account (namespace vllm), so no Google service account or key is involved.
+# Kubernetes service account (namespaces vllm and gateway), so no Google service account or key is involved.
 # The Workload Identity pool these name exists once a session cluster has been created.
 locals {
   # From the module's output, not typed out, so the grants wait until the buckets exist.
   models_bucket  = module.buckets.names[index(module.buckets.names, "${var.project_id}-models")]
   results_bucket = module.buckets.names[index(module.buckets.names, "${var.project_id}-results")]
-  k8s_sa         = "principal://iam.googleapis.com/projects/${data.google_project.this.number}/locations/global/workloadIdentityPools/${var.project_id}.svc.id.goog/subject/ns/vllm/sa"
+  k8s_ns         = "principal://iam.googleapis.com/projects/${data.google_project.this.number}/locations/global/workloadIdentityPools/${var.project_id}.svc.id.goog/subject/ns"
+  k8s_sa         = "${local.k8s_ns}/vllm/sa"
+  litellm_sa     = "${local.k8s_ns}/gateway/sa/litellm"
 }
 
 resource "google_storage_bucket_iam_member" "vllm_reads_models" {
@@ -129,6 +131,57 @@ resource "google_storage_bucket_iam_member" "bench_writes_results" {
   bucket = local.results_bucket
   role   = "roles/storage.objectCreator"
   member = "${local.k8s_sa}/bench"
+}
+
+# --- P2 gateway. Terraform creates the secrets but never a version: deploy.sh adds a random value
+# each session, so no secret value is ever in Terraform state.
+resource "google_secret_manager_secret" "gateway" {
+  for_each = toset(["litellm-master-key", "gateway-postgres-password"])
+
+  secret_id = each.key
+  labels    = { layer = "02" }
+  replication {
+    auto {}
+  }
+}
+
+# Add a version and destroy the previous one (destroyed versions stop billing); no read.
+resource "google_secret_manager_secret_iam_member" "deployer_secret_versions" {
+  for_each = google_secret_manager_secret.gateway
+
+  secret_id = each.value.id
+  role      = "roles/secretmanager.secretVersionManager"
+  member    = google_service_account.deployer.member
+}
+
+# `make team` creates teams and keys through the gateway's admin API, which needs the master key. The
+# deployer is both the laptop's identity and gpu-session.yml's, so the session tests can create keys too.
+resource "google_secret_manager_secret_iam_member" "deployer_reads_master_key" {
+  secret_id = google_secret_manager_secret.gateway["litellm-master-key"].id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = google_service_account.deployer.member
+}
+
+# LiteLLM reads both: the master key, and the Postgres password to build its database address.
+resource "google_secret_manager_secret_iam_member" "litellm_reads_secrets" {
+  for_each = google_secret_manager_secret.gateway
+
+  secret_id = each.value.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = local.litellm_sa
+}
+
+resource "google_secret_manager_secret_iam_member" "postgres_reads_password" {
+  secret_id = google_secret_manager_secret.gateway["gateway-postgres-password"].id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "${local.k8s_ns}/gateway/sa/postgres"
+}
+
+# Prompt requests to the hosted model (ADR-0009) and nothing else. bootstrap.sh creates the role.
+resource "google_project_iam_member" "litellm_vertex_predict" {
+  project = var.project_id
+  role    = "projects/${var.project_id}/roles/vertexPredict"
+  member  = local.litellm_sa
 }
 
 # --- GKE nodes run as their own account, not the default Compute Engine one (which has Editor).
