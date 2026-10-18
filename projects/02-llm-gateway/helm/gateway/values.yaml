@@ -34,11 +34,26 @@ config:
         model: openai/Qwen/Qwen2.5-7B-Instruct
         api_base: http://vllm.vllm.svc:8000/v1
         api_key: unused  # vLLM has no auth inside the cluster; the gateway is the front door
+        # Fall back after 10 s without a first token (streaming) or 30 s in all. P1's BF16 run: chat
+        # stays under both at every load (p99 TTFT up to 4.3 s and end-to-end up to 15.3 s, both at 32
+        # concurrent). Rag is close at 8 (7.3 s and 29.0 s) and over them from 16 (32.5 s and 62.5 s),
+        # where vLLM is already overloaded. Without a timeout, a dead upstream held requests past 60 s
+        # (results/spike-2026-10-18.md).
+        timeout: 30
+        stream_timeout: 10
+        # Internal price, so team budgets count self-hosted use too: P1's GPU-node cost per output
+        # token, BF16, chat at 32 concurrent, on-demand node ($0.75 per 1M output tokens,
+        # projects/01-gpu-serving/results/cost-2026-10-17.md). Input tokens are in that node cost.
+        input_cost_per_token: 0
+        output_cost_per_token: 0.00000075
     - model_name: chat-hosted  # the hosted model, keyless through Workload Identity
       litellm_params:
         model: vertex_ai/gemini-3.5-flash-lite
         vertex_project: os.environ/VERTEX_PROJECT
         vertex_location: global
+  router_settings:
+    fallbacks: [{"chat-default": ["chat-hosted"]}]
+    num_retries: 0  # straight to the fallback: a retry against a dead upstream only adds waiting
   litellm_settings:
     callbacks: ["otel"]
     turn_off_message_logging: true  # no prompt or answer text in logs, traces or spend logs

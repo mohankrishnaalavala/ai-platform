@@ -33,6 +33,7 @@ services:
     # entrypoint, not command: Compose appends command to the image's entrypoint; Kubernetes' command replaces it.
     entrypoint: ["/bin/sh", "/config/start.sh"]
     environment:
+      LITELLM_LOCAL_MODEL_COST_MAP: "True"
       OTEL_EXPORTER: otlp_http
       OTEL_ENDPOINT: http://otel-collector:4318/v1/traces
     volumes:
