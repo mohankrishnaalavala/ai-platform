@@ -24,6 +24,19 @@ services:
     command: ["python3", "/app/server.py"]
     environment: {NAME: hosted}
     volumes: ["./mock_provider/server.py:/app/server.py:ro"]
+    ports: ["127.0.0.1:8102:8000"]  # test_pii.py reads what reached the "hosted provider" (GET /log)
+  presidio-analyzer:
+    image: mcr.microsoft.com/presidio-analyzer:2.2.362@sha256:286e3fa7f3a7426e775e8564fe1870f1ba8f999d3ab8bbb8cc46a44355d9d6e9
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3000/health', timeout=5)"]
+      interval: 5s
+      retries: 120  # it loads a language model first
+  presidio-anonymizer:
+    image: mcr.microsoft.com/presidio-anonymizer:2.2.362@sha256:a10a12a2a613d13cf29d3ad3641e3258444dd8c90403dd644a0a114c472c2483
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3000/health', timeout=5)"]
+      interval: 5s
+      retries: 60
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.161.0@sha256:fd328de2552466ad78385e1b1289c3f2402b1c45f265b252aab1955b42845ac1
     command: ["--config=/etc/otel.yaml"]
@@ -33,6 +46,8 @@ services:
     # entrypoint, not command: Compose appends command to the image's entrypoint; Kubernetes' command replaces it.
     entrypoint: ["/bin/sh", "/config/start.sh"]
     environment:
+      PRESIDIO_ANALYZER_API_BASE: http://presidio-analyzer:3000
+      PRESIDIO_ANONYMIZER_API_BASE: http://presidio-anonymizer:3000
       LITELLM_LOCAL_MODEL_COST_MAP: "True"
       OTEL_EXPORTER: otlp_http
       OTEL_ENDPOINT: http://otel-collector:4318/v1/traces
@@ -46,4 +61,6 @@ services:
       retries: 60
     depends_on:
       postgres: {condition: service_healthy}
+      presidio-analyzer: {condition: service_healthy}
+      presidio-anonymizer: {condition: service_healthy}
       otel-collector: {condition: service_started}

@@ -22,6 +22,19 @@ postgres:
     requests: {cpu: 100m, memory: 256Mi}
     limits: {memory: 256Mi}
 
+# Presidio (open-source PII detection), version 2.2.362: the newest on Microsoft's registry.
+presidio:
+  analyzer:
+    image: mcr.microsoft.com/presidio-analyzer:2.2.362@sha256:286e3fa7f3a7426e775e8564fe1870f1ba8f999d3ab8bbb8cc46a44355d9d6e9
+    resources:  # it holds a language model in memory; the shakedown measures the real use
+      requests: {cpu: 500m, memory: 2Gi}
+      limits: {memory: 2Gi}
+  anonymizer:
+    image: mcr.microsoft.com/presidio-anonymizer:2.2.362@sha256:a10a12a2a613d13cf29d3ad3641e3258444dd8c90403dd644a0a114c472c2483
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+      limits: {memory: 256Mi}
+
 # Where the gateway sends its traces (the collector deploy.sh installs in this namespace).
 otelEndpoint: http://otel-collector:4318/v1/traces
 
@@ -51,6 +64,24 @@ config:
         model: vertex_ai/gemini-3.5-flash-lite
         vertex_project: os.environ/VERTEX_PROJECT
         vertex_location: global
+  # Mask personal data in every request, not only the hosted route: a request that falls back from
+  # chat-default to chat-hosted skips a guardrail scoped to chat-hosted (results/spike-2026-10-18.md).
+  # The types are listed on purpose: with an explicit list, LiteLLM refuses a request when Presidio
+  # answers with an error, instead of sending it unmasked.
+  guardrails:
+    - guardrail_name: mask-pii
+      litellm_params:
+        guardrail: presidio
+        mode: pre_call
+        default_on: true
+        pii_entities_config:
+          EMAIL_ADDRESS: MASK
+          PHONE_NUMBER: MASK
+          CREDIT_CARD: MASK
+          PERSON: MASK
+          US_SSN: MASK
+          IBAN_CODE: MASK
+          IP_ADDRESS: MASK
   router_settings:
     fallbacks: [{"chat-default": ["chat-hosted"]}]
     num_retries: 0  # straight to the fallback: a retry against a dead upstream only adds waiting

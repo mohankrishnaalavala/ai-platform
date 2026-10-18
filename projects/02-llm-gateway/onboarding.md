@@ -41,6 +41,13 @@ reply = client.chat.completions.create(model="chat-default", messages=[{"role": 
 | `chat-default` | The platform's own model (Qwen2.5-7B-Instruct on a GPU). If it's down or too slow, the gateway sends the request to `chat-hosted` instead. |
 | `chat-hosted` | A hosted model on Google Cloud (Gemini on Vertex AI). |
 
+**Personal data is masked first.** Before any request reaches a model, the gateway replaces email
+addresses, phone numbers, card numbers, names, US social security numbers, IBANs and IP addresses
+with placeholders such as `<EMAIL_ADDRESS>`. It does this for every request, including one that falls
+back to the hosted model, and refuses the request if the detector is down. The tests cover emails,
+phone numbers and card numbers (`tests/test_pii.py`). Detection isn't perfect: don't send personal data
+you can avoid sending.
+
 In this dev setup the gateway has no public address: reach it with
 `kubectl port-forward -n gateway svc/gateway 4000:4000`.
 

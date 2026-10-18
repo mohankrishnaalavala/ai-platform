@@ -1,0 +1,53 @@
+# Presidio (Microsoft's open-source PII detector): the analyzer finds personal data, the anonymizer
+# replaces it. The gateway calls both before every request leaves for a model. Inside the cluster only.
+{{- range $name, $p := .Values.presidio }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: presidio-{{ $name }}
+  labels: {{- include "gateway.labels" $ | trim | nindent 4 }}
+    app.kubernetes.io/name: presidio-{{ $name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: presidio-{{ $name }}
+  template:
+    metadata:
+      labels: {{- include "gateway.labels" $ | trim | nindent 8 }}
+        app.kubernetes.io/name: presidio-{{ $name }}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: presidio-{{ $name }}
+          image: {{ $p.image }}
+          ports:
+            - {name: http, containerPort: 3000}
+          # The analyzer loads a language model first: in the spike that took about a minute, once over 300 s.
+          startupProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 10
+          resources: {{- toYaml $p.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: presidio-{{ $name }}
+  labels: {{- include "gateway.labels" $ | trim | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: presidio-{{ $name }}
+  ports:
+    - {name: http, port: 3000, targetPort: http}
+{{- end }}
