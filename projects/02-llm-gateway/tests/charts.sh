@@ -17,6 +17,8 @@ trap 'rm -f "$out"' EXIT
 
 helm lint "$chart" "${common[@]}"
 { helm template gateway "$chart" -n gateway "${common[@]}"; echo ---
+  helm template gateway "$chart" -n gateway "${common[@]}" --set mockProvider.enabled=true \
+    --show-only templates/mock-provider.yaml --show-only templates/config.yaml; echo ---
   helm template otel-collector opentelemetry-collector --repo https://open-telemetry.github.io/opentelemetry-helm-charts \
     --version 0.174.2 -n gateway -f helm/otel-collector.yaml; echo ---
   cat helm/namespaces.yaml; } >> "$out"

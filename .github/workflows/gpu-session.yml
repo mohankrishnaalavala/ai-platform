@@ -4,6 +4,7 @@
 #   shakedown: smoke tests, one short benchmark and one node-removal timing (estimate: 1-1.5 h)
 #   full:      every benchmark (BF16 and FP8), the scale-out test, 3+3 cold starts (estimate: 3.5-5 h)
 #   bf16-bench: only the BF16 benchmarks, to redo a run that was invalid (estimate: 1-1.5 h)
+#   gateway-shakedown: P2 only, no GPU: the gateway with the test-only mock, make test P=02 (estimate: 45-75 min)
 # Results go to the results bucket as each step finishes, so a run that ends early keeps them.
 # Teardown is its own job with its own time limit, so it runs in full even after the session job
 # fails, times out or is cancelled. cost-guard (nightly, clusters older than 8 h) is the backstop.
@@ -14,7 +15,7 @@ on:
       mode:
         description: What to run
         type: choice
-        options: [shakedown, full, bf16-bench]
+        options: [shakedown, full, bf16-bench, gateway-shakedown]
         default: shakedown
       zone:
         description: Zone of the cluster (GPU nodes may start in any us-central1 zone with L4s)
@@ -43,7 +44,7 @@ jobs:
   session:
     runs-on: ubuntu-24.04
     # GitHub stops any job at 6 hours. Teardown runs in its own job afterwards.
-    timeout-minutes: ${{ inputs.mode == 'full' && 350 || 150 }}
+    timeout-minutes: ${{ inputs.mode == 'full' && 350 || inputs.mode == 'gateway-shakedown' && 90 || 150 }}
     outputs:
       started: ${{ steps.precheck.outputs.started }}
     env:
@@ -56,7 +57,10 @@ jobs:
       PROFILE: ${{ inputs.mode == 'full' && 'OPTIMIZE_UTILIZATION' || 'BALANCED' }}
       SPOT: ${{ inputs.spot }}
       # Every measurement ends by this many minutes after the job starts, leaving time for diagnostics.
-      MEASURE_MINUTES: ${{ inputs.mode == 'full' && 330 || 130 }}
+      MEASURE_MINUTES: ${{ inputs.mode == 'full' && 330 || inputs.mode == 'gateway-shakedown' && 75 || 130 }}
+      # P1 (vLLM) or P2 (the gateway, no GPU: the GPU pool stays at 0 nodes).
+      LAYER: ${{ inputs.mode == 'gateway-shakedown' && '02' || '01' }}
+      MOCK_PROVIDER: ${{ inputs.mode == 'gateway-shakedown' && '1' || '' }}  # P2's test-only mock, for the PII test
     steps:
       - name: measurement deadline
         run: echo "MEASURE_UNTIL=$(( $(date +%s) + MEASURE_MINUTES * 60 ))" >> "$GITHUB_ENV"
@@ -107,18 +111,18 @@ jobs:
           if [ -n "$clusters" ]; then echo "started=no" >> "$GITHUB_OUTPUT"; echo "a session cluster already exists; not starting another"; exit 1; fi
           echo "started=yes" >> "$GITHUB_OUTPUT"
 
-      # Cluster, NAT, Prometheus, KEDA and vLLM (BF16), until the model is loaded.
-      - name: make up LAYERS=01
+      # Cluster and NAT, then the layer: P1 (Prometheus, KEDA, vLLM BF16, until the model is loaded) or P2.
+      - name: make up
         id: up
         timeout-minutes: 75
-        run: make up LAYERS=01
+        run: make up LAYERS="$LAYER"
 
       # Each measuring step runs even if an earlier one failed (the run still ends red), and is cut off
       # at the deadline: `timeout` gets the seconds left (none left = the step fails at once).
-      - name: make test P=01 (smoke tests, autoscaling path)
+      - name: make test (P1 smoke tests and autoscaling path, or every P2 check)
         if: ${{ !cancelled() && steps.up.outcome == 'success' }}
-        timeout-minutes: 15
-        run: make test P=01
+        timeout-minutes: 30
+        run: make test P="$LAYER"
 
       - name: "shakedown: one short benchmark (BF16, chat, concurrency 8)"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'shakedown' }}
@@ -166,17 +170,23 @@ jobs:
           k describe pods -n vllm > diag/vllm-pods.txt 2>&1 || true
           k logs -n vllm deployment/vllm -c vllm --tail=300 > diag/vllm-log.txt 2>&1 || true
           k get scaledobject,hpa -n vllm -o yaml > diag/autoscaling.yaml 2>&1 || true
+          k describe pods -n gateway > diag/gateway-pods.txt 2>&1 || true
+          for d in litellm postgres presidio-analyzer presidio-anonymizer otel-collector; do
+            k logs -n gateway "deployment/$d" --all-containers --tail=300 > "diag/gateway-$d-log.txt" 2>&1 || true
+          done
+          k top pods -A > diag/top-pods.txt 2>&1 || true
+          k describe nodes | grep -A 12 'Allocated resources' > diag/node-allocations.txt 2>&1 || true
           helm list -A > diag/helm.txt 2>&1 || true
           number=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
           [ -n "$PROJECT_ID" ] && [ -n "$number" ]
-          sed -i -E "s/$PROJECT_ID/<project>/g; s/$number/<project-number>/g; s/[[:alnum:]._+-]+@[[:alnum:].-]+/<email>/g" diag/*
+          sed -i -E "s/$PROJECT_ID/<project>/g; s/$number/<project-number>/g; s/[[:alnum:]._+-]+@[[:alnum:].-]+/<email>/g; s/sk-[[:alnum:]_.-]{4,}/sk-<redacted>/g" diag/*
 
       # Only after a successful scrub.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ always() && steps.diag.outcome == 'success' }}
         timeout-minutes: 10
         with:
-          name: p1-${{ inputs.mode }}-diagnostics
+          name: ${{ inputs.mode == 'gateway-shakedown' && 'p2' || 'p1' }}-${{ inputs.mode }}-diagnostics
           path: diag/
           retention-days: 14
           if-no-files-found: ignore

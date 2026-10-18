@@ -4,8 +4,13 @@ metadata:
   name: litellm-config
   labels: {{- include "gateway.labels" . | trim | nindent 4 }}
 data:
+  {{- $config := deepCopy .Values.config }}
+  {{- if .Values.mockProvider.enabled }}
+  {{- $mock := dict "model_name" "chat-hosted-mock" "litellm_params" (dict "model" "openai/hosted-mock" "api_base" "http://mock-provider:8000/v1" "api_key" "unused") }}
+  {{- $_ := set $config "model_list" (append $config.model_list $mock) }}
+  {{- end }}
   config.yaml: |
-    {{- toYaml .Values.config | nindent 4 }}
+    {{- toYaml $config | nindent 4 }}
   # The add-on mounts secrets as files; LiteLLM reads them from the environment. Set them here, never
   # echo them, then run the image's own entrypoint. CI's containers run this same file.
   start.sh: |

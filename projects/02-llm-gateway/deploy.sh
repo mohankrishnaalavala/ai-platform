@@ -2,7 +2,8 @@
 # Deploy P2 into the running session cluster: the namespace, the OTel Collector, then the gateway
 # (LiteLLM + Postgres). Works with or without P1: with `make up LAYERS=02` alone, chat-default has no
 # backend, and only chat-hosted answers.
-# Usage (from the repo root): ZONE=us-central1-c projects/02-llm-gateway/deploy.sh
+# Usage (from the repo root): ZONE=us-central1-c [MOCK_PROVIDER=1] projects/02-llm-gateway/deploy.sh
+# MOCK_PROVIDER=1 adds the test-only mock provider (alias chat-hosted-mock) for the session's PII test.
 set -euo pipefail
 # Same settings as the Makefile: never the machine's default project or kubeconfig.
 export CLOUDSDK_ACTIVE_CONFIG_NAME=ai-platform CLOUDSDK_CORE_DISABLE_PROMPTS=1 KUBECONFIG=${KUBECONFIG:-$HOME/.kube/ai-platform}
@@ -44,8 +45,16 @@ labels=(--set-string "additionalLabels.owner=$owner" --set-string "additionalLab
         --set-string "podLabels.owner=$owner" --set-string "podLabels.session=$session")
 helm upgrade --install otel-collector opentelemetry-collector --repo https://open-telemetry.github.io/opentelemetry-helm-charts \
   --version 0.174.2 -n gateway -f "$here/helm/otel-collector.yaml" "${labels[@]}" --wait --timeout 5m
+mock=()
+if [ "${MOCK_PROVIDER:-}" = 1 ]; then
+  # The same file CI runs; a ConfigMap, so no image of our own is built or pushed.
+  kubectl create configmap mock-provider -n gateway --from-file=server.py="$here/tests/mock_provider/server.py" \
+    --dry-run=client -o yaml | kubectl apply -f -
+  kubectl label configmap mock-provider -n gateway app=ai-platform layer=02 owner="$owner" session="$session" --overwrite
+  mock=(--set mockProvider.enabled=true)
+fi
 helm upgrade --install gateway "$here/helm/gateway" -n gateway --set-string project="$project" \
-  --set-string labels.owner="$owner" --set-string labels.session="$session" --wait --timeout 15m || {
+  --set-string labels.owner="$owner" --set-string labels.session="$session" ${mock[@]+"${mock[@]}"} --wait --timeout 15m || {
   kubectl get pods,events -n gateway --sort-by=.metadata.creationTimestamp | tail -30
   exit 1
 }

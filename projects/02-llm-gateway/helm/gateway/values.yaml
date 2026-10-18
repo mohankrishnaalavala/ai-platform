@@ -37,6 +37,12 @@ presidio:
       requests: {cpu: 100m, memory: 256Mi}
       limits: {memory: 256Mi}
 
+# Test only (session PII tests): the mock provider as the alias chat-hosted-mock. deploy.sh turns it on
+# with MOCK_PROVIDER=1; off for a real install.
+mockProvider:
+  enabled: false
+  image: python:3.13-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f
+
 # Where the gateway sends its traces (the collector deploy.sh installs in this namespace).
 otelEndpoint: http://otel-collector:4318/v1/traces
 
