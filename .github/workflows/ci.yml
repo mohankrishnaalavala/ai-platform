@@ -58,7 +58,8 @@ jobs:
           echo "$RUNNER_TEMP/linux-amd64" >> "$GITHUB_PATH"
 
       - name: helm charts (lint, schema check, no public services or disks)
-        run: projects/01-gpu-serving/tests/charts.sh
+        run: |
+          for c in projects/*/tests/charts.sh; do echo "== $c"; "$c"; done
 
       - name: actionlint
         run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 -color

@@ -1,0 +1,47 @@
+# The LLM gateway: LiteLLM in front of the self-hosted model (P1) and a hosted one, with Postgres
+# for teams, keys and spend. deploy.sh sets project, labels.owner and labels.session.
+project: ""  # the GCP project that holds the secrets and serves the hosted model
+
+labels:
+  app: ai-platform
+  layer: "02"
+  owner: ""
+  session: ""
+
+litellm:
+  # Open-source features only; no license key is set anywhere (results/spike-2026-10-18.md).
+  image: ghcr.io/berriai/litellm-database:v1.103.3@sha256:11f2537026988447f49c036bb692898b4ab697caa3b4a060bf6c668266b69659
+  # Starting points: the shakedown measures what they really use on the one system node.
+  resources:
+    requests: {cpu: 500m, memory: 1Gi}
+    limits: {memory: 1Gi}
+
+postgres:
+  image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 256Mi}
+
+# Where the gateway sends its traces (the collector deploy.sh installs in this namespace).
+otelEndpoint: http://otel-collector:4318/v1/traces
+
+# LiteLLM's config file, as is. Secrets come from the environment (os.environ/...), which the
+# container fills from the mounted Secret Manager files at start; nothing secret is in here.
+config:
+  model_list:
+    - model_name: chat-default  # our vLLM (P1)
+      litellm_params:
+        model: openai/Qwen/Qwen2.5-7B-Instruct
+        api_base: http://vllm.vllm.svc:8000/v1
+        api_key: unused  # vLLM has no auth inside the cluster; the gateway is the front door
+    - model_name: chat-hosted  # the hosted model, keyless through Workload Identity
+      litellm_params:
+        model: vertex_ai/gemini-3.5-flash-lite
+        vertex_project: os.environ/VERTEX_PROJECT
+        vertex_location: global
+  litellm_settings:
+    callbacks: ["otel"]
+    turn_off_message_logging: true  # no prompt or answer text in logs, traces or spend logs
+  general_settings:
+    master_key: os.environ/LITELLM_MASTER_KEY
+    database_url: os.environ/DATABASE_URL

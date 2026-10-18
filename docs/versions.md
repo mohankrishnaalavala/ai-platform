@@ -20,8 +20,13 @@ Record every pinned version here when you add it (Terraform providers, GKE versi
 | Model | `Qwen/Qwen2.5-7B-Instruct`, revision `a09a3545…` (Apache 2.0, not gated) | `config/models/*.yaml` | 2026-10-16 |
 | crane (go-containerregistry) | v0.22.1, release tarball checked by sha256 `0ab7a1d6…` | `mirror.yml` | 2026-10-16 |
 | Helm | v4.3.0 (2026-09-09), release tarball checked by sha256 `86584a54…` | `ci.yml` | 2026-10-16 |
-| kubeconform (Docker image), Kubernetes schemas 1.36.0 | `ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43…` | `projects/01-gpu-serving/tests/charts.sh` | 2026-10-16 |
+| kubeconform (Docker image), Kubernetes schemas 1.36.0 | `ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43…` | `projects/01-gpu-serving/tests/charts.sh`, `projects/02-llm-gateway/tests/charts.sh` | 2026-10-16 |
 | kube-prometheus-stack (Helm chart, OCI) | 91.9.0 (2026-10-02; operator v0.94.1), chart digest `sha256:04047e50…` | `projects/01-gpu-serving/deploy.sh`, `tests/charts.sh` | 2026-10-16 |
 | KEDA (Helm chart) | 2.21.0 (2026-09-23; supports Kubernetes 1.34–1.36) | `projects/01-gpu-serving/deploy.sh`, `tests/charts.sh` | 2026-10-16 |
-| CRDs-catalog (schemas for kubeconform) | commit `d373c2da…` (2026-09-29) | `projects/01-gpu-serving/tests/charts.sh` | 2026-10-16 |
+| CRDs-catalog (schemas for kubeconform) | commit `d373c2da…` (2026-09-29) | `projects/01-gpu-serving/tests/charts.sh`, `projects/02-llm-gateway/tests/charts.sh` | 2026-10-16 |
 | `actions/upload-artifact` | v7.0.1 (`043fb46d…`, 2026-04-10; v7.0.2 was 9 days old) | `gpu-session.yml` | 2026-10-16 |
+| LiteLLM proxy (image, open-source features only) | `ghcr.io/berriai/litellm-database:v1.103.3@sha256:11f25370…` (2026-10-03; tested with no license key: `projects/02-llm-gateway/results/spike-2026-10-18.md`) | `projects/02-llm-gateway/helm/gateway/values.yaml` | 2026-10-18 |
+| Postgres (image) | `postgres:17.6-alpine@sha256:ef257d85…` | `projects/02-llm-gateway/helm/gateway/values.yaml` | 2026-10-18 |
+| OpenTelemetry Collector (Helm chart) | `opentelemetry-collector` 0.174.2 (2026-10-01; app 0.161.0) | `projects/02-llm-gateway/deploy.sh`, `tests/charts.sh` | 2026-10-18 |
+| OpenTelemetry Collector contrib (image) | `otel/opentelemetry-collector-contrib:0.161.0@sha256:fd328de2…` | `projects/02-llm-gateway/helm/otel-collector.yaml` | 2026-10-18 |
+| Hosted model (Vertex AI, global endpoint) | `gemini-3.5-flash-lite` (`projects/02-llm-gateway/results/spike-2026-10-18.md`) | `projects/02-llm-gateway/helm/gateway/values.yaml` | 2026-10-18 |

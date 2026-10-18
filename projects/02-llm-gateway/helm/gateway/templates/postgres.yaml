@@ -1,0 +1,65 @@
+# Postgres for the gateway's teams, keys and spend (dev profile). Data lives in an emptyDir: no disk
+# is ever created, so nothing is left behind at `make down`, and the data lasts one session.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  labels: {{- include "gateway.labels" . | trim | nindent 4 }}
+    app.kubernetes.io/name: postgres
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  template:
+    metadata:
+      labels: {{- include "gateway.labels" . | trim | nindent 8 }}
+        app.kubernetes.io/name: postgres
+    spec:
+      serviceAccountName: postgres
+      enableServiceLinks: false
+      securityContext:
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: postgres
+          image: {{ .Values.postgres.image }}
+          env:
+            - {name: POSTGRES_USER, value: litellm}
+            - {name: POSTGRES_DB, value: litellm}
+            - {name: POSTGRES_PASSWORD_FILE, value: /secrets/gateway-postgres-password}  # the image reads the file itself
+            - {name: PGDATA, value: /var/lib/postgresql/data/pgdata}
+          ports:
+            - {name: postgres, containerPort: 5432}
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "litellm", "-d", "litellm"]
+            periodSeconds: 5
+          resources: {{- toYaml .Values.postgres.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/postgresql/data}
+            - {name: secrets, mountPath: /secrets, readOnly: true}
+      volumes:
+        - name: data
+          emptyDir: {}
+        - name: secrets
+          csi:
+            driver: secrets-store-gke.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: postgres-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels: {{- include "gateway.labels" . | trim | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: postgres
+  ports:
+    - {name: postgres, port: 5432, targetPort: postgres}
