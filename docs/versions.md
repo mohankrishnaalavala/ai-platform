@@ -30,3 +30,5 @@ Record every pinned version here when you add it (Terraform providers, GKE versi
 | OpenTelemetry Collector (Helm chart) | `opentelemetry-collector` 0.174.2 (2026-10-01; app 0.161.0) | `projects/02-llm-gateway/deploy.sh`, `tests/charts.sh` | 2026-10-18 |
 | OpenTelemetry Collector contrib (image) | `otel/opentelemetry-collector-contrib:0.161.0@sha256:fd328de2…` | `projects/02-llm-gateway/helm/otel-collector.yaml` | 2026-10-18 |
 | Hosted model (Vertex AI, global endpoint) | `gemini-3.5-flash-lite` (`projects/02-llm-gateway/results/spike-2026-10-18.md`) | `projects/02-llm-gateway/helm/gateway/values.yaml` | 2026-10-18 |
+| yq (Docker image) | `mikefarah/yq:4.54.1@sha256:4b3d9475…` (2026-09-29) | `ci.yml` (job gateway) | 2026-10-18 |
+| Python (image for the mock provider) | `python:3.13-slim@sha256:70729b46…` | `projects/02-llm-gateway/tests/compose.yaml` | 2026-10-18 |

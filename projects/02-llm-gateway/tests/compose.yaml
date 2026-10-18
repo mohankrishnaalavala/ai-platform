@@ -1,0 +1,48 @@
+# The gateway in containers, for CI on every pull request (ci.yml, job gateway): the chart's own
+# LiteLLM config and start script, the same images and secret file paths as in the cluster, and the
+# mock provider in place of vLLM and the hosted model. No GPU, no cloud login.
+# The job sets SECRETS_DIR (random files) and CONFIG_DIR (rendered from helm/gateway) first.
+services:
+  postgres:
+    image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+    environment:
+      POSTGRES_USER: litellm
+      POSTGRES_DB: litellm
+      POSTGRES_PASSWORD_FILE: /secrets/gateway-postgres-password
+    volumes: ["${SECRETS_DIR:?}/gateway-postgres-password:/secrets/gateway-postgres-password:ro"]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "litellm", "-d", "litellm"]  # TCP: the first-start server is socket-only
+      interval: 2s
+      retries: 30
+  mock-vllm:
+    image: python:3.13-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f
+    command: ["python3", "/app/server.py"]
+    environment: {NAME: vllm}
+    volumes: ["./mock_provider/server.py:/app/server.py:ro"]
+  mock-hosted:
+    image: python:3.13-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f
+    command: ["python3", "/app/server.py"]
+    environment: {NAME: hosted}
+    volumes: ["./mock_provider/server.py:/app/server.py:ro"]
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.161.0@sha256:fd328de2552466ad78385e1b1289c3f2402b1c45f265b252aab1955b42845ac1
+    command: ["--config=/etc/otel.yaml"]
+    volumes: ["./otel-ci.yaml:/etc/otel.yaml:ro"]
+  litellm:
+    image: ghcr.io/berriai/litellm-database:v1.103.3@sha256:11f2537026988447f49c036bb692898b4ab697caa3b4a060bf6c668266b69659
+    # entrypoint, not command: Compose appends command to the image's entrypoint; Kubernetes' command replaces it.
+    entrypoint: ["/bin/sh", "/config/start.sh"]
+    environment:
+      OTEL_EXPORTER: otlp_http
+      OTEL_ENDPOINT: http://otel-collector:4318/v1/traces
+    volumes:
+      - "${CONFIG_DIR:?}:/config:ro"
+      - "${SECRETS_DIR:?}:/secrets:ro"
+    ports: ["127.0.0.1:4000:4000"]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4000/health/readiness', timeout=5)"]
+      interval: 5s
+      retries: 60
+    depends_on:
+      postgres: {condition: service_healthy}
+      otel-collector: {condition: service_started}

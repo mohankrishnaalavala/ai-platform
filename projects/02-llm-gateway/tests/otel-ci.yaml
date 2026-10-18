@@ -1,0 +1,14 @@
+# CI's collector (tests/compose.yaml): OTLP over HTTP in, a one-line summary out, like the cluster's.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+exporters:
+  debug:
+    verbosity: basic
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [debug]

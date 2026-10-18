@@ -1,0 +1,14 @@
+# CI only (tests/compose.yaml): both aliases point at the mock provider, so no GPU and no cloud are
+# needed. Everything else in the config is the chart's own. Helm replaces lists, so model_list is whole.
+config:
+  model_list:
+    - model_name: chat-default
+      litellm_params:
+        model: openai/qwen
+        api_base: http://mock-vllm:8000/v1
+        api_key: unused
+    - model_name: chat-hosted
+      litellm_params:
+        model: openai/hosted
+        api_base: http://mock-hosted:8000/v1
+        api_key: unused

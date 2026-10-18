@@ -18,7 +18,7 @@ spec:
       labels: {{- include "gateway.labels" . | trim | nindent 8 }}
         app.kubernetes.io/name: litellm
       annotations:
-        checksum/config: {{ toYaml .Values.config | sha256sum }}  # a config change restarts the pod
+        checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}  # a config change restarts the pod
     spec:
       serviceAccountName: litellm
       enableServiceLinks: false
@@ -34,16 +34,7 @@ spec:
       containers:
         - name: litellm
           image: {{ .Values.litellm.image }}
-          # The add-on mounts secrets as files; LiteLLM reads them from the environment. Set them here,
-          # never echo them, then run the image's own entrypoint.
-          command: ["/bin/sh", "-c"]
-          args:
-            - >-
-              set -eu;
-              key=$(cat /secrets/litellm-master-key);
-              pw=$(cat /secrets/gateway-postgres-password);
-              export LITELLM_MASTER_KEY="$key" DATABASE_URL="postgresql://litellm:$pw@postgres:5432/litellm";
-              exec docker/prod_entrypoint.sh --config /config/config.yaml --port 4000
+          command: ["/bin/sh", "/config/start.sh"]  # secrets from files into the environment (config.yaml)
           env:
             - {name: VERTEX_PROJECT, value: {{ required "project is required" .Values.project | quote }}}
             - {name: OTEL_EXPORTER, value: otlp_http}

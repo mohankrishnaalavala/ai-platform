@@ -34,7 +34,7 @@ spec:
             - {name: postgres, containerPort: 5432}
           readinessProbe:
             exec:
-              command: ["pg_isready", "-U", "litellm", "-d", "litellm"]
+              command: ["pg_isready", "-h", "127.0.0.1", "-U", "litellm", "-d", "litellm"]  # TCP: the first-start server is socket-only
             periodSeconds: 5
           resources: {{- toYaml .Values.postgres.resources | nindent 12 }}
           securityContext:
