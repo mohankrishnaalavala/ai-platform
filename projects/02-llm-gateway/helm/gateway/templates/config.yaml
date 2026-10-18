@@ -6,3 +6,11 @@ metadata:
 data:
   config.yaml: |
     {{- toYaml .Values.config | nindent 4 }}
+  # The add-on mounts secrets as files; LiteLLM reads them from the environment. Set them here, never
+  # echo them, then run the image's own entrypoint. CI's containers run this same file.
+  start.sh: |
+    set -eu
+    key=$(cat /secrets/litellm-master-key)
+    pw=$(cat /secrets/gateway-postgres-password)
+    export LITELLM_MASTER_KEY="$key" DATABASE_URL="postgresql://litellm:$pw@postgres:5432/litellm"
+    exec docker/prod_entrypoint.sh --config /config/config.yaml --port 4000

@@ -67,3 +67,58 @@ jobs:
       # trivy-action is not used: its tags were hijacked in March 2026 (CVE-2026-33634).
       - name: trivy config scan
         run: docker run --rm -v "$PWD:/src:ro" aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa config --exit-code 1 --severity HIGH,CRITICAL /src/infra
+
+  # P2: the gateway in containers (projects/02-llm-gateway/tests/compose.yaml), with the chart's own
+  # LiteLLM config and start script and the mock provider in place of vLLM and the hosted model.
+  gateway:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: projects/02-llm-gateway/tests
+    env:
+      YQ: mikefarah/yq:4.54.1@sha256:4b3d9475d65571d28cbb19544d3820ec2945e4c8b2f18279394282b8dc3a592e
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: install helm
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/helm.tgz" https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz
+          echo "86584a54def73570558f66f5111cc53dfed56689637ae32c1201205d494f54fb  $RUNNER_TEMP/helm.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/helm.tgz" -C "$RUNNER_TEMP" linux-amd64/helm
+          echo "$RUNNER_TEMP/linux-amd64" >> "$GITHUB_PATH"
+
+      - name: the containers use the chart's images
+        run: |
+          for key in .litellm.image .postgres.image; do
+            image=$(docker run --rm -i "$YQ" "$key" < ../helm/gateway/values.yaml)
+            grep -qxF "    image: $image" compose.yaml || { echo "compose.yaml doesn't use $key ($image)"; exit 1; }
+          done
+          otel=$(docker run --rm -i "$YQ" '.image.repository + ":" + .image.tag + "@" + .image.digest' < ../helm/otel-collector.yaml)
+          grep -qxF "    image: $otel" compose.yaml || { echo "compose.yaml doesn't use the collector image ($otel)"; exit 1; }
+
+      - name: random secrets as files, the chart's config rendered
+        run: |
+          secrets="$RUNNER_TEMP/secrets" config="$RUNNER_TEMP/config"
+          mkdir -p "$secrets" "$config"
+          master="sk-$(openssl rand -hex 24)"; pg=$(openssl rand -hex 16)
+          echo "::add-mask::$master"; echo "::add-mask::$pg"
+          printf '%s' "$master" > "$secrets/litellm-master-key"
+          printf '%s' "$pg" > "$secrets/gateway-postgres-password"
+          helm template gateway ../helm/gateway -f ../helm/gateway/values-ci.yaml --set project=ci \
+            --set labels.owner=ci --set labels.session=ci --show-only templates/config.yaml > "$RUNNER_TEMP/cm.yaml"
+          docker run --rm -i "$YQ" '.data["config.yaml"]' < "$RUNNER_TEMP/cm.yaml" > "$config/config.yaml"
+          docker run --rm -i "$YQ" '.data["start.sh"]' < "$RUNNER_TEMP/cm.yaml" > "$config/start.sh"
+          { echo "SECRETS_DIR=$secrets"; echo "CONFIG_DIR=$config"; echo "MASTER_KEY=$master"; } >> "$GITHUB_ENV"
+
+      - name: start the gateway
+        run: docker compose up -d --wait --wait-timeout 600
+
+      - name: smoke tests
+        run: GATEWAY_URL=http://127.0.0.1:4000 python3 -m unittest discover -s . -v
+
+      - name: container logs (keys scrubbed)
+        if: failure()
+        run: docker compose logs --no-color | sed -E 's/sk-[A-Za-z0-9_.-]{4,}/sk-<redacted>/g' | tail -200
