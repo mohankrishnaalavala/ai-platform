@@ -31,7 +31,8 @@ for s in $SCENARIOS; do
     echo "== $s, concurrency $c: $n prompts after $w warm-up requests"
     # META holds key=value pairs without spaces; splitting it into words is intended.
     # shellcheck disable=SC2086
-    vllm bench serve --base-url "$VLLM_URL" --model "$HF_ID" --tokenizer /tmp/tok \
+    vllm bench serve --base-url "$VLLM_URL" --model "$TARGET_MODEL" --tokenizer /tmp/tok \
+      --backend "$BACKEND" --endpoint "$ENDPOINT" \
       --dataset-name random --random-input-len "$in" --random-output-len "$len" --random-range-ratio 0 --ignore-eos \
       --num-prompts "$n" --max-concurrency "$c" --request-rate inf --num-warmups "$w" --seed 0 \
       --percentile-metrics ttft,tpot,itl,e2el --metric-percentiles 50,95,99 --ready-check-timeout-sec 600 \

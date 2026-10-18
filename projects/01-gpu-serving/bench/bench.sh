@@ -4,6 +4,9 @@
 # Usage (from the repo root; `make bench` runs it):
 #   ZONE=us-central1-c [CONFIG=config/models/qwen2.5-7b-fp8.yaml] [SCENARIOS="chat rag"] \
 #   [CONCURRENCY="1 8 16 24 32"] projects/01-gpu-serving/bench/bench.sh
+# P2's gateway-overhead benchmark reuses it, with TARGET_URL and TARGET_MODEL (the gateway and its
+# alias), KEY_SECRET (a Secret in this namespace whose OPENAI_API_KEY the client sends), BACKEND and
+# ENDPOINT (the chat API), and RESULTS_PREFIX (where under the results bucket). Defaults: P1's run.
 set -euo pipefail
 export CLOUDSDK_ACTIVE_CONFIG_NAME=ai-platform CLOUDSDK_CORE_DISABLE_PROMPTS=1 KUBECONFIG=${KUBECONFIG:-$HOME/.kube/ai-platform}
 
@@ -44,8 +47,9 @@ image=$(kubectl get deployment vllm -n vllm -o jsonpath='{.spec.template.spec.co
 digest=${image##*@}
 [[ "$digest" == sha256:* ]] || { echo "the vLLM image isn't pinned by digest"; exit 1; }
 hash=$(python3 "$here/../../../scripts/config_hash.py" "$config")
-results="gs://$project-results/p1/$hash/$session/bench/$(date -u +%Y%m%dt%H%M%Sz)"
-meta="config=$name config_hash=$hash revision=$rev session=$session machine=$machine gpu=$gpu gpu_zone=$gpu_zone client_zone=$client_zone spot=$spot vllm_image=$digest gke=$gke"
+results="gs://$project-results/${RESULTS_PREFIX:-p1/$hash/$session/bench}/$(date -u +%Y%m%dt%H%M%Sz)"
+target=${TARGET_URL:-http://vllm.vllm.svc:8000}
+meta="config=$name config_hash=$hash revision=$rev session=$session machine=$machine gpu=$gpu gpu_zone=$gpu_zone client_zone=$client_zone spot=$spot vllm_image=$digest gke=$gke${TARGET_URL:+ target=${TARGET_URL#http://}}"
 labels="app=ai-platform layer=01 owner=$owner session=$session"
 
 cleanup() { kubectl delete job bench -n vllm --ignore-not-found --wait=false; kubectl delete configmap bench-scripts -n vllm --ignore-not-found; }
@@ -81,7 +85,10 @@ spec:
           image: "$image"
           command: [bash, /bench/run.sh]
           env:
-            - {name: VLLM_URL, value: "http://vllm.vllm.svc:8000"}
+            - {name: VLLM_URL, value: "$target"}
+            - {name: TARGET_MODEL, value: "${TARGET_MODEL:-$hf}"}
+            - {name: BACKEND, value: "${BACKEND:-openai}"}
+            - {name: ENDPOINT, value: "${ENDPOINT:-/v1/completions}"}
             - {name: HF_ID, value: "$hf"}
             - {name: REVISION, value: "$rev"}
             - {name: SCENARIOS, value: "$scenarios"}
@@ -90,6 +97,7 @@ spec:
             - {name: META, value: "$meta"}
             - {name: VLLM_NO_USAGE_STATS, value: "1"}
             - {name: HF_HUB_DISABLE_TELEMETRY, value: "1"}
+$([ -z "${KEY_SECRET:-}" ] || printf '          envFrom:\n            - secretRef: {name: %s}  # OPENAI_API_KEY, never an argument (arguments are logged)\n' "$KEY_SECRET")
           resources:
             requests: {cpu: "1", memory: 2Gi}
           volumeMounts:

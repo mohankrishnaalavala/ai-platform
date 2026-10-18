@@ -3,6 +3,8 @@
 # same test files as CI, through port-forwards, with the master key read into memory only. Then one
 # timed `make team`, the PII scan of logs and spend logs, and fail-closed with the PII analyzer scaled
 # to 0 (put back after). With no vLLM in the session, chat-default falls back to the real hosted model.
+# `run.sh vllm-down` (a GPU session, last): vLLM answers a call, then KEDA takes it to 0 replicas and
+# chat-default must fall back to the hosted model; leaves vLLM at 0 (teardown follows).
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../../.." && pwd)
@@ -35,6 +37,22 @@ master=$(gcloud secrets versions access latest --secret=litellm-master-key ${imp
 [ -n "$master" ] || { echo "FAIL: couldn't read the gateway's master key"; exit 1; }
 [ -z "${GITHUB_ACTIONS:-}" ] || echo "::add-mask::$master"
 export GATEWAY_URL=http://127.0.0.1:14100 MASTER_KEY="$master" MOCK_HOSTED_URL=http://127.0.0.1:18100 HOSTED_ALIAS=chat-hosted-mock
+
+if [ "${1:-}" = vllm-down ]; then
+  run "chat-default answered by vLLM itself" python3 -c '
+from client import chat, delete_key, new_key
+key = new_key("vllm-up")
+status, _, headers, seconds = chat(key, "chat-default", "Reply with the single word: ok")
+delete_key(key)
+fallbacks = headers.get("x-litellm-attempted-fallbacks", "absent")
+print(f"vLLM up: status {status}, {seconds * 1000:.0f} ms, attempted fallbacks {fallbacks}")
+raise SystemExit(0 if status == 200 and fallbacks in ("absent", "0") else 1)'
+  # KEDA would bring vLLM back; pausing it at 0 replicas takes vLLM away, as a scale-down or crash would.
+  kubectl annotate scaledobject vllm -n vllm autoscaling.keda.sh/paused-replicas=0 --overwrite
+  kubectl wait --for=delete pod -n vllm -l app.kubernetes.io/name=vllm --timeout=300s
+  run "fallback to the hosted model after vLLM went away" env VLLM_DOWN=1 python3 -m unittest -v test_fallback
+  exit $fail
+fi
 
 # Smoke, budget, rate limit, keys, and PII on the hosted route (to the in-cluster mock, which records it).
 run "gateway tests (smoke, budget, rate limit, keys, PII direct)" python3 -m unittest discover -s "$here" -v
