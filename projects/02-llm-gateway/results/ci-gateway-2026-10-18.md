@@ -49,3 +49,15 @@ fail closed (pii-fail-closed-stream): status 500, requests at the provider 0
   - That each request still reached the provider with its tag, so the whole prompt was not simply replaced.
 - **Not checked:** whether masking was precise, meaning other words replaced too (over-masking).
 - **Fail-closed:** with the analyzer stopped, the gateway refused the request with HTTP 500, and nothing was sent.
+
+## A Presidio start-up hang (run [39159923845](https://github.com/mohankrishnaalavala/ai-platform/actions/runs/39159923845), PR #34)
+The next run of the same job failed before any test ran. The anonymizer's gunicorn master started, but its worker never booted: there is no `Booting worker` line, while the analyzer booted its worker in the same second. The container stayed unhealthy for about 8.5 minutes, until Compose gave up. Nothing in the gateway had changed: that commit only added this file.
+```text
+presidio-anonymizer-1  | [2026-10-18 19:42:49 +0000] [1] [INFO] Listening at: http://0.0.0.0:3000 (1)
+presidio-anonymizer-1  | [2026-10-18 19:42:49 +0000] [1] [INFO] Control socket listening at /app/gunicorn.ctl
+ Container tests-presidio-anonymizer-1  Error
+dependency failed to start: container tests-presidio-anonymizer-1 is unhealthy
+```
+**Response:**
+- **In the chart:** Presidio's pods now have a liveness probe, and the anonymizer's startup limit is 2 minutes (the analyzer keeps 10). Kubernetes restarts a hung pod instead of leaving the gateway refusing every request.
+- **In CI:** an unhealthy Presidio container is restarted once, with a visible warning.

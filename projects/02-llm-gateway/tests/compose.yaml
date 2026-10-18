@@ -36,7 +36,7 @@ services:
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3000/health', timeout=5)"]
       interval: 5s
-      retries: 60
+      retries: 24  # 2 minutes, as in the chart: no model to load
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.161.0@sha256:fd328de2552466ad78385e1b1289c3f2402b1c45f265b252aab1955b42845ac1
     command: ["--config=/etc/otel.yaml"]

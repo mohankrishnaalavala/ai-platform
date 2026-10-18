@@ -27,14 +27,19 @@ spec:
           image: {{ $p.image }}
           ports:
             - {name: http, containerPort: 3000}
-          # The analyzer loads a language model first: in the spike that took about a minute, once over 300 s.
+          # Restarted if it doesn't come up in time (the analyzer loads a language model first) or hangs
+          # later: the gateway refuses requests while Presidio is down, so a hung pod must not stay.
           startupProbe:
             httpGet: {path: /health, port: http}
             periodSeconds: 10
-            failureThreshold: 60
+            failureThreshold: {{ div $p.startupSeconds 10 }}
           readinessProbe:
             httpGet: {path: /health, port: http}
             periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 20
+            failureThreshold: 3
           resources: {{- toYaml $p.resources | nindent 12 }}
           securityContext:
             allowPrivilegeEscalation: false

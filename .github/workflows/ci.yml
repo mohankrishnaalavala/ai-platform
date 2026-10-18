@@ -123,8 +123,16 @@ jobs:
           docker run --rm -i "$YQ" '.data["start.sh"]' < "$RUNNER_TEMP/cm.yaml" > "$config/start.sh"
           { echo "SECRETS_DIR=$secrets"; echo "CONFIG_DIR=$config"; echo "MASTER_KEY=$master"; } >> "$GITHUB_ENV"
 
+      # Presidio's anonymizer once hung at start (its worker never booted). In the cluster the startup
+      # probe restarts it; here an unhealthy Presidio container is restarted once, with a warning.
       - name: start the gateway
-        run: docker compose up -d --wait --wait-timeout 600
+        run: |
+          docker compose up -d --wait --wait-timeout 900 && exit 0
+          for s in presidio-analyzer presidio-anonymizer; do
+            health=$(docker compose ps "$s" --format '{{.Health}}')
+            [ "$health" = healthy ] || { echo "::warning::$s was $health; restarting it once"; docker compose restart "$s"; }
+          done
+          docker compose up -d --wait --wait-timeout 900
 
       - name: smoke, budget, rate limit, keys, PII on the hosted route
         run: python3 -m unittest discover -s . -v
