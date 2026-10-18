@@ -1,0 +1,5 @@
+apiVersion: v2
+name: gateway
+description: An LLM gateway (LiteLLM, open-source features only) with Postgres, secrets from Secret Manager and no public endpoint.
+type: application
+version: 0.1.0

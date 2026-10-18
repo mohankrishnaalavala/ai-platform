@@ -1,0 +1,9 @@
+# P2's namespace: the gateway, its Postgres and the OTel Collector. owner and session are added by
+# deploy.sh (kubectl label).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gateway
+  labels:
+    app: ai-platform
+    layer: "02"

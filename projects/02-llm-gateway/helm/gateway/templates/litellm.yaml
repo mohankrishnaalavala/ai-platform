@@ -1,0 +1,91 @@
+# LiteLLM, one replica. Inside the cluster only: callers reach it with kubectl port-forward, and each
+# team uses its own virtual key. One replica, because its rate limits are counted in the pod's memory.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: litellm
+  labels: {{- include "gateway.labels" . | trim | nindent 4 }}
+    app.kubernetes.io/name: litellm
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: litellm
+  template:
+    metadata:
+      labels: {{- include "gateway.labels" . | trim | nindent 8 }}
+        app.kubernetes.io/name: litellm
+      annotations:
+        checksum/config: {{ toYaml .Values.config | sha256sum }}  # a config change restarts the pod
+    spec:
+      serviceAccountName: litellm
+      enableServiceLinks: false
+      securityContext:
+        seccompProfile: {type: RuntimeDefault}
+      initContainers:
+        # LiteLLM migrates its database at start; wait until Postgres answers. Same image, already pulled.
+        - name: wait-for-postgres
+          image: {{ .Values.postgres.image }}
+          command: ["sh", "-c", "until pg_isready -h postgres -p 5432 -U litellm; do sleep 2; done"]
+          securityContext:
+            allowPrivilegeEscalation: false
+      containers:
+        - name: litellm
+          image: {{ .Values.litellm.image }}
+          # The add-on mounts secrets as files; LiteLLM reads them from the environment. Set them here,
+          # never echo them, then run the image's own entrypoint.
+          command: ["/bin/sh", "-c"]
+          args:
+            - >-
+              set -eu;
+              key=$(cat /secrets/litellm-master-key);
+              pw=$(cat /secrets/gateway-postgres-password);
+              export LITELLM_MASTER_KEY="$key" DATABASE_URL="postgresql://litellm:$pw@postgres:5432/litellm";
+              exec docker/prod_entrypoint.sh --config /config/config.yaml --port 4000
+          env:
+            - {name: VERTEX_PROJECT, value: {{ required "project is required" .Values.project | quote }}}
+            - {name: OTEL_EXPORTER, value: otlp_http}
+            - {name: OTEL_ENDPOINT, value: {{ .Values.otelEndpoint | quote }}}
+          ports:
+            - {name: http, containerPort: 4000}
+          readinessProbe:
+            httpGet: {path: /health/readiness, port: http}
+            periodSeconds: 10
+          # Database migrations run first: allow up to 5 minutes before liveness counts.
+          startupProbe:
+            httpGet: {path: /health/liveliness, port: http}
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet: {path: /health/liveliness, port: http}
+            periodSeconds: 20
+          resources: {{- toYaml .Values.litellm.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - {name: config, mountPath: /config, readOnly: true}
+            - {name: secrets, mountPath: /secrets, readOnly: true}
+      volumes:
+        - name: config
+          configMap:
+            name: litellm-config
+        - name: secrets
+          csi:
+            driver: secrets-store-gke.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: litellm-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  labels: {{- include "gateway.labels" . | trim | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: litellm
+  ports:
+    - {name: http, port: 4000, targetPort: http}

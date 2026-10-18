@@ -1,0 +1,44 @@
+# Values for the upstream opentelemetry-collector chart (pinned in deploy.sh). P2 installs a minimal
+# collector: OTLP in from the gateway, a one-line summary per batch out (debug exporter, basic).
+# P3 replaces the exporter with a real backend. owner and session labels come from deploy.sh.
+mode: deployment
+fullnameOverride: otel-collector  # the gateway sends to http://otel-collector:4318
+image:
+  repository: otel/opentelemetry-collector-contrib
+  tag: 0.161.0
+  digest: sha256:fd328de2552466ad78385e1b1289c3f2402b1c45f265b252aab1955b42845ac1
+command:
+  name: otelcol-contrib
+additionalLabels:
+  app: ai-platform
+  layer: "02"
+podLabels:
+  app: ai-platform
+  layer: "02"
+resources:
+  requests: {cpu: 100m, memory: 128Mi}
+  limits: {memory: 256Mi}
+securityContext:
+  allowPrivilegeEscalation: false
+# Only OTLP: the chart's Jaeger and Zipkin receivers have nothing to receive here.
+ports:
+  jaeger-compact: {enabled: false}
+  jaeger-thrift: {enabled: false}
+  jaeger-grpc: {enabled: false}
+  zipkin: {enabled: false}
+config:
+  receivers:
+    jaeger: null
+    zipkin: null
+    prometheus: null
+  exporters:
+    debug:
+      verbosity: basic  # counts only; the gateway already sends no prompt text
+  service:
+    pipelines:
+      logs: null
+      metrics: null
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [debug]
