@@ -60,7 +60,9 @@ fallbacks() { kubectl exec -n gateway deployment/postgres -- psql -U litellm -d 
 settled() { local a b; a=$(fallbacks); for _ in $(seq 12); do sleep 5; b=$(fallbacks); [ "$a" = "$b" ] && break; a=$b; done; echo "$a"; }
 common=(SCENARIOS=chat CONCURRENCY="$concurrency" BACKEND=openai-chat ENDPOINT=/v1/chat/completions ZONE="$ZONE" CONFIG="$CONFIG")
 
-# Preflight, before any GPU time is spent: the spend-log query works, and the key gets an answer from vLLM.
+# Preflight, before any GPU time is spent: the PII analyzer is ready (the gateway refuses every request
+# while it isn't), the spend-log query works, and the key gets an answer from vLLM.
+kubectl rollout status deployment/presidio-analyzer -n gateway --timeout=10m
 fallbacks >/dev/null
 KEY="$key" python3 -c '
 import json, os, urllib.request
