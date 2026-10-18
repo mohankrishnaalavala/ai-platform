@@ -29,6 +29,13 @@ class GatewaySmokeTest(unittest.TestCase):
     def test_a_call_without_a_key_is_rejected(self):
         self.assertEqual(chat(None, "chat-hosted", "hello")[0], 401)
 
+    # In CI this also leaves an open connection to the vLLM mock, so the fallback test that follows
+    # sees what a vLLM pod dying in use looks like (a hung connection), not just a missing host.
+    def test_the_default_alias_answers(self):
+        status, body, _, _ = chat(self.key, "chat-default", "Reply with the single word: ok")
+        self.assertEqual(status, 200)
+        self.assertTrue(body["choices"][0]["message"]["content"])
+
     def test_the_hosted_alias_answers(self):
         status, body, _, _ = chat(self.key, "chat-hosted", "Reply with the single word: ok")
         self.assertEqual(status, 200)
