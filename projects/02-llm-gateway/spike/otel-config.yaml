@@ -1,0 +1,15 @@
+# Minimal collector for the spike: receive the gateway's traces over OTLP/HTTP and print them in full,
+# so the job can count spans and check that no prompt text is in them.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+exporters:
+  debug:
+    verbosity: detailed
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [debug]

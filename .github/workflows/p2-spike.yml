@@ -1,0 +1,68 @@
+# P2-01 spike, for the P2 gateway choice: does LiteLLM's open-source proxy do every P2 must-have with no license key?
+# Runs only on pushes to the p2-spike branch, on the GitHub runner, with no cloud login and no secrets.
+# Two variants: Presidio on all traffic, and Presidio only on the hosted model (does a fallback get masked?).
+name: p2-spike
+
+on:
+  push:
+    branches: [p2-spike]
+
+permissions:
+  contents: read
+
+jobs:
+  spike:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [all, hosted-only]
+    defaults:
+      run:
+        working-directory: projects/02-llm-gateway/spike
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: random master key and Postgres password (masked, die with the runner)
+        run: |
+          master="sk-$(openssl rand -hex 24)"; pg=$(openssl rand -hex 16)
+          echo "::add-mask::$master"; echo "::add-mask::$pg"
+          { echo "MASTER_KEY=$master"; echo "PG_PASSWORD=$pg"; echo "CONFIG=config-${{ matrix.variant }}.yaml"; } >> "$GITHUB_ENV"
+      - name: start the stack
+        run: docker compose up -d && docker compose ps
+      - name: "phase 1: keys, budget, RPM, revoke, PII (mock vLLM up)"
+        run: |
+          rc=0; python3 check.py phase1 || rc=$?
+          curl -s http://127.0.0.1:8101/log > out/mock-vllm.jsonl
+          exit $rc
+      - name: stop the mock vLLM
+        if: ${{ !cancelled() }}
+        run: docker compose stop mock-vllm
+      - name: "phase 2: fallback and PII on the fallback"
+        if: ${{ !cancelled() }}
+        run: python3 check.py phase2
+      - name: "scan: PII in logs, spend logs and traces; license messages"
+        if: ${{ !cancelled() }}
+        run: |
+          mkdir -p out
+          curl -s http://127.0.0.1:8102/log > out/mock-hosted.jsonl || true
+          docker compose logs --no-color litellm > out/litellm.log 2>&1
+          docker compose logs --no-color otel > out/otel.log 2>&1
+          for v in "jane.doe@example.com" "212-555-0143" "4111 1111 1111 1111" "Jane Doe"; do
+            echo "raw '$v': litellm log $(grep -cF "$v" out/litellm.log), traces $(grep -cF "$v" out/otel.log)"
+          done
+          echo "spans received: $(grep -c 'Span #' out/otel.log)"
+          echo "gen_ai attributes seen: $(grep -o 'gen_ai\.[a-z_.]*' out/otel.log | sort -u | tr '\n' ' ')"
+          q() { docker compose exec -T postgres psql -U litellm -d litellm -Atc "$1"; }
+          echo "spend log rows: $(q 'select count(*) from "LiteLLM_SpendLogs"')"
+          echo "spend log rows with raw PII: $(q "select count(*) from \"LiteLLM_SpendLogs\" t where row_to_json(t)::text ~ '(jane\\.doe@example\\.com|212-555-0143|4111 1111 1111 1111|Jane Doe)'")"
+          echo "license / premium / enterprise lines in the gateway log:"
+          grep -iE "premium|enterprise|license" out/litellm.log | cut -c1-220 | sort -u | head -20 || true
+          # The artifact keeps no key or password: scrub sk- tokens and the Postgres password everywhere.
+          sed -i -E "s/sk-[A-Za-z0-9_.-]{4,}/sk-<redacted>/g; s/$PG_PASSWORD/<redacted>/g" out/*
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ !cancelled() }}
+        with:
+          name: p2-spike-${{ matrix.variant }}
+          path: projects/02-llm-gateway/spike/out/
+          retention-days: 7

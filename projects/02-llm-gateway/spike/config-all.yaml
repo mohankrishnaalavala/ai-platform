@@ -1,0 +1,36 @@
+# Spike variant "all": Presidio masks every request (default_on). Same models as config-hosted-only.yaml.
+model_list:
+  - model_name: chat-default        # stands in for our vLLM
+    litellm_params:
+      model: openai/qwen
+      api_base: http://mock-vllm:8000/v1
+      api_key: unused
+      input_cost_per_token: 0.0001  # test prices, so team budgets run out: 60 tokens = $0.006 a call
+      output_cost_per_token: 0.0001
+  - model_name: chat-hosted         # stands in for Claude on Vertex AI
+    litellm_params:
+      model: openai/claude
+      api_base: http://mock-hosted:8000/v1
+      api_key: unused
+      input_cost_per_token: 0.0001
+      output_cost_per_token: 0.0001
+
+router_settings:
+  fallbacks: [{"chat-default": ["chat-hosted"]}]
+  num_retries: 0
+
+guardrails:
+  - guardrail_name: mask-pii
+    litellm_params:
+      guardrail: presidio
+      mode: pre_call
+      default_on: true
+
+litellm_settings:
+  callbacks: ["otel"]
+  turn_off_message_logging: true
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+  proxy_batch_write_at: 1
