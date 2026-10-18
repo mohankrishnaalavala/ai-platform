@@ -37,8 +37,8 @@ master=$(gcloud secrets versions access latest --secret=litellm-master-key ${imp
 [ -n "$master" ] || { echo "FAIL: couldn't read the gateway's master key"; exit 1; }
 [ -z "${GITHUB_ACTIONS:-}" ] || echo "::add-mask::$master"
 export GATEWAY_URL=http://127.0.0.1:14100 MASTER_KEY="$master" MOCK_HOSTED_URL=http://127.0.0.1:18100 HOSTED_ALIAS=chat-hosted-mock
-# The gateway refuses every request while the PII analyzer is down (fail closed), and it needs about
-# a minute to load its language model after a restart: session 2's next step failed on exactly that.
+# The gateway refuses every request while the PII analyzer is down (fail closed), and the analyzer
+# needs some seconds after a restart before it is ready: session 2's next step failed on exactly that.
 analyzer_ready() { kubectl rollout status deployment/presidio-analyzer -n gateway --timeout=10m; }
 analyzer_ready
 

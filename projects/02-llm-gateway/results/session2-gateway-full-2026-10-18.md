@@ -15,7 +15,8 @@
 
 The cause was my test order, not the gateway (see "What went wrong"). The lines below are copied from the run's log, which GitHub keeps for 90 days.
 
-## Every P2 check, with real vLLM behind chat-default
+## The P2 checks, with real vLLM behind chat-default
+Selected lines from `make test P=02`: annotated, reordered, and with the team ID taken out. Every check passed (`all P2 checks passed`).
 ```text
 test_the_default_alias_answers ... ok        (chat-default answered by vLLM)
 test_the_hosted_alias_answers ... ok         (Gemini on Vertex AI, keyless)
@@ -39,11 +40,15 @@ fallback (plain): status 200, 31568 ms, attempted fallbacks 1
 fallback (stream): status 200, 671 ms, attempted fallbacks 1
 PASS: fallback to the hosted model after vLLM went away
 ```
-**What it shows:**
-- **The plain request waited the full 30 s timeout.** LiteLLM still held an open connection to the old vLLM pod's address. That address no longer answers, so the request hung until the timeout.
-- **The streaming request took 0.7 s.** It opened a new connection, which Kubernetes refused at once, because the Service had no pods left.
+**What it shows (one run):**
+- **The plain request waited the full 30 s timeout.**
+  - **Likely cause** (not confirmed by anything this run measured): LiteLLM kept an open connection to the old vLLM pod's address, which no longer answers.
+  - **Comparison with CI:** this matches CI's hung-backend case, 30.7 s and 30.1 s (`results/ci-gateway-2026-10-18.md`).
+- **The streaming request took 0.7 s.**
+  - **Likely cause:** it got a new connection that was refused quickly, because the Service had no pods.
+  - **Comparison with CI:** this differs from CI, whose streaming fallbacks on a hung backend took 11.0 s once and 3.1 s another time.
 
-So even a normal scale-down costs a non-streaming user about the `timeout` once. This matches CI's hung-backend case (`results/ci-gateway-2026-10-18.md`).
+So a normal scale-down cost the non-streaming request about the `timeout` in this run.
 
 **Not valid:** the check before it ("chat-default answered by vLLM itself") got HTTP 500. That was the analyzer restart below, not vLLM.
 
@@ -55,7 +60,8 @@ So even a normal scale-down costs a non-streaming user about the `timeout` once.
 22:12:38  overhead preflight: HTTP Error 500                     (no benchmark time was spent)
 22:12:41  vLLM up: status 500, 189 ms, attempted fallbacks absent
 ```
-- **What this means for operations:** a restart of the PII analyzer makes the whole gateway refuse requests for about a minute. Two analyzer replicas would avoid that, at about 734Mi more memory.
+- **Timing:** the analyzer's language model had loaded by 22:12:38.455, about 7 s after the pod started. Its readiness probe runs every 10 s, so it was Ready some seconds later. The time to Ready wasn't measured. The two calls refused at +7 s and +10 s show the gateway refusing requests for at least 10 s after the restart.
+- **What this means for operations:** a restart of the PII analyzer makes the whole gateway refuse requests until the analyzer is ready again. Two analyzer replicas would avoid that. Each requests 2Gi of memory (one used 734Mi). That wasn't tested.
 - **Fix:** the tests now wait until the analyzer is ready, after the fail-closed check and before the benchmark.
 
 ## Resource use (`kubectl top` in diagnostics, at the end of the session)
