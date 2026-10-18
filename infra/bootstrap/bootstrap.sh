@@ -42,7 +42,7 @@ log "project $PROJECT_ID, repo $repo_name (id $repo_id)"
 
 # --- 2. APIs
 apis="iam iamcredentials sts cloudresourcemanager cloudbilling storage compute artifactregistry
-billingbudgets container containerfilesystem secretmanager logging monitoring cloudquotas"
+billingbudgets container containerfilesystem secretmanager logging monitoring cloudquotas aiplatform"
 enabled=$(gcloud services list --enabled --format='value(config.name)')
 missing=()
 for a in $apis; do
@@ -186,25 +186,49 @@ else
     --member="user:$USER_EMAIL" >/dev/null
 fi
 
-# --- 8. Custom role for the session's Cloud Router and NAT (P1). Created here by the owner, so the
-# terraform service account needs no role-admin rights; the foundation grants it to the deployer.
-nat_perms="compute.networks.updatePolicy,compute.routers.create,compute.routers.delete,compute.routers.get,compute.routers.update"
-role_json=$(gcloud iam roles describe sessionNat --project="$PROJECT_ID" --format=json 2>/dev/null || true)
-if [ -z "$role_json" ]; then
-  log "creating custom role sessionNat"
-  gcloud iam roles create sessionNat --project="$PROJECT_ID" --title="Session Cloud NAT" \
-    --description="Create and delete the session's Cloud Router and NAT. Granted to the deployer." \
-    --permissions="$nat_perms" --stage=GA >/dev/null
-  role_json=$(gcloud iam roles describe sessionNat --project="$PROJECT_ID" --format=json)
-elif jq -e '.deleted == true' <<<"$role_json" >/dev/null; then
-  log "undeleting custom role sessionNat (deleted roles keep their name for a while)"
-  gcloud iam roles undelete sessionNat --project="$PROJECT_ID" >/dev/null
-  role_json=$(gcloud iam roles describe sessionNat --project="$PROJECT_ID" --format=json)
+# --- 8. Custom roles, created here by the owner so the terraform service account needs no
+# role-admin rights; the foundation grants them. A role with other permissions than expected stops
+# bootstrap: it never changes a role silently.
+ensure_role() {  # id title description permissions(sorted, comma-separated)
+  local json
+  json=$(gcloud iam roles describe "$1" --project="$PROJECT_ID" --format=json 2>/dev/null || true)
+  if [ -z "$json" ]; then
+    log "creating custom role $1"
+    gcloud iam roles create "$1" --project="$PROJECT_ID" --title="$2" --description="$3" \
+      --permissions="$4" --stage=GA >/dev/null
+    json=$(gcloud iam roles describe "$1" --project="$PROJECT_ID" --format=json)
+  elif jq -e '.deleted == true' <<<"$json" >/dev/null; then
+    log "undeleting custom role $1 (deleted roles keep their name for a while)"
+    gcloud iam roles undelete "$1" --project="$PROJECT_ID" >/dev/null
+    json=$(gcloud iam roles describe "$1" --project="$PROJECT_ID" --format=json)
+  else
+    log "custom role $1: exists, skipped"
+  fi
+  jq -e --arg p "$4" '(.includedPermissions | sort | join(",")) == $p' <<<"$json" >/dev/null \
+    || die "custom role $1 has other permissions than $4. Fix by hand; bootstrap won't change them silently."
+}
+
+# P1: the session's Cloud Router and NAT, granted to the deployer.
+ensure_role sessionNat "Session Cloud NAT" \
+  "Create and delete the session's Cloud Router and NAT. Granted to the deployer." \
+  "compute.networks.updatePolicy,compute.routers.create,compute.routers.delete,compute.routers.get,compute.routers.update"
+# P2: the gateway's prompt requests to Vertex AI and nothing else, granted to its Kubernetes service account.
+ensure_role vertexPredict "Vertex AI prompt requests" \
+  "Send prompt requests to Vertex AI models. Granted to the LLM gateway's Kubernetes service account." \
+  "aiplatform.endpoints.predict"
+# P2: the terraform account creates the gateway's secrets and their IAM, but can't read or add a value
+# (roles/secretmanager.admin could read every secret in the project). Granted here, by the owner.
+ensure_role secretContainers "Secret Manager containers" \
+  "Create secrets and set their IAM; never read or add a value. Granted to the terraform service account." \
+  "secretmanager.secrets.create,secretmanager.secrets.delete,secretmanager.secrets.get,secretmanager.secrets.getIamPolicy,secretmanager.secrets.list,secretmanager.secrets.setIamPolicy,secretmanager.secrets.update"
+policy=$(gcloud projects get-iam-policy "$PROJECT_ID" --format=json)
+if has_binding "$policy" "projects/$PROJECT_ID/roles/secretContainers" "serviceAccount:$sa"; then
+  log "project secretContainers: granted, skipped"
 else
-  log "custom role sessionNat: exists, skipped"
+  log "granting secretContainers on the project"
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$sa" \
+    --role="projects/$PROJECT_ID/roles/secretContainers" --condition=None >/dev/null
 fi
-jq -e --arg p "$nat_perms" '(.includedPermissions | sort | join(",")) == $p' <<<"$role_json" >/dev/null \
-  || die "custom role sessionNat has other permissions than $nat_perms. Fix by hand; bootstrap won't change them silently."
 
 log ""
 log "Done. Next steps need these:"
