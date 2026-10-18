@@ -37,6 +37,10 @@ master=$(gcloud secrets versions access latest --secret=litellm-master-key ${imp
 [ -n "$master" ] || { echo "FAIL: couldn't read the gateway's master key"; exit 1; }
 [ -z "${GITHUB_ACTIONS:-}" ] || echo "::add-mask::$master"
 export GATEWAY_URL=http://127.0.0.1:14100 MASTER_KEY="$master" MOCK_HOSTED_URL=http://127.0.0.1:18100 HOSTED_ALIAS=chat-hosted-mock
+# The gateway refuses every request while the PII analyzer is down (fail closed), and the analyzer
+# needs some seconds after a restart before it is ready: session 2's next step failed on exactly that.
+analyzer_ready() { kubectl rollout status deployment/presidio-analyzer -n gateway --timeout=10m; }
+analyzer_ready
 
 if [ "${1:-}" = vllm-down ]; then
   run "chat-default answered by vLLM itself" python3 -c '
@@ -93,6 +97,7 @@ kubectl scale deployment presidio-analyzer -n gateway --replicas=0
 kubectl wait --for=delete pod -n gateway -l app.kubernetes.io/name=presidio-analyzer --timeout=120s
 run "fail closed (PII analyzer scaled to 0)" env PRESIDIO_DOWN=1 python3 -m unittest -v test_pii.FailClosed
 kubectl scale deployment presidio-analyzer -n gateway --replicas=1
+analyzer_ready
 
 kubectl top pods -n gateway 2>/dev/null || true
 [ "$fail" = 0 ] && echo "all P2 checks passed"
