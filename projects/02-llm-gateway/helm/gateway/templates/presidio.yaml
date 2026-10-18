@@ -1,0 +1,58 @@
+# Presidio (Microsoft's open-source PII detector): the analyzer finds personal data, the anonymizer
+# replaces it. The gateway calls both before every request leaves for a model. Inside the cluster only.
+{{- range $name, $p := .Values.presidio }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: presidio-{{ $name }}
+  labels: {{- include "gateway.labels" $ | trim | nindent 4 }}
+    app.kubernetes.io/name: presidio-{{ $name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: presidio-{{ $name }}
+  template:
+    metadata:
+      labels: {{- include "gateway.labels" $ | trim | nindent 8 }}
+        app.kubernetes.io/name: presidio-{{ $name }}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: presidio-{{ $name }}
+          image: {{ $p.image }}
+          ports:
+            - {name: http, containerPort: 3000}
+          # Restarted if it doesn't come up in time (the analyzer loads a language model first) or hangs
+          # later: the gateway refuses requests while Presidio is down, so a hung pod must not stay.
+          startupProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 10
+            failureThreshold: {{ div $p.startupSeconds 10 }}
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 20
+            failureThreshold: 3
+          resources: {{- toYaml $p.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: presidio-{{ $name }}
+  labels: {{- include "gateway.labels" $ | trim | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: presidio-{{ $name }}
+  ports:
+    - {name: http, port: 3000, targetPort: http}
+{{- end }}

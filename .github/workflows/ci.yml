@@ -78,6 +78,8 @@ jobs:
         working-directory: projects/02-llm-gateway/tests
     env:
       YQ: mikefarah/yq:4.54.1@sha256:4b3d9475d65571d28cbb19544d3820ec2945e4c8b2f18279394282b8dc3a592e
+      GATEWAY_URL: http://127.0.0.1:4000
+      MOCK_HOSTED_URL: http://127.0.0.1:8102  # what reached the "hosted provider" (test_pii.py)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -92,7 +94,7 @@ jobs:
 
       - name: the containers use the chart's images
         run: |
-          for key in .litellm.image .postgres.image; do
+          for key in .litellm.image .postgres.image .presidio.analyzer.image .presidio.anonymizer.image; do
             image=$(docker run --rm -i "$YQ" "$key" < ../helm/gateway/values.yaml)
             grep -qxF "    image: $image" compose.yaml || { echo "compose.yaml doesn't use $key ($image)"; exit 1; }
           done
@@ -121,16 +123,42 @@ jobs:
           docker run --rm -i "$YQ" '.data["start.sh"]' < "$RUNNER_TEMP/cm.yaml" > "$config/start.sh"
           { echo "SECRETS_DIR=$secrets"; echo "CONFIG_DIR=$config"; echo "MASTER_KEY=$master"; } >> "$GITHUB_ENV"
 
+      # Presidio's anonymizer once hung at start (its worker never booted). In the cluster the startup
+      # probe restarts it; here an unhealthy Presidio container is restarted once, with a warning.
       - name: start the gateway
-        run: docker compose up -d --wait --wait-timeout 600
+        run: |
+          docker compose up -d --wait --wait-timeout 900 && exit 0
+          for s in presidio-analyzer presidio-anonymizer; do
+            health=$(docker compose ps "$s" --format '{{.Health}}')
+            [ "$health" = healthy ] || { echo "::warning::$s was $health; restarting it once"; docker compose restart "$s"; }
+          done
+          docker compose up -d --wait --wait-timeout 900
 
-      - name: smoke tests
-        run: GATEWAY_URL=http://127.0.0.1:4000 python3 -m unittest discover -s . -v
+      - name: smoke, budget, rate limit, keys, PII on the hosted route
+        run: python3 -m unittest discover -s . -v
 
-      - name: fallback (the mock vLLM stopped)
+      - name: fallback, and PII on the fallback (the mock vLLM stopped)
         run: |
           docker compose stop mock-vllm
-          VLLM_DOWN=1 GATEWAY_URL=http://127.0.0.1:4000 python3 -m unittest test_fallback -v
+          VLLM_DOWN=1 python3 -m unittest test_fallback test_pii -v
+
+      # Container logs go to Cloud Logging on GKE, so they must not hold a prompt either.
+      - name: no raw PII in logs, traces or spend logs
+        run: |
+          dump="$RUNNER_TEMP/pii-dump.txt"
+          sleep 15  # LiteLLM writes spend logs in batches
+          rows=$(docker compose exec -T postgres psql -U litellm -d litellm -Atc 'select count(*) from "LiteLLM_SpendLogs"')
+          echo "spend-log rows: $rows"
+          [ "$rows" -gt 0 ] || { echo "no spend-log rows yet: nothing to check"; exit 1; }
+          docker compose logs --no-color litellm otel-collector presidio-analyzer presidio-anonymizer > "$dump"
+          docker compose exec -T postgres psql -U litellm -d litellm -Atc 'select row_to_json(t) from "LiteLLM_SpendLogs" t' >> "$dump"
+          echo "dump: $(wc -l < "$dump") lines"
+          PII_DUMP_FILE="$dump" python3 -m unittest test_pii.NoRawPiiInLogs -v
+
+      - name: fail closed (the PII analyzer stopped)
+        run: |
+          docker compose stop presidio-analyzer
+          PRESIDIO_DOWN=1 python3 -m unittest test_pii.FailClosed -v
 
       - name: container logs (keys scrubbed)
         if: failure()

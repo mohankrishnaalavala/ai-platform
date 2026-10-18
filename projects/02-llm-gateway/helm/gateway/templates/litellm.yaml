@@ -37,6 +37,8 @@ spec:
           command: ["/bin/sh", "/config/start.sh"]  # secrets from files into the environment (config.yaml)
           env:
             - {name: VERTEX_PROJECT, value: {{ required "project is required" .Values.project | quote }}}
+            - {name: PRESIDIO_ANALYZER_API_BASE, value: http://presidio-analyzer:3000}
+            - {name: PRESIDIO_ANONYMIZER_API_BASE, value: http://presidio-anonymizer:3000}
             - {name: LITELLM_LOCAL_MODEL_COST_MAP, value: "True"}  # the image's own price list, not one fetched at start
             - {name: OTEL_EXPORTER, value: otlp_http}
             - {name: OTEL_ENDPOINT, value: {{ .Values.otelEndpoint | quote }}}
