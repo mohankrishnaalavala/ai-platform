@@ -7,6 +7,8 @@ model_list:
       model: openai/qwen
       api_base: http://mock-vllm:8000/v1
       api_key: unused
+      timeout: 10         # without these, a dead upstream held the request past 60 s (spike run 1)
+      stream_timeout: 10
       input_cost_per_token: 0.0001
       output_cost_per_token: 0.0001
   - model_name: chat-hosted

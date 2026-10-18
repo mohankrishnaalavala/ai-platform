@@ -71,7 +71,7 @@ def raw_pii_seen(mock, tag):
 
 def wait_until_ready():
     for base, path in ((GATEWAY, "/health/liveliness"), (ANALYZER, "/health")):
-        for _ in range(150):
+        for _ in range(300):
             try:
                 if call("GET", path, MASTER, base=base, timeout=5)[0] == 200:
                     break
@@ -79,7 +79,7 @@ def wait_until_ready():
                 pass
             time.sleep(2)
         else:
-            sys.exit(f"{base}{path} not healthy after 300 s")
+            sys.exit(f"{base}{path} not healthy after 600 s")
 
 
 def phase1():

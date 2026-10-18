@@ -5,6 +5,8 @@ model_list:
       model: openai/qwen
       api_base: http://mock-vllm:8000/v1
       api_key: unused
+      timeout: 10         # without these, a dead upstream held the request past 60 s (spike run 1)
+      stream_timeout: 10
       input_cost_per_token: 0.0001  # test prices, so team budgets run out: 60 tokens = $0.006 a call
       output_cost_per_token: 0.0001
   - model_name: chat-hosted         # stands in for Claude on Vertex AI

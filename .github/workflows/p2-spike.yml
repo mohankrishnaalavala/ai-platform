@@ -48,6 +48,8 @@ jobs:
           curl -s http://127.0.0.1:8102/log > out/mock-hosted.jsonl || true
           docker compose logs --no-color litellm > out/litellm.log 2>&1
           docker compose logs --no-color otel > out/otel.log 2>&1
+          docker compose logs --no-color presidio-analyzer presidio-anonymizer > out/presidio.log 2>&1
+          docker compose ps -a; tail -20 out/presidio.log | cut -c1-200
           for v in "jane.doe@example.com" "212-555-0143" "4111 1111 1111 1111" "Jane Doe"; do
             echo "raw '$v': litellm log $(grep -cF "$v" out/litellm.log), traces $(grep -cF "$v" out/otel.log)"
           done
