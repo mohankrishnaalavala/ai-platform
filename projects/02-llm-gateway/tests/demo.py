@@ -23,7 +23,7 @@ from test_pii import PROMPTS, received
 
 REPO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..")
 QUESTION = "In one sentence, what does an LLM gateway do?"
-UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.IGNORECASE)
 problems = []
 
 

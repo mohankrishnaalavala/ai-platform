@@ -7,11 +7,11 @@ import overhead
 SESSION3 = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "overhead", "20261019t0058z")
 
 
-def run(ttft50=100.0, ttft95=200.0, e2e50=1000.0, e2e95=1500.0, out=1280, failed=0, config="0" * 16, c=10):
+def run(ttft50=100.0, ttft95=200.0, e2e50=1000.0, e2e95=1500.0, out=1280, failed=0, config="0" * 16, c=10, itl50=38.0):
     # Synthetic results in the shape `vllm bench serve` saves, not measurements.
     return {"scenario": "chat", "max_concurrency": c, "config_hash": config, "failed": failed,
             "total_output_tokens": out, "p50_ttft_ms": ttft50, "p95_ttft_ms": ttft95,
-            "p50_e2el_ms": e2e50, "p95_e2el_ms": e2e95}
+            "p50_e2el_ms": e2e50, "p95_e2el_ms": e2e95, "p50_itl_ms": itl50}
 
 
 class OverheadTest(unittest.TestCase):
@@ -40,6 +40,12 @@ class OverheadTest(unittest.TestCase):
     def test_a_round_that_isnt_comparable_makes_the_median_unknown(self):
         rounds = [overhead.added({("chat", 10): run()}, {("chat", 10): run(out=out)})[0] for out in (1280, 900)]
         self.assertIn("| chat | 10 | End to end p50 | +0, [X] | [X] |", overhead.medians(rounds))
+
+    def test_a_gateway_run_without_inter_token_latency_is_refused(self):
+        gateway = run()
+        del gateway["p50_itl_ms"]
+        with self.assertRaisesRegex(SystemExit, "one piece"):
+            overhead.added({("chat", 10): run()}, {("chat", 10): gateway})
 
     def test_session3_parses_and_its_one_piece_answers_are_refused(self):
         # Real files: session 3's gateway half had inter-token latency 0 (results/session3-gateway-full-2026-10-19.md).

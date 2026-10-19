@@ -6,8 +6,8 @@
 #   bf16-bench: only the BF16 benchmarks, to redo a run that was invalid (estimate: 1-1.5 h)
 #   gateway-shakedown: P2 only, no GPU: the gateway with the test-only mock, make test P=02 (estimate: 45-75 min)
 #   gateway-full: P1 (FP8) and P2: make test P=02, the demo transcript, the gateway-overhead benchmark (3 rounds),
-#     then fallback after vLLM goes away and the demo's 20 calls (estimate: 1.5-2 h; at most 150 + 45 min of
-#     cluster time from the two jobs' limits, about $4 at on-demand list prices)
+#     then fallback after vLLM goes away and the demo's 20 calls (estimate: 1.5-2 h; at most 165 + 45 min of
+#     cluster time from the two jobs' limits, about $4.40 at on-demand list prices)
 # Results go to the results bucket as each step finishes, so a run that ends early keeps them.
 # Teardown is its own job with its own time limit, so it runs in full even after the session job
 # fails, times out or is cancelled. cost-guard (nightly, clusters older than 8 h) is the backstop.
@@ -47,7 +47,7 @@ jobs:
   session:
     runs-on: ubuntu-24.04
     # GitHub stops any job at 6 hours. Teardown runs in its own job afterwards.
-    timeout-minutes: ${{ inputs.mode == 'full' && 350 || inputs.mode == 'gateway-shakedown' && 90 || 150 }}
+    timeout-minutes: ${{ inputs.mode == 'full' && 350 || inputs.mode == 'gateway-shakedown' && 90 || inputs.mode == 'gateway-full' && 165 || 150 }}
     outputs:
       started: ${{ steps.precheck.outputs.started }}
     env:
@@ -60,7 +60,7 @@ jobs:
       PROFILE: ${{ inputs.mode == 'full' && 'OPTIMIZE_UTILIZATION' || 'BALANCED' }}
       SPOT: ${{ inputs.spot }}
       # Every measurement ends by this many minutes after the job starts, leaving time for diagnostics.
-      MEASURE_MINUTES: ${{ inputs.mode == 'full' && 330 || inputs.mode == 'gateway-shakedown' && 75 || 130 }}
+      MEASURE_MINUTES: ${{ inputs.mode == 'full' && 330 || inputs.mode == 'gateway-shakedown' && 75 || inputs.mode == 'gateway-full' && 145 || 130 }}
       # P1 (vLLM), P2 (the gateway; with no GPU the GPU pool stays at 0 nodes) or both.
       LAYERS: ${{ inputs.mode == 'gateway-shakedown' && '02' || inputs.mode == 'gateway-full' && '01 02' || '01' }}
       TEST_P: ${{ startsWith(inputs.mode, 'gateway-') && '02' || '01' }}

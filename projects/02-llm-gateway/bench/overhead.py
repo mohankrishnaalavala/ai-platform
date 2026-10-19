@@ -52,7 +52,7 @@ def added(direct, gateway):
                 sys.exit(f"{where}: failed requests in a run; not valid")
         if d.get("config_hash") != g.get("config_hash"):
             sys.exit(f"{where}: the runs used different configs ({d.get('config_hash')} vs {g.get('config_hash')})")
-        if g.get("p50_itl_ms") == 0:  # session 3: TTFT was the whole answer, so it measured no overhead
+        if g.get("p50_itl_ms", 0) == 0:  # session 3: TTFT was the whole answer, so it measured no overhead
             sys.exit(f"{where}: the gateway sent each answer in one piece (inter-token latency 0); not valid")
         same_length = d.get("total_output_tokens") == g.get("total_output_tokens")
         if not same_length:

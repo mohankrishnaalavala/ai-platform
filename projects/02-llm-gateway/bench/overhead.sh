@@ -99,6 +99,7 @@ gateway() {
     group by 1, 2, 3, 4" || true
   kubectl top pods -n gateway 2>/dev/null || true
 }
+# A fallback doesn't stop the rounds: if the counted rows aren't real fallbacks, the user may keep the rest.
 for r in $(seq "$rounds"); do
   if (( r % 2 )); then straight "$r"; gateway "$r"; else gateway "$r"; straight "$r"; fi
 done
