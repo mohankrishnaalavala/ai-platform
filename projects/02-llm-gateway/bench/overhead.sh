@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # P2-08: what the gateway adds to latency. P1's benchmark Job runs the same chat load (512 tokens in,
-# 128 out, OpenAI chat API) twice: straight to vLLM, then through the gateway (alias chat-default,
-# so masking and budgets run as they do for a team). Results go to the results bucket under
-# p2/overhead/<session>/{direct,gateway}/<time>/. The deployer may only add to that bucket, not read it,
-# so overhead.py compares the two runs once they are copied into results/ (as P1 did with cost.py).
+# 128 out, OpenAI chat API) straight to vLLM and through the gateway (alias chat-default, so masking
+# and budgets run as they do for a team), in ROUNDS rounds (default 3). Odd rounds go straight first,
+# even rounds through the gateway first, so drift over the session doesn't favour one side. Results go
+# to the results bucket under p2/overhead/<session>/r<round>/{direct,gateway}/<time>/. The deployer may
+# only add to that bucket, not read it, so overhead.py compares the runs once they are copied into
+# results/ (as P1 did with cost.py).
 # What "added" includes: LiteLLM, PII masking of every prompt (random tokens here), and CPU contention,
 # since the client shares the system node with the gateway (kubectl top and node allocations follow).
-# Any request that fell back to the hosted model makes the gateway run invalid: the script then fails.
+# Any request that fell back to the hosted model, in any round, makes the run invalid: the script then fails.
 # If the step's time limit kills the script, the key and Secret stay until the cluster is destroyed.
 # The gateway run uses a key made for it, handed to the Job as a Kubernetes Secret (OPENAI_API_KEY,
 # read from the environment, never an argument), then revoked and the Secret deleted. It also counts
@@ -22,6 +24,8 @@ session=$(gcloud container clusters describe ai-platform --location="${ZONE:?set
 [ -n "$owner" ] && [ -n "$session" ] || { echo "couldn't read the owner or session label"; exit 1; }
 : "${CONFIG:?set CONFIG to the model config vLLM serves}"
 concurrency=${CONCURRENCY:-10 50}
+rounds=${ROUNDS:-3}
+[[ "$rounds" =~ ^[1-9][0-9]*$ ]] || { echo "ROUNDS must be a whole number"; exit 1; }
 
 kubectl port-forward -n gateway svc/gateway 14200:4000 >/dev/null &
 pf=$!
@@ -74,21 +78,29 @@ fallbacks = r.headers.get("x-litellm-attempted-fallbacks", "absent")
 print(f"preflight: status {r.status}, attempted fallbacks {fallbacks}")
 raise SystemExit(0 if r.status == 200 and fallbacks in ("absent", "0") else 1)'
 
-echo "== straight to vLLM"
-env "${common[@]}" RESULTS_PREFIX="p2/overhead/$session/direct" bash "$repo/projects/01-gpu-serving/bench/bench.sh"
-kubectl top pods -n gateway 2>/dev/null || true
-
-echo "== through the gateway (chat-default)"
-before=$(settled)
-t0=$(date -u +%Y-%m-%dT%H:%M:%S)
-env "${common[@]}" RESULTS_PREFIX="p2/overhead/$session/gateway" TARGET_URL=http://gateway.gateway.svc:4000 \
-  TARGET_MODEL=chat-default KEY_SECRET=overhead-bench-key bash "$repo/projects/01-gpu-serving/bench/bench.sh"
-fell_back=$(( $(settled) - before ))
-echo "requests that fell back to the hosted model during the gateway run: $fell_back"
-# What those rows are: session 3 counted 3 and couldn't say which model, provider or status they had.
-kubectl exec -n gateway deployment/postgres -- psql -U litellm -d litellm -c "select model, custom_llm_provider,
-  status, call_type, count(*) from \"LiteLLM_SpendLogs\" where \"startTime\" >= '$t0' and model not ilike '%qwen%'
-  group by 1, 2, 3, 4" || true
-kubectl top pods -n gateway 2>/dev/null || true
+straight() {
+  echo "== round $1: straight to vLLM"
+  env "${common[@]}" RESULTS_PREFIX="p2/overhead/$session/r$1/direct" bash "$repo/projects/01-gpu-serving/bench/bench.sh"
+}
+fell_back_total=0
+gateway() {
+  echo "== round $1: through the gateway (chat-default)"
+  local before t0 fell_back
+  before=$(settled)
+  t0=$(date -u +%Y-%m-%dT%H:%M:%S)
+  env "${common[@]}" RESULTS_PREFIX="p2/overhead/$session/r$1/gateway" TARGET_URL=http://gateway.gateway.svc:4000 \
+    TARGET_MODEL=chat-default KEY_SECRET=overhead-bench-key bash "$repo/projects/01-gpu-serving/bench/bench.sh"
+  fell_back=$(( $(settled) - before ))
+  fell_back_total=$(( fell_back_total + fell_back ))
+  echo "requests that fell back to the hosted model during round $1's gateway run: $fell_back"
+  # What those rows are: session 3 counted 3 and couldn't say which model, provider or status they had.
+  kubectl exec -n gateway deployment/postgres -- psql -U litellm -d litellm -c "select model, custom_llm_provider,
+    status, call_type, count(*) from \"LiteLLM_SpendLogs\" where \"startTime\" >= '$t0' and model not ilike '%qwen%'
+    group by 1, 2, 3, 4" || true
+  kubectl top pods -n gateway 2>/dev/null || true
+}
+for r in $(seq "$rounds"); do
+  if (( r % 2 )); then straight "$r"; gateway "$r"; else gateway "$r"; straight "$r"; fi
+done
 kubectl describe nodes -l cloud.google.com/gke-nodepool=system | grep -A 8 'Allocated resources' || true
-[ "$fell_back" = 0 ] || { echo "INVALID: $fell_back requests fell back to the hosted model during the gateway run"; exit 1; }
+[ "$fell_back_total" = 0 ] || { echo "INVALID: $fell_back_total requests fell back to the hosted model during the gateway runs"; exit 1; }
