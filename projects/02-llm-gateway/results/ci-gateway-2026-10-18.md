@@ -61,3 +61,26 @@ dependency failed to start: container tests-presidio-anonymizer-1 is unhealthy
 **Response:**
 - **In the chart:** Presidio's pods now have a liveness probe, and the anonymizer's startup limit is 2 minutes (the analyzer keeps 10). Kubernetes restarts a hung pod instead of leaving the gateway refusing every request.
 - **In CI:** an unhealthy Presidio container is restarted once, with a visible warning.
+
+## 2026-10-19: requests-only masking, and streaming (run [39190443042](https://github.com/mohankrishnaalavala/ai-platform/actions/runs/39190443042), PR #40)
+**What changed:** every result above ran with LiteLLM's default Presidio scope, "both": requests and answers were masked. Session 3 found that the pass on answers holds a stream back until the answer is done (`results/session3-gateway-full-2026-10-19.md`). The chart now sets `presidio_filter_scope: input`, so requests are masked and answers aren't. The mock vLLM now sends its streamed events 0.3 s apart, and `test_streaming.py` checks that they arrive that way.
+
+The same checks, with requests-only masking:
+```text
+stream: 3 pieces of content, first at 321 ms, last at 921 ms
+direct (plain and streaming): raw values that got through, per type: card 0/16, email 0/20, phone 0/20
+fallback (chat-default to the hosted alias): raw values that got through, per type: card 0/8, email 0/10, phone 0/10
+spend-log rows: 35
+logs, traces and spend logs: raw values that got through, per type: card 0/8, email 0/10, phone 0/10
+fail closed (pii-fail-closed-plain): status 500, requests at the provider 0
+fail closed (pii-fail-closed-stream): status 500, requests at the provider 0
+budget $1e-05: status codes [200, 200, 429]
+rpm 2: status codes [200, 200, 429, 429]
+fallback (plain): status 200, 30822 ms, attempted fallbacks 1
+fallback (stream): status 200, 10999 ms, attempted fallbacks 1
+```
+The streaming fallback (11.0 s here, 0.7 s in sessions 2 and 3) depends on how the backend failed: CI's stopped mock likely leaves a hung connection that waits out the 10 s `stream_timeout`, while in the sessions vLLM's Service, with no pods, likely refused at once. Neither cause was measured directly.
+
+**Before the fix**, the streaming test failed in runs [39189519299](https://github.com/mohankrishnaalavala/ai-platform/actions/runs/39189519299) and [39189642556](https://github.com/mohankrishnaalavala/ai-platform/actions/runs/39189642556): `AssertionError: 1 not greater than or equal to 2` (one piece of content).
+
+**What requests-only masking leaves out:** an answer that contains personal data, because the model repeated or made it up, reaches the caller unmasked. Nothing raw reaches a provider: requests are masked before they leave.

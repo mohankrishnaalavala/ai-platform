@@ -41,7 +41,8 @@ class MockProviderTest(unittest.TestCase):
         ctype, body = self.post({"model": "m", "stream": True, "messages": [{"role": "user", "content": "stream-1"}]})
         self.assertEqual(ctype, "text/event-stream")
         self.assertTrue(body.rstrip().endswith("data: [DONE]"))
-        self.assertIn("reply from", body)
+        deltas = [json.loads(line[len("data: "):])["choices"][0]["delta"] for line in body.splitlines() if line.startswith("data: {")]
+        self.assertEqual("".join(d.get("content", "") for d in deltas), f"reply from {server.NAME}")  # sent word by word
         self.assertIn("stream-1", json.dumps([b["messages"] for b in self.log()]))
 
 

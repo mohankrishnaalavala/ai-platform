@@ -1,0 +1,131 @@
+Fetching 6 files:   0%|          | 0/6 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Fetching 6 files:  17%|█▋        | 1/6 [00:00<00:00,  5.30it/s]Fetching 6 files:  67%|██████▋   | 4/6 [00:00<00:00, 10.77it/s]Fetching 6 files: 100%|██████████| 6/6 [00:00<00:00, 12.87it/s]
+== chat, concurrency 10: 100 prompts after 10 warm-up requests
+INFO 10-19 01:47:54 [importing.py:74] Triton is installed but 0 active driver(s) found (expected 1). Disabling Triton to prevent runtime errors.
+INFO 10-19 01:47:54 [importing.py:98] Triton not installed or not compatible; certain GPU-related functions will not be available.
+W1019 01:48:11.641000 22 torch/utils/cpp_extension.py:178] No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+INFO 10-19 01:48:29 [main.py:80] Unspecified platform detected, switching to CPU Platform instead.
+WARNING 10-19 01:48:31 [cpu.py:624] Failed to import from vllm._C_AVX2: ModuleNotFoundError("No module named 'vllm._C_AVX2'")
+Namespace(subparser='bench', bench_type='serve', dispatch_function=<function BenchmarkServingSubcommand.cmd at 0x78740ea93e20>, trust_remote_code=False, seed=0, num_prompts=100, dataset_name='random', no_stream=False, dataset_path=None, no_oversample=False, skip_chat_template=False, enable_multimodal_chat=False, disable_shuffle=False, custom_output_len=256, custom_ensure_client_side_data=False, spec_bench_output_len=256, spec_bench_category=None, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, timed_trace_chunk_hash_size=16, timed_trace_sec_multiplier=1, timed_trace_label_timestamp='timestamp', timed_trace_label_input_length='input_length', timed_trace_label_output_length='output_length', timed_trace_label_hash_ids='hash_ids', blazedit_min_distance=0.0, blazedit_max_distance=1.0, asr_max_audio_len_sec=inf, asr_min_audio_len_sec=0.0, random_input_len=512, random_output_len=128, random_range_ratio='0', random_prefix_len=0, random_batch_size=1, no_reranker=False, random_mm_base_items_per_request=1, random_mm_num_mm_items_range_ratio=0.0, random_mm_limit_mm_per_prompt={'image': 255, 'video': 1}, random_mm_bucket_config={(256, 256, 1): 0.5, (720, 1280, 1): 0.5, (720, 1280, 16): 0.0}, hf_subset=None, hf_split=None, hf_name=None, hf_output_len=None, bfcl_categories=None, prefix_repetition_prefix_len=256, prefix_repetition_suffix_len=256, prefix_repetition_num_prefixes=10, prefix_repetition_output_len=128, speed_bench_dataset_subset='qualitative', speed_bench_output_len=4096, speed_bench_category=None, label=None, backend='openai-chat', base_url='http://vllm.vllm.svc:8000', host='127.0.0.1', port=8000, endpoint='/v1/chat/completions', header=None, max_concurrency=10, model='Qwen/Qwen2.5-7B-Instruct', input_len=None, output_len=None, tokenizer='/tmp/tok', tokenizer_mode='auto', use_beam_search=False, logprobs=None, request_rate=inf, burstiness=1.0, probe_request_rate=0.0, disable_tqdm=True, num_warmups=10, profile=False, save_result=True, save_detailed=False, append_result=False, metadata=['scenario=chat', 'config=qwen2.5-7b-fp8', 'config_hash=5d6172c8cb52818f', 'revision=a09a35458c702b33eeacc393d103063234e8bc28', 'session=20261019t0058z', 'machine=g2-standard-8', 'gpu=nvidia-l4', 'gpu_zone=us-central1-c', 'client_zone=us-central1-c', 'spot=false', 'vllm_image=sha256:5f5e535216848d0c52159c8c13a0af04be5f6fe1a84e79914300610796f76d40', 'gke=v1.36.4-gke.1495002', 'vllm_version=0.30.0'], result_dir='/tmp/results', result_filename='chat-c10.json', ignore_eos=True, self_timed=None, percentile_metrics='ttft,tpot,itl,e2el', metric_percentiles='50,95,99', goodput=None, request_id_prefix='bench-911d3cfc-', top_p=None, top_k=None, min_p=None, temperature=None, frequency_penalty=None, presence_penalty=None, repetition_penalty=None, served_model_name=None, lora_modules=None, lora_assignment='random', ramp_up_strategy=None, ramp_up_start_rps=None, ramp_up_end_rps=None, ready_check_timeout_sec=600, chat_template_kwargs=None, extra_body=None, skip_tokenizer_init=False, insecure=False, plot_timeline=False, timeline_itl_thresholds='25,50', plot_dataset_stats=False)
+INFO 10-19 01:48:38 [utils.py:90] Sampling input_len from [512, 512] and output_len from [128, 128]
+WARNING: vllm bench serve no longer sets temperature==0 (greedy) in requests by default. The default will be determined on the server side and can be model/API specific. For the old behavior, include --temperature=0.
+Starting initial single prompt test run...
+Waiting for endpoint to become up in 600 seconds
+ |          | 00:00 elapsed, ? remaining |          | 00:00 elapsed, 00:05 remaining |          | 00:04 elapsed, 257:59:17 remaining
+Initial test run completed.
+Warming up with 10 requests...
+Warmup run completed.
+Starting main benchmark run...
+Traffic request rate: inf
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: 10
+tip: install termplotlib and gnuplot to plot the metrics
+============ Serving Benchmark Result ============
+Successful requests:                     100       
+Failed requests:                         0         
+Maximum request concurrency:             10        
+Benchmark duration (s):                  55.58     
+Total input tokens:                      54100     
+Total generated tokens:                  12800     
+Request throughput (req/s):              1.80      
+Output token throughput (tok/s):         230.30    
+Peak output token throughput (tok/s):    283.00    
+Peak concurrent requests:                20.00     
+Total token throughput (tok/s):          1203.66   
+---------------Time to First Token----------------
+Mean TTFT (ms):                          639.67    
+Median TTFT (ms):                        706.33    
+P50 TTFT (ms):                           706.33    
+P95 TTFT (ms):                           889.72    
+P99 TTFT (ms):                           977.77    
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          38.68     
+Median TPOT (ms):                        38.26     
+P50 TPOT (ms):                           38.26     
+P95 TPOT (ms):                           42.27     
+P99 TPOT (ms):                           42.43     
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           38.38     
+Median ITL (ms):                         36.22     
+P50 ITL (ms):                            36.22     
+P95 ITL (ms):                            37.99     
+P99 ITL (ms):                            117.79    
+----------------End-to-end Latency----------------
+Mean E2EL (ms):                          5552.58   
+Median E2EL (ms):                        5559.85   
+P50 E2EL (ms):                           5559.85   
+P95 E2EL (ms):                           5580.41   
+P99 E2EL (ms):                           5654.91   
+==================================================
+== chat, concurrency 50: 500 prompts after 50 warm-up requests
+INFO 10-19 01:50:28 [importing.py:74] Triton is installed but 0 active driver(s) found (expected 1). Disabling Triton to prevent runtime errors.
+INFO 10-19 01:50:28 [importing.py:98] Triton not installed or not compatible; certain GPU-related functions will not be available.
+W1019 01:50:29.744000 47 torch/utils/cpp_extension.py:178] No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+INFO 10-19 01:50:32 [main.py:80] Unspecified platform detected, switching to CPU Platform instead.
+WARNING 10-19 01:50:33 [cpu.py:624] Failed to import from vllm._C_AVX2: ModuleNotFoundError("No module named 'vllm._C_AVX2'")
+Namespace(subparser='bench', bench_type='serve', dispatch_function=<function BenchmarkServingSubcommand.cmd at 0x786477cf1da0>, trust_remote_code=False, seed=0, num_prompts=500, dataset_name='random', no_stream=False, dataset_path=None, no_oversample=False, skip_chat_template=False, enable_multimodal_chat=False, disable_shuffle=False, custom_output_len=256, custom_ensure_client_side_data=False, spec_bench_output_len=256, spec_bench_category=None, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, timed_trace_chunk_hash_size=16, timed_trace_sec_multiplier=1, timed_trace_label_timestamp='timestamp', timed_trace_label_input_length='input_length', timed_trace_label_output_length='output_length', timed_trace_label_hash_ids='hash_ids', blazedit_min_distance=0.0, blazedit_max_distance=1.0, asr_max_audio_len_sec=inf, asr_min_audio_len_sec=0.0, random_input_len=512, random_output_len=128, random_range_ratio='0', random_prefix_len=0, random_batch_size=1, no_reranker=False, random_mm_base_items_per_request=1, random_mm_num_mm_items_range_ratio=0.0, random_mm_limit_mm_per_prompt={'image': 255, 'video': 1}, random_mm_bucket_config={(256, 256, 1): 0.5, (720, 1280, 1): 0.5, (720, 1280, 16): 0.0}, hf_subset=None, hf_split=None, hf_name=None, hf_output_len=None, bfcl_categories=None, prefix_repetition_prefix_len=256, prefix_repetition_suffix_len=256, prefix_repetition_num_prefixes=10, prefix_repetition_output_len=128, speed_bench_dataset_subset='qualitative', speed_bench_output_len=4096, speed_bench_category=None, label=None, backend='openai-chat', base_url='http://vllm.vllm.svc:8000', host='127.0.0.1', port=8000, endpoint='/v1/chat/completions', header=None, max_concurrency=50, model='Qwen/Qwen2.5-7B-Instruct', input_len=None, output_len=None, tokenizer='/tmp/tok', tokenizer_mode='auto', use_beam_search=False, logprobs=None, request_rate=inf, burstiness=1.0, probe_request_rate=0.0, disable_tqdm=True, num_warmups=50, profile=False, save_result=True, save_detailed=False, append_result=False, metadata=['scenario=chat', 'config=qwen2.5-7b-fp8', 'config_hash=5d6172c8cb52818f', 'revision=a09a35458c702b33eeacc393d103063234e8bc28', 'session=20261019t0058z', 'machine=g2-standard-8', 'gpu=nvidia-l4', 'gpu_zone=us-central1-c', 'client_zone=us-central1-c', 'spot=false', 'vllm_image=sha256:5f5e535216848d0c52159c8c13a0af04be5f6fe1a84e79914300610796f76d40', 'gke=v1.36.4-gke.1495002', 'vllm_version=0.30.0'], result_dir='/tmp/results', result_filename='chat-c50.json', ignore_eos=True, self_timed=None, percentile_metrics='ttft,tpot,itl,e2el', metric_percentiles='50,95,99', goodput=None, request_id_prefix='bench-7e2c665c-', top_p=None, top_k=None, min_p=None, temperature=None, frequency_penalty=None, presence_penalty=None, repetition_penalty=None, served_model_name=None, lora_modules=None, lora_assignment='random', ramp_up_strategy=None, ramp_up_start_rps=None, ramp_up_end_rps=None, ready_check_timeout_sec=600, chat_template_kwargs=None, extra_body=None, skip_tokenizer_init=False, insecure=False, plot_timeline=False, timeline_itl_thresholds='25,50', plot_dataset_stats=False)
+INFO 10-19 01:50:35 [utils.py:90] Sampling input_len from [512, 512] and output_len from [128, 128]
+WARNING: vllm bench serve no longer sets temperature==0 (greedy) in requests by default. The default will be determined on the server side and can be model/API specific. For the old behavior, include --temperature=0.
+Starting initial single prompt test run...
+Waiting for endpoint to become up in 600 seconds
+ |          | 00:00 elapsed, ? remaining |          | 00:00 elapsed, 00:13 remaining |          | 00:04 elapsed, 537:43:35 remaining
+Initial test run completed.
+Warming up with 50 requests...
+Warmup run completed.
+Starting main benchmark run...
+Traffic request rate: inf
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: 50
+tip: install termplotlib and gnuplot to plot the metrics
+============ Serving Benchmark Result ============
+Successful requests:                     500       
+Failed requests:                         0         
+Maximum request concurrency:             50        
+Benchmark duration (s):                  96.43     
+Total input tokens:                      270499    
+Total generated tokens:                  64000     
+Request throughput (req/s):              5.18      
+Output token throughput (tok/s):         663.67    
+Peak output token throughput (tok/s):    1100.00   
+Peak concurrent requests:                99.00     
+Total token throughput (tok/s):          3468.69   
+---------------Time to First Token----------------
+Mean TTFT (ms):                          1020.84   
+Median TTFT (ms):                        1077.55   
+P50 TTFT (ms):                           1077.55   
+P95 TTFT (ms):                           2320.31   
+P99 TTFT (ms):                           3902.02   
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          67.66     
+Median TPOT (ms):                        72.68     
+P50 TPOT (ms):                           72.68     
+P95 TPOT (ms):                           78.13     
+P99 TPOT (ms):                           80.23     
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           67.13     
+Median ITL (ms):                         45.96     
+P50 ITL (ms):                            45.96     
+P95 ITL (ms):                            314.77    
+P99 ITL (ms):                            397.71    
+----------------End-to-end Latency----------------
+Mean E2EL (ms):                          9613.07   
+Median E2EL (ms):                        10406.58  
+P50 E2EL (ms):                           10406.58  
+P95 E2EL (ms):                           11597.06  
+P99 E2EL (ms):                           13203.73  
+==================================================
+# Benchmark summary
+
+- Config: `qwen2.5-7b-fp8`, hash `5d6172c8cb52818f`, model revision `a09a35458c702b33eeacc393d103063234e8bc28`
+- Session: 20261019t0058z, date: 20261019-014946
+- Hardware: g2-standard-8, 1x nvidia-l4, spot: false; GPU zone us-central1-c, client zone us-central1-c
+- Software: vLLM 0.30.0 (image `sha256:5f5e535216848d0c52159c8c13a0af04be5f6fe1a84e79914300610796f76d40`), GKE v1.36.4-gke.1495002
+- Method: `vllm bench serve` as a Job inside the cluster; random prompts of fixed length (chat = 512 tokens in / 128 out); prompts = max(20, 10 x concurrency) after max(2, concurrency) warm-up requests; seed 0
+
+| Scenario | Concurrency | Requests ok / failed | TTFT p50 / p95 / p99 (ms) | TPOT p50 (ms) | Output tokens/s | Valid |
+|---|---|---|---|---|---|---|
+| chat | 10 | 100 / 0 | 706 / 890 / 978 | 38.3 | 230.3 | yes |
+| chat | 50 | 500 / 0 | 1078 / 2320 / 3902 | 72.7 | 663.7 | yes |
+uploaded chat-c10.json
+uploaded chat-c50.json
+uploaded summary.md

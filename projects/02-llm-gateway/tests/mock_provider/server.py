@@ -3,7 +3,8 @@
 records the body of every chat request it receives, so a test can prove what reached a "provider".
 In CI it stands in for both vLLM and the hosted model. It never calls anything.
 
-Env: NAME (in each reply and the log), PORT (default 8000).
+Env: NAME (in each reply and the log), PORT (default 8000), STREAM_DELAY_S (default 0: the seconds
+between streamed events, so a test can tell a real stream from one the gateway buffered).
 Endpoints: POST /v1/chat/completions (streaming or not), GET /v1/models, GET /health,
 GET /log (every recorded request body, one JSON object per line).
 """
@@ -13,6 +14,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 NAME = os.environ.get("NAME", "mock")
+STREAM_DELAY_S = float(os.environ.get("STREAM_DELAY_S", "0"))
 LOG = []  # in memory: the payloads are fake test data and die with the container
 USAGE = {"prompt_tokens": 50, "completion_tokens": 10, "total_tokens": 60}  # fixed, so budgets are predictable
 
@@ -48,13 +50,21 @@ class Handler(BaseHTTPRequestHandler):
                 "choices": [{"index": 0, "message": {"role": "assistant", "content": text}, "finish_reason": "stop"}],
                 "usage": USAGE,
             })
-        chunks = [{"role": "assistant", "content": ""}, {"content": text}]
+        words = text.split(" ")
+        chunks = [{"role": "assistant", "content": ""}] + [{"content": w if i == 0 else " " + w} for i, w in enumerate(words)]
         events = [{"id": f"chatcmpl-{NAME}", "object": "chat.completion.chunk", "created": now, "model": NAME,
                    "choices": [{"index": 0, "delta": d, "finish_reason": None}]} for d in chunks]
         events.append({"id": f"chatcmpl-{NAME}", "object": "chat.completion.chunk", "created": now, "model": NAME,
                        "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}], "usage": USAGE})
-        data = "".join(f"data: {json.dumps(e)}\n\n" for e in events) + "data: [DONE]\n\n"
-        self._send(200, data.encode(), "text/event-stream")
+        # One event at a time, no Content-Length: the connection closes at the end (HTTP/1.0).
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.end_headers()
+        for i, line in enumerate([f"data: {json.dumps(e)}\n\n" for e in events] + ["data: [DONE]\n\n"]):
+            if i:
+                time.sleep(STREAM_DELAY_S)
+            self.wfile.write(line.encode())
+            self.wfile.flush()
 
     def log_message(self, *args):  # no access log: it would only repeat the paths
         pass
