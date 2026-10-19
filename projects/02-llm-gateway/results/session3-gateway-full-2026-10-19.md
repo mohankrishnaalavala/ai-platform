@@ -14,7 +14,7 @@
   1. Through the gateway, every streamed answer arrived in one piece. So its "time to first token" is the whole answer, and the run doesn't measure what the gateway adds.
   2. `overhead.sh` counted 3 requests that fell back to the hosted model during the gateway half. Its rule makes any fallback INVALID.
 
-Both causes are found or instrumented in PR #40. The lines below are copied from the run's log, which GitHub keeps for 90 days.
+Both causes are found or instrumented in PR #40. The lines below are copied from the run's log, which GitHub keeps for 90 days. The lines quoted here are saved in [`overhead/20261019t0058z/session-log-excerpt.txt`](overhead/20261019t0058z/session-log-excerpt.txt).
 
 ## The P2 checks, with real vLLM behind chat-default
 Selected lines from `make test P=02`, with the team ID taken out. Every check passed.

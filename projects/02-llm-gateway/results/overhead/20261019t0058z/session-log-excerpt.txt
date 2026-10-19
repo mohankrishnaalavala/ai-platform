@@ -1,0 +1,78 @@
+# Excerpt of GitHub Actions run 39183088327 (gpu-session.yml, gateway-full), job: step: timestamp line.
+# Selected lines only; team IDs replaced with <team id>. GitHub deletes the full log after 90 days.
+session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:32:01.4429173Z budget $1e-05: status codes [200, 200, 200, 429]
+session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:32:01.4430653Z direct (plain and streaming): raw values that got through, per type: card 0/16, email 0/20, phone 0/20
+session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:32:01.4431811Z rpm 2: status codes [200, 200, 429, 429]
+session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:32:01.4547207Z PASS: gateway tests (smoke, budget, rate limit, keys, PII direct)
+session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:32:05.6786818Z team shakedown-013202 (6a5ae190-0386-435a-95b2-ab010a3fa093): budget $1, 10 requests a minute; onboarded in 0.6 s
+session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:32:05.7113560Z PASS: make team (end to end 3.6 s)
+session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:32:26.4468583Z dump: 990 lines, 34 spend-log rows
+session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:32:26.5206391Z logs, traces and spend logs: raw values that got through, per type: card 0/8, email 0/10, phone 0/10
+session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:32:26.5281638Z PASS: no raw PII in logs, traces or spend logs
+session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:32:27.3742959Z deployment.apps/presidio-analyzer scaled
+session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:33:00.5487383Z fail closed (pii-fail-closed-plain): status 500, requests at the provider 0
+session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:33:00.5488542Z fail closed (pii-fail-closed-stream): status 500, requests at the provider 0
+session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:33:00.5595611Z PASS: fail closed (PII analyzer scaled to 0)
+session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:33:01.1336263Z deployment.apps/presidio-analyzer scaled
+session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:33:01.6954541Z Waiting for deployment "presidio-analyzer" rollout to finish: 0 of 1 updated replicas are available...
+session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:43:01.5757776Z error: timed out waiting for the condition
+session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:43:02.3478577Z make: *** [Makefile:95: test] Error 1
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:43:09.9031594Z Waiting for deployment "presidio-analyzer" rollout to finish: 0 of 1 updated replicas are available...
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:43:51.5642774Z deployment "presidio-analyzer" successfully rolled out
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:43:53.2996519Z preflight: status 200, attempted fallbacks 0
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:43:53.3089250Z == straight to vLLM
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:46:05.7638549Z == chat, concurrency 10: 100 prompts after 10 warm-up requests
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:49:46.0820809Z ============ Serving Benchmark Result ============
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:49:49.7293979Z == chat, concurrency 50: 500 prompts after 50 warm-up requests
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:52:28.6184549Z ============ Serving Benchmark Result ============
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:52:29.7805429Z | chat | 10 | 100 / 0 | 706 / 890 / 978 | 38.3 | 230.3 | yes |
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:52:29.7806105Z | chat | 50 | 500 / 0 | 1078 / 2320 / 3902 | 72.7 | 663.7 | yes |
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:52:41.0169195Z results uploaded to the results bucket: p2/overhead/20261019t0058z/direct/20261019t014359z/
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:52:43.8335471Z litellm-5b79686c4f-bf27k               7m           570Mi           
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:52:43.8336478Z mock-provider-5878f6495b-gmcxg         1m           18Mi            
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:52:43.8337398Z otel-collector-584c4d9b5-g6hqv         2m           92Mi            
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:52:43.8338325Z postgres-5fd4f5d6d4-q9992              28m          76Mi            
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:52:43.8339217Z presidio-analyzer-5cb8cf7bb-7m9kq      1m           942Mi           
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:52:43.8340145Z presidio-anonymizer-5d798b7689-mvzsf   1m           43Mi            
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:52:43.8363811Z == through the gateway (chat-default)
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:53:48.8593713Z == chat, concurrency 10: 100 prompts after 10 warm-up requests
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:55:53.2381059Z ============ Serving Benchmark Result ============
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:55:53.7404281Z == chat, concurrency 50: 500 prompts after 50 warm-up requests
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:58:58.0210953Z ============ Serving Benchmark Result ============
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:58:58.5805983Z | chat | 10 | 100 / 0 | 6023 / 7521 / 8335 | 0.0 | 192.7 | yes |
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:58:58.5806615Z | chat | 50 | 500 / 0 | 12999 / 18143 / 19325 | 0.0 | 453.4 | yes |
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:59:05.5733998Z results uploaded to the results bucket: p2/overhead/20261019t0058z/gateway/20261019t015258z/
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:59:13.4001488Z requests that fell back to the hosted model during the gateway run: 3
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:59:13.8078761Z litellm-5b79686c4f-bf27k               783m         709Mi           
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:59:13.8079684Z mock-provider-5878f6495b-gmcxg         1m           18Mi            
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:59:13.8080688Z otel-collector-584c4d9b5-g6hqv         3m           98Mi            
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:59:13.8081557Z postgres-5fd4f5d6d4-q9992              28m          98Mi            
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:59:13.8082435Z presidio-analyzer-5cb8cf7bb-7m9kq      407m         952Mi           
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:59:13.8083261Z presidio-anonymizer-5d798b7689-mvzsf   9m           43Mi            
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:59:15.1735074Z   cpu                2546m (64%)       16043m (409%)
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:59:15.1736024Z   memory             6123817856 (44%)  16102865408 (116%)
+session	gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)	2026-10-19T01:59:15.1739092Z INVALID: 3 requests fell back to the hosted model during the gateway run
+session	gateway-full: fallback after vLLM goes away	2026-10-19T01:59:19.9545913Z deployment "presidio-analyzer" successfully rolled out
+session	gateway-full: fallback after vLLM goes away	2026-10-19T01:59:20.5556630Z vLLM up: status 200, 256 ms, attempted fallbacks 0
+session	gateway-full: fallback after vLLM goes away	2026-10-19T01:59:20.5646440Z PASS: chat-default answered by vLLM itself
+session	gateway-full: fallback after vLLM goes away	2026-10-19T01:59:21.1296289Z scaledobject.keda.sh/vllm annotated
+session	gateway-full: fallback after vLLM goes away	2026-10-19T01:59:29.6174648Z pod/vllm-5587b9dd54-2wwbc condition met
+session	gateway-full: fallback after vLLM goes away	2026-10-19T02:00:02.2570770Z fallback (plain): status 200, 31520 ms, attempted fallbacks 1
+session	gateway-full: fallback after vLLM goes away	2026-10-19T02:00:02.2572322Z fallback (stream): status 200, 681 ms, attempted fallbacks 1
+session	gateway-full: fallback after vLLM goes away	2026-10-19T02:00:02.2695453Z PASS: fallback to the hosted model after vLLM went away
+teardown	make down	2026-10-19T02:10:33.4792512Z [0mcontainer clusters:        none
+teardown	make down	2026-10-19T02:10:34.4378856Z compute instances:         none
+teardown	make down	2026-10-19T02:10:35.3162236Z compute disks:             none
+teardown	make down	2026-10-19T02:10:36.2250781Z compute forwarding-rules:  none
+teardown	make down	2026-10-19T02:10:37.1195162Z compute addresses:         none
+teardown	make down	2026-10-19T02:10:37.9460067Z compute routers:           none
+teardown	make down	2026-10-19T02:10:37.9460667Z nothing billable is running
+teardown	make status	2026-10-19T02:10:40.0748841Z container clusters:        none
+teardown	make status	2026-10-19T02:10:40.9433091Z compute instances:         none
+teardown	make status	2026-10-19T02:10:41.7532229Z compute disks:             none
+teardown	make status	2026-10-19T02:10:42.6405652Z compute forwarding-rules:  none
+teardown	make status	2026-10-19T02:10:43.3939454Z compute addresses:         none
+teardown	make status	2026-10-19T02:10:44.2092226Z compute routers:           none
+teardown	make status	2026-10-19T02:10:44.2094192Z nothing billable is running
+session	make up	﻿2026-10-19T00:58:20.2263725Z ##[group]Run CONFIG=$FP8 make up LAYERS="$LAYERS"
+session	make up	2026-10-19T01:31:31.1129703Z TEST SUITE: None

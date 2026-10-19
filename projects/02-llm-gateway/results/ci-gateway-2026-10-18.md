@@ -79,6 +79,8 @@ rpm 2: status codes [200, 200, 429, 429]
 fallback (plain): status 200, 30822 ms, attempted fallbacks 1
 fallback (stream): status 200, 10999 ms, attempted fallbacks 1
 ```
+The streaming fallback (11.0 s here, 0.7 s in sessions 2 and 3) depends on how the backend failed: CI's stopped mock likely leaves a hung connection that waits out the 10 s `stream_timeout`, while in the sessions vLLM's Service, with no pods, likely refused at once. Neither cause was measured directly.
+
 **Before the fix**, the streaming test failed in runs [39189519299](https://github.com/mohankrishnaalavala/ai-platform/actions/runs/39189519299) and [39189642556](https://github.com/mohankrishnaalavala/ai-platform/actions/runs/39189642556): `AssertionError: 1 not greater than or equal to 2` (one piece of content).
 
 **What requests-only masking leaves out:** an answer that contains personal data, because the model repeated or made it up, reaches the caller unmasked. Nothing raw reaches a provider: requests are masked before they leave.
