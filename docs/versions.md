@@ -19,7 +19,7 @@ Record every pinned version here when you add it (Terraform providers, GKE versi
 | vLLM image | `vllm/vllm-openai:v0.30.0`, linux/amd64 manifest `sha256:5f5e5352…` (released 2026-09-22; v0.31.0 was 11 days old) | `config/models/*.yaml`; copied to Artifact Registry by `mirror.yml` | 2026-10-16 |
 | Model | `Qwen/Qwen2.5-7B-Instruct`, revision `a09a3545…` (Apache 2.0, not gated) | `config/models/*.yaml` | 2026-10-16 |
 | crane (go-containerregistry) | v0.22.1, release tarball checked by sha256 `0ab7a1d6…` | `mirror.yml` | 2026-10-16 |
-| Helm | v4.3.0 (2026-09-09), release tarball checked by sha256 `86584a54…` | `ci.yml` | 2026-10-16 |
+| Helm | v4.3.0 (2026-09-09), release tarball checked by sha256 `86584a54…` | `ci.yml`, `release.yml` | 2026-10-16 |
 | kubeconform (Docker image), Kubernetes schemas 1.36.0 | `ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43…` | `projects/01-gpu-serving/tests/charts.sh`, `projects/02-llm-gateway/tests/charts.sh` | 2026-10-16 |
 | kube-prometheus-stack (Helm chart, OCI) | 91.9.0 (2026-10-02; operator v0.94.1), chart digest `sha256:04047e50…` | `projects/01-gpu-serving/deploy.sh`, `tests/charts.sh` | 2026-10-16 |
 | KEDA (Helm chart) | 2.21.0 (2026-09-23; supports Kubernetes 1.34–1.36) | `projects/01-gpu-serving/deploy.sh`, `tests/charts.sh` | 2026-10-16 |
@@ -33,3 +33,4 @@ Record every pinned version here when you add it (Terraform providers, GKE versi
 | yq (Docker image) | `mikefarah/yq:4.54.1@sha256:4b3d9475…` (2026-09-29) | `ci.yml` (job gateway) | 2026-10-18 |
 | Python (image for the mock provider) | `python:3.13-slim@sha256:70729b46…` | `projects/02-llm-gateway/tests/compose.yaml`, `helm/gateway/values.yaml` | 2026-10-18 |
 | Presidio analyzer and anonymizer (images) | `mcr.microsoft.com/presidio-analyzer:2.2.362@sha256:286e3fa7…`, `presidio-anonymizer:2.2.362@sha256:a10a12a2…` (the newest on Microsoft's registry; 2.2.363 and 2.2.364 aren't published there) | `projects/02-llm-gateway/helm/gateway/values.yaml`, `tests/compose.yaml` | 2026-10-18 |
+| Our Helm charts (`gateway`, `vllm`) | 0.1.0, one version for all charts; `release.yml` pushes them to `oci://ghcr.io/mohankrishnaalavala/charts` on a tag (none yet) | `projects/*/helm/*/Chart.yaml` | 2026-10-18 |

@@ -1,0 +1,49 @@
+# Release on a version tag (v1.2.3): package every Helm chart in projects/*/helm/, push them to the
+# GitHub Container Registry (GHCR) as OCI charts, and create a GitHub release with generated notes.
+# Every chart's version must equal the tag. No cloud login. There are no images of our own yet.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write  # the GitHub release
+  packages: write  # the charts in GHCR
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: install helm
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/helm.tgz" https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz
+          echo "86584a54def73570558f66f5111cc53dfed56689637ae32c1201205d494f54fb  $RUNNER_TEMP/helm.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/helm.tgz" -C "$RUNNER_TEMP" linux-amd64/helm
+          echo "$RUNNER_TEMP/linux-amd64" >> "$GITHUB_PATH"
+
+      - name: package the charts
+        run: scripts/package_charts.sh "${GITHUB_REF_NAME#v}" "$RUNNER_TEMP/charts"
+
+      - name: push the charts to GHCR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          helm registry login ghcr.io -u "$GITHUB_ACTOR" --password-stdin <<< "$GITHUB_TOKEN"
+          for t in "$RUNNER_TEMP"/charts/*.tgz; do
+            helm push "$t" "oci://ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/charts"
+          done
+
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes "$RUNNER_TEMP"/charts/*.tgz
