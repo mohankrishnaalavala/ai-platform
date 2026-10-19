@@ -82,6 +82,9 @@ config:
         guardrail: presidio
         mode: pre_call
         default_on: true
+        # Requests only. LiteLLM's default ("both") adds a second Presidio pass on every answer, and
+        # that pass holds a stream back until the answer is done (session 3: TTFT = whole answer).
+        presidio_filter_scope: input
         pii_entities_config:
           EMAIL_ADDRESS: MASK
           PHONE_NUMBER: MASK
