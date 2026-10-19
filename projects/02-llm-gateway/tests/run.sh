@@ -5,6 +5,7 @@
 # to 0 (put back after). With no vLLM in the session, chat-default falls back to the real hosted model.
 # `run.sh vllm-down` (a GPU session, last): vLLM answers a call, then KEDA takes it to 0 replicas and
 # chat-default must fall back to the hosted model; leaves vLLM at 0 (teardown follows).
+# `run.sh demo` (vLLM up) and `run.sh demo vllm-down` (after vllm-down): demo.py's transcript for the blog.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../../.." && pwd)
@@ -42,6 +43,14 @@ export GATEWAY_URL=http://127.0.0.1:14100 MASTER_KEY="$master" MOCK_HOSTED_URL=h
 # 20 min: one start can hang until its startup probe restarts it after 10 min (session 3); the next one comes up.
 analyzer_ready() { kubectl rollout status deployment/presidio-analyzer -n gateway --timeout=20m; }
 analyzer_ready
+
+if [ "${1:-}" = demo ]; then
+  if [ "${2:-}" = vllm-down ] && [ -n "$(kubectl get pods -n vllm -l app.kubernetes.io/name=vllm -o name)" ]; then
+    echo "FAIL: vLLM is still running (run.sh vllm-down first)"; exit 1
+  fi
+  python3 demo.py ${2:+"$2"}
+  exit
+fi
 
 if [ "${1:-}" = vllm-down ]; then
   run "chat-default answered by vLLM itself" python3 -c '
