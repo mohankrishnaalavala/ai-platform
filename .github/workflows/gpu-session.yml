@@ -5,7 +5,9 @@
 #   full:      every benchmark (BF16 and FP8), the scale-out test, 3+3 cold starts (estimate: 3.5-5 h)
 #   bf16-bench: only the BF16 benchmarks, to redo a run that was invalid (estimate: 1-1.5 h)
 #   gateway-shakedown: P2 only, no GPU: the gateway with the test-only mock, make test P=02 (estimate: 45-75 min)
-#   gateway-full: P1 (FP8) and P2: make test P=02, the gateway-overhead benchmark, then fallback after vLLM goes away (estimate: 1.5-2 h)
+#   gateway-full: P1 (FP8) and P2: make test P=02, the demo transcript, the gateway-overhead benchmark (3 rounds),
+#     then fallback after vLLM goes away and the demo's 20 calls (estimate: 1.5-2 h; at most 150 + 45 min of
+#     cluster time from the two jobs' limits, about $4 at on-demand list prices)
 # Results go to the results bucket as each step finishes, so a run that ends early keeps them.
 # Teardown is its own job with its own time limit, so it runs in full even after the session job
 # fails, times out or is cancelled. cost-guard (nightly, clusters older than 8 h) is the backstop.
@@ -127,7 +129,12 @@ jobs:
         timeout-minutes: 30
         run: make test P="$TEST_P"
 
-      - name: "gateway-full: gateway overhead (the same load straight to vLLM, then through the gateway)"
+      # Printed for the blog's screenshots (no key is printed). Before the benchmark: it takes minutes.
+      - name: "gateway-full: demo (a team, its budget, PII masked), printed for screenshots"
+        if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'gateway-full' }}
+        run: timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) bash projects/02-llm-gateway/tests/run.sh demo
+
+      - name: "gateway-full: gateway overhead (the same load straight to vLLM and through the gateway, 3 rounds)"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'gateway-full' }}
         run: CONFIG=$FP8 timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) projects/02-llm-gateway/bench/overhead.sh
 
@@ -135,6 +142,10 @@ jobs:
       - name: "gateway-full: fallback after vLLM goes away"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'gateway-full' }}
         run: timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) bash projects/02-llm-gateway/tests/run.sh vllm-down
+
+      - name: "gateway-full: demo, 20 calls with vLLM gone"
+        if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'gateway-full' }}
+        run: timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) bash projects/02-llm-gateway/tests/run.sh demo vllm-down
 
       - name: "shakedown: one short benchmark (BF16, chat, concurrency 8)"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'shakedown' }}
