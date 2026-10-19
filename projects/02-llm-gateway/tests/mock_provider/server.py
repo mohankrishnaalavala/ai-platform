@@ -60,10 +60,11 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.end_headers()
-        for line in [f"data: {json.dumps(e)}\n\n" for e in events] + ["data: [DONE]\n\n"]:
+        for i, line in enumerate([f"data: {json.dumps(e)}\n\n" for e in events] + ["data: [DONE]\n\n"]):
+            if i:
+                time.sleep(STREAM_DELAY_S)
             self.wfile.write(line.encode())
             self.wfile.flush()
-            time.sleep(STREAM_DELAY_S)
 
     def log_message(self, *args):  # no access log: it would only repeat the paths
         pass
