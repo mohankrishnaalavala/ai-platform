@@ -4,7 +4,7 @@ session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-
 session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:32:01.4430653Z direct (plain and streaming): raw values that got through, per type: card 0/16, email 0/20, phone 0/20
 session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:32:01.4431811Z rpm 2: status codes [200, 200, 429, 429]
 session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:32:01.4547207Z PASS: gateway tests (smoke, budget, rate limit, keys, PII direct)
-session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:32:05.6786818Z team shakedown-013202 (6a5ae190-0386-435a-95b2-ab010a3fa093): budget $1, 10 requests a minute; onboarded in 0.6 s
+session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:32:05.6786818Z team shakedown-013202 (<team id>): budget $1, 10 requests a minute; onboarded in 0.6 s
 session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:32:05.7113560Z PASS: make team (end to end 3.6 s)
 session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:32:26.4468583Z dump: 990 lines, 34 spend-log rows
 session	make test (P1 smoke tests and autoscaling path, or every P2 check)	2026-10-19T01:32:26.5206391Z logs, traces and spend logs: raw values that got through, per type: card 0/8, email 0/10, phone 0/10
