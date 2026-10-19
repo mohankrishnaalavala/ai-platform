@@ -39,7 +39,8 @@ master=$(gcloud secrets versions access latest --secret=litellm-master-key ${imp
 export GATEWAY_URL=http://127.0.0.1:14100 MASTER_KEY="$master" MOCK_HOSTED_URL=http://127.0.0.1:18100 HOSTED_ALIAS=chat-hosted-mock
 # The gateway refuses every request while the PII analyzer is down (fail closed), and the analyzer
 # needs some seconds after a restart before it is ready: session 2's next step failed on exactly that.
-analyzer_ready() { kubectl rollout status deployment/presidio-analyzer -n gateway --timeout=10m; }
+# 20 min: one start can hang until its startup probe restarts it after 10 min (session 3); the next one comes up.
+analyzer_ready() { kubectl rollout status deployment/presidio-analyzer -n gateway --timeout=20m; }
 analyzer_ready
 
 if [ "${1:-}" = vllm-down ]; then

@@ -62,7 +62,7 @@ common=(SCENARIOS=chat CONCURRENCY="$concurrency" BACKEND=openai-chat ENDPOINT=/
 
 # Preflight, before any GPU time is spent: the PII analyzer is ready (the gateway refuses every request
 # while it isn't), the spend-log query works, and the key gets an answer from vLLM.
-kubectl rollout status deployment/presidio-analyzer -n gateway --timeout=10m
+kubectl rollout status deployment/presidio-analyzer -n gateway --timeout=20m  # covers one restart, as in tests/run.sh
 fallbacks >/dev/null
 KEY="$key" python3 -c '
 import json, os, urllib.request
@@ -80,10 +80,15 @@ kubectl top pods -n gateway 2>/dev/null || true
 
 echo "== through the gateway (chat-default)"
 before=$(settled)
+t0=$(date -u +%Y-%m-%dT%H:%M:%S)
 env "${common[@]}" RESULTS_PREFIX="p2/overhead/$session/gateway" TARGET_URL=http://gateway.gateway.svc:4000 \
   TARGET_MODEL=chat-default KEY_SECRET=overhead-bench-key bash "$repo/projects/01-gpu-serving/bench/bench.sh"
 fell_back=$(( $(settled) - before ))
 echo "requests that fell back to the hosted model during the gateway run: $fell_back"
+# What those rows are: session 3 counted 3 and couldn't say which model, provider or status they had.
+kubectl exec -n gateway deployment/postgres -- psql -U litellm -d litellm -c "select model, custom_llm_provider,
+  status, call_type, count(*) from \"LiteLLM_SpendLogs\" where \"startTime\" >= '$t0' and model not ilike '%qwen%'
+  group by 1, 2, 3, 4" || true
 kubectl top pods -n gateway 2>/dev/null || true
 kubectl describe nodes -l cloud.google.com/gke-nodepool=system | grep -A 8 'Allocated resources' || true
 [ "$fell_back" = 0 ] || { echo "INVALID: $fell_back requests fell back to the hosted model during the gateway run"; exit 1; }

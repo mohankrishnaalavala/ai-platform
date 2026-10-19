@@ -185,6 +185,8 @@ jobs:
           k describe pods -n gateway > diag/gateway-pods.txt 2>&1 || true
           for d in litellm postgres presidio-analyzer presidio-anonymizer otel-collector; do
             k logs -n gateway "deployment/$d" --all-containers --tail=300 > "diag/gateway-$d-log.txt" 2>&1 || true
+            # A container that was restarted (session 3: a Presidio start that hung) left its log here.
+            k logs -n gateway "deployment/$d" --all-containers --previous --tail=300 > "diag/gateway-$d-previous-log.txt" 2>&1 || true
           done
           k top pods -A > diag/top-pods.txt 2>&1 || true
           k describe nodes | grep -A 12 'Allocated resources' > diag/node-allocations.txt 2>&1 || true
