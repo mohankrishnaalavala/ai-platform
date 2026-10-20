@@ -24,6 +24,10 @@ docker run --rm -i "$kubeconform" -strict -kubernetes-version 1.36.0 -schema-loc
 if grep -nE 'type: (LoadBalancer|NodePort|ExternalName)|kind: (Ingress|PersistentVolumeClaim|Secret)$|hostNetwork: true|hostPort: [0-9]|hostPath:' "$out"; then
   echo "a chart renders a public service, an ingress, host access, a disk (PVC) or a Kubernetes Secret"; exit 1
 fi
+# Grafana may read ConfigMaps in its own namespace only, so its sidecars must not watch every namespace.
+if grep -n -A1 'name: NAMESPACE$' "$out" | grep -n 'value: "\?ALL'; then
+  echo "a Grafana sidecar watches all namespaces, which its Role doesn't allow"; exit 1
+fi
 if grep -nE 'sk-[A-Za-z0-9]{8,}|password: ' "$out"; then
   echo "a rendered manifest holds what looks like a secret value"; exit 1
 fi

@@ -81,6 +81,7 @@ grafana:
     dashboards:
       resource: configmap
       skipReload: true
+      searchNamespace: monitoring  # kube-prometheus-stack sets ALL, which the Role below doesn't allow
     datasources:
       resource: configmap
       skipReload: true
@@ -118,6 +119,7 @@ extraManifests:
     subjects:
       - kind: ServiceAccount
         name: prometheus-grafana
+        namespace: "{{ .Release.Namespace }}"
   # Alertmanager's whole config. Alerts go nowhere until P3-06 adds the webhook recorder as the receiver.
   - apiVersion: monitoring.coreos.com/v1alpha1
     kind: AlertmanagerConfig
