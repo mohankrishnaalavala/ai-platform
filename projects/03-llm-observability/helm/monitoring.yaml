@@ -25,6 +25,22 @@ prometheus:
     resources:
       requests: {cpu: 250m, memory: 1Gi}
       limits: {memory: 1Gi}
+  # GPU metrics (P3-03) from the NVIDIA DCGM exporter GKE runs on GPU nodes (a dcgm-exporter-* pod in
+  # gke-managed-system on the GPU node, seen in P2 session 4's diagnostics), so P3 runs no exporter of its
+  # own. Its labels aren't documented: this keeps pods by name, on dcgm-exporter's default port 9400
+  # (assumed; the pod must declare it). Session 1's GPU check proves it; with no target, read the pod spec.
+  additionalPodMonitors:
+    - name: gke-dcgm-exporter
+      namespaceSelector:
+        matchNames: [gke-managed-system]
+      selector: {}
+      podMetricsEndpoints:
+        - portNumber: 9400
+          interval: 15s
+          relabelings:
+            - sourceLabels: [__meta_kubernetes_pod_name]
+              regex: dcgm-exporter-.+
+              action: keep
 
 alertmanager:
   enabled: true
