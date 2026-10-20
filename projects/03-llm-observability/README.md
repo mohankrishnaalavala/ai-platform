@@ -71,13 +71,14 @@ Traces, the right metrics, SLOs (service level objectives) with burn-rate alerts
   - **Flood:** an open-loop flood of long prompts straight to vLLM, from P1's bench Job, stopped after 30 min. It burns the latency SLO.
     - Only 2 min of good traffic come before it. The SLO rules' tests put the latency page about 23 min into the flood after an hour of good traffic, so the warm-up stays short and 30 min leaves room.
   - **vLLM killed:** vLLM is killed and held at 0 replicas for 15 min. The fallback alert must catch it, because users are still served.
-    - Side note, timed just before it: one SIGKILL with KEDA in charge, until a new pod on the same node is Ready. No alert is expected, because the fallback covers it.
+    - Side note, timed just before it: one SIGKILL with KEDA in charge, until a new pod on the same node is Ready. It expects no alert, because the fallback covers it.
   - **Hosted model blocked:** with vLLM still down, a NetworkPolicy ([`tests/gameday/block-hosted.yaml`](tests/gameday/block-hosted.yaml)) blocks the gateway's calls outside the cluster. The fallback fails too, and the availability SLO burns.
     - The policy drops packets rather than refusing them, so failure takes `chat-hosted`'s timeout: 10 s streaming, 60 s plain.
-  - **Recovery:** vLLM is then restored, and its recovery is timed. After 15+ min at 0 replicas the autoscaler has removed the GPU node, so this time includes a cold node start.
+  - **Recovery:** vLLM is then restored, and its recovery is timed. After 15+ min at 0 replicas the autoscaler normally has removed the GPU node, so this time normally includes a cold node start. The run records the GPU node count to show whether it did.
 - **Waiting between experiments:** each experiment first waits until the alert it expects is neither pending nor firing, for 10 min at most, so that alert fires anew.
   - Other alerts may still be active: the fallback alert keeps firing through experiment 3, since vLLM is still down.
-  - `settings.json` records which alerts were firing as each experiment started.
+  - `settings.json` records which alerts were firing as each experiment started, or "unknown" if Prometheus didn't answer.
+  - Alertmanager re-sends an alert in the same group at most every `group_interval` (1 min here), so a time to alert can include up to that.
 - **Output:** [`tests/gameday/time_to_alert.py`](tests/gameday/time_to_alert.py) reads the alert receiver's log and prints the time to alert per experiment. Each run records the scrape interval, the rule interval, each alert's `for:` and Alertmanager's `group_wait`, since all of them add to time to alert.
 
 ## Run it

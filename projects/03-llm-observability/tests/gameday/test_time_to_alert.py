@@ -67,7 +67,17 @@ class WaitBeforeEachExperimentTest(unittest.TestCase):
         # Experiment 3 starts while vLLM is still down: the fallback alert keeps firing, as expected.
         self.assertTrue(self.clear("GatewayAvailabilityBudgetBurn",
                                    answer(("ChatDefaultFallbackHigh", "firing"), ("VllmTtftBudgetBurn", "pending"))))
-        self.assertTrue(self.clear("VllmTtftBudgetBurn", {}))  # no answer from Prometheus: nothing to wait for
+        self.assertTrue(self.clear("VllmTtftBudgetBurn", answer()))  # Prometheus answered: no alert at all
+
+    def test_expects_is_a_regex_as_in_time_to_alert(self):
+        self.assertFalse(self.clear("fallback", answer(("ChatDefaultFallbackHigh", "pending"))))
+        self.assertFalse(self.clear("Latency|Ttft", answer(("VllmTtftBudgetBurn", "firing"))))
+
+    def test_a_failed_query_is_not_clear(self):
+        for failed in ("", "not json", json.dumps({"status": "error", "error": "timeout"})):
+            proc = subprocess.run([sys.executable, os.path.join(HERE, "time_to_alert.py"), "clear", "VllmTtftBudgetBurn"],
+                                  input=failed, text=True, check=False)
+            self.assertNotEqual(proc.returncode, 0, repr(failed))
 
     def test_records_what_fires_as_each_experiment_starts(self):
         with tempfile.TemporaryDirectory() as d:
@@ -81,6 +91,15 @@ class WaitBeforeEachExperimentTest(unittest.TestCase):
         self.assertEqual(settings["firing_at_start"], {"3-hosted-blocked": ["ChatDefaultFallbackHigh"]})
         self.assertEqual(settings["scrape_interval"], "15s")
         self.assertEqual(alert_names(ans), ["ChatDefaultFallbackHigh", "VllmTtftBudgetBurn"])
+
+    def test_a_failed_query_records_unknown_not_an_empty_list(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "settings.json")
+            with open(path, "w") as f:
+                json.dump({}, f)
+            record(path, "1-vllm-killed", {})
+            with open(path) as f:
+                self.assertTrue(json.load(f)["firing_at_start"]["1-vllm-killed"].startswith("unknown"))
 
 
 if __name__ == "__main__":

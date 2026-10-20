@@ -10,10 +10,12 @@
 #                      availability SLO burns
 # Experiment 1's side note: before it, one SIGKILL with KEDA in charge, timed until a new vLLM pod on the
 # same node is Ready (no alert expected: fallback covers it). After experiment 3, vLLM is restored and timed
-# too; by then the GPU node is gone (held at 0 for 15+ min), so that time includes a cold node start.
+# too; held at 0 for 15+ min, the GPU node is normally gone by then (the count is recorded), so that time
+# normally includes a cold node start.
 # The flood runs first, the order the session plans. Before each experiment, the alert it waits for must be
 # neither pending nor firing (10 min at most); other alerts may still be active, and settings.json records
-# which fired at each start. A low load (load.py) runs through the gateway the whole time.
+# which fired at each start. Alertmanager re-sends an alert in the same group at most every group_interval
+# (1 min here), so a time to alert can include up to that. A low load (load.py) runs through the gateway.
 # Each run records the timings that add to time to alert (settings.json).
 # Usage (from the repo root): ZONE=... CONFIG=<served config> [OUT=dir] gameday.sh
 # Knobs: FLOOD_RATE (requests/s; 1.0 is about 1.6x what vLLM served in P1's FP8 rag runs), FLOOD_MIN (30),
@@ -58,17 +60,28 @@ event() {  # event NAME EXPECTS [UNIX_TIME]
   printf '{"experiment": "%s", "started_at": %s, "expects": "%s"}\n' "$1" "${3:-$(date +%s)}" "$2" >> "$out/events.jsonl"
   say "start $1 (waits for an alert matching /$2/)"
 }
-quiet() {  # quiet EXPERIMENT ALERTNAME: until that alert is neither pending nor firing (10 min at most), so it
-  # fires anew; other alerts may stay active. Then note in settings.json which alerts fire as EXPERIMENT starts.
-  local alerts='{}'
+quiet() {  # quiet EXPERIMENT EXPECTS: until no pending or firing alert matches EXPECTS (10 min at most), so it
+  # fires anew; other alerts may stay active. A failed query keeps the wait going. Then note in settings.json
+  # which alerts fire as EXPERIMENT starts ("unknown" if Prometheus didn't answer).
+  local alerts=''
   for _ in $(seq 60); do
-    alerts=$(curl -sf 'http://127.0.0.1:19090/api/v1/query?query=ALERTS' || echo '{}')
+    alerts=$(curl -sf 'http://127.0.0.1:19090/api/v1/query?query=ALERTS') || alerts=''
     python3 "$here/time_to_alert.py" clear "$2" <<< "$alerts" && break
     sleep 10
   done
-  python3 "$here/time_to_alert.py" clear "$2" <<< "$alerts" || say "$2 still active after 10 min; going on (its time to alert may be [X])"
+  python3 "$here/time_to_alert.py" clear "$2" <<< "$alerts" \
+    || say "/$2/ not clear after 10 min (still active, or Prometheus didn't answer); going on (its time to alert may be [X])"
   python3 "$here/time_to_alert.py" record "$out/settings.json" "$1" <<< "$alerts"
 }
+pods() {  # the vLLM pods: UID and Ready status, one per line
+  kubectl get pods -n vllm -l app.kubernetes.io/name=vllm \
+    -o jsonpath='{range .items[*]}{.metadata.uid} {.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}'
+}
+new_pod_ready() {  # new_pod_ready OLD_UIDS: no pod with an old UID is left, and one with a new UID is Ready
+  pods | awk -v old="$1" 'BEGIN {n = split(old, o, " "); for (i = 1; i <= n; i++) was[o[i]] = 1}
+    was[$1] {stale = 1} !was[$1] && $2 == "True" {fresh = 1} END {exit !(fresh && !stale)}'
+}
+kill_vllm() { kubectl delete pod -n vllm -l app.kubernetes.io/name=vllm --grace-period=0 --force >/dev/null 2>&1; }
 vllm_ready() {  # a Ready vLLM pod (rollout status returns at once while KEDA holds it at 0)
   for _ in $(seq 240); do
     kubectl get pods -n vllm -l app.kubernetes.io/name=vllm \
@@ -121,19 +134,26 @@ for _ in $(seq $((flood_min * 6))); do kill -0 "$bench" 2>/dev/null || break; sl
 stop_flood
 say "flood over (stopped after ${flood_min} min; its own results aren't kept, the SLI comes from Prometheus)"
 
-# Side note: one SIGKILL, KEDA still in charge: how long until a new pod on the same node is Ready.
+# Side note: one SIGKILL, KEDA still in charge: how long until the killed pod is gone and a new one (a new
+# UID, on the same node) is Ready.
 vllm_ready
-kill_vllm() { kubectl delete pod -n vllm -l app.kubernetes.io/name=vllm --grace-period=0 --force >/dev/null 2>&1 || true; }
+old=$(pods | awk '{printf "%s ", $1}')
 killed=$(date +%s)
-kill_vllm
-sleep 15  # until the killed pod is gone, so the Ready pod found next is the new one
-vllm_ready
-echo "one SIGKILL: vLLM Ready again after $(( $(date +%s) - killed )) s (a new pod on the same node)" | tee "$out/recovery-one-kill.txt"
+if kill_vllm; then
+  for _ in $(seq 240); do new_pod_ready "$old" && break; sleep 5; done
+  if new_pod_ready "$old"; then
+    echo "one SIGKILL: a new vLLM pod Ready $(( $(date +%s) - killed )) s after the kill (same node, KEDA in charge)"
+  else
+    echo "one SIGKILL: no new vLLM pod Ready within 20 min of the kill; no time recorded"
+  fi
+else
+  echo "one SIGKILL: the kill failed (kubectl delete); no time recorded"
+fi | tee "$out/recovery-one-kill.txt"
 
 # 1-vllm-killed: the pod killed at once (SIGKILL), then KEDA paused at 0 so nothing brings it back.
 quiet 1-vllm-killed "$expect_fallback"
 event 1-vllm-killed "$expect_fallback"
-kill_vllm
+kill_vllm || say "the SIGKILL failed; KEDA's pause below stops vLLM gently instead"
 kubectl annotate scaledobject vllm -n vllm autoscaling.keda.sh/paused-replicas=0 --overwrite >/dev/null
 sleep $((hold_min * 60))
 
@@ -144,13 +164,17 @@ event 3-hosted-blocked "$expect_availability"
 kubectl label --local -f "$here/block-hosted.yaml" owner="$owner" session="$session" -o yaml | kubectl apply -f - >/dev/null
 sleep $((block_min * 60))
 
-# Restore, and time vLLM's return: after 15+ min at 0 the autoscaler has removed the GPU node, so this
-# includes a cold node start (P1's optimized cold start: median 402 s).
+# Restore, and time vLLM's return. After 15+ min at 0 the autoscaler normally has removed the GPU node, so
+# this normally includes a cold node start (P1's optimized cold start, BF16: median 402.3 s, projects/01-gpu-serving/
+# results/897bd98c858d1477/20261017t0432z/coldstart/20261017t061229z/). The node count says whether it did.
 kubectl delete networkpolicy block-hosted-model -n gateway >/dev/null
+gpu_nodes=$(kubectl get nodes -l cloud.google.com/gke-nodepool=gpu -o name | wc -l | tr -d ' ')
 restore=$(date +%s)
 kubectl annotate scaledobject vllm -n vllm autoscaling.keda.sh/paused-replicas- >/dev/null
 vllm_ready
-echo "restore: vLLM Ready again $(( $(date +%s) - restore )) s after KEDA was unpaused (includes a cold GPU node start)" | tee "$out/recovery.txt"
+if [ "$gpu_nodes" = 0 ]; then node="no GPU node was left, so this includes a cold node start"
+else node="$gpu_nodes GPU node(s) were still there, so no cold node start"; fi
+echo "restore: vLLM Ready again $(( $(date +%s) - restore )) s after KEDA was unpaused ($node)" | tee "$out/recovery.txt"
 
 kill "$load" 2>/dev/null || true; load=
 curl -sf http://127.0.0.1:19094/log > "$out/alerts.jsonl"
