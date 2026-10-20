@@ -136,10 +136,12 @@ jobs:
           { echo "SPANS_DIR=$spans"; echo "SPANS_FILE=$spans/spans.jsonl"; echo "SPANS_UID=$(id -u)"
             echo "COMPOSE_FILE=compose.yaml:../../03-llm-observability/tests/compose.spans.yaml"; } >> "$GITHUB_ENV"
 
-      # Presidio (the tool that finds personal data) sometimes hangs at start: its health check never answers.
-      # Its analyzer hung in 2 of 3 CI runs on 2026-10-20. Healthy starts took 51 to 300 s in the 23 CI runs before,
-      # so wait 8 min, print a hung container's last log lines (the cause is still unknown), restart it once
-      # and wait 8 min more. In the cluster the startup probe does the restart.
+      # Presidio (the tool that finds personal data) hung at start in 4 of 7 runs on 2026-10-20. The hung
+      # anonymizer's log shows gunicorn 25.1.0 up with its control socket open but no worker booted, which
+      # matches gunicorn issues 3509 and 3529; compose.yaml and the chart now turn that socket off (not yet
+      # proven to fix it). Healthy starts took 51 to 300 s in 23 CI runs, so wait 8 min; if one still hangs,
+      # print its last log lines, restart it once and wait 8 min more. In the cluster the startup probe does
+      # the restart.
       - name: start the gateway
         run: |
           docker compose up -d --wait --wait-timeout 480 && exit 0
