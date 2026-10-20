@@ -111,6 +111,37 @@ tests:
               summary: "Over 10% of chat-default requests are falling back to the hosted model."
               description: "The self-hosted model (vLLM) is failing or too slow, so the gateway is sending requests to the hosted model instead: users still get answers, at a higher cost and with data leaving the cluster."
 
+  # No alert fires all the time (there is no Watchdog: P1 turns the chart's default rules off). The game
+  # day waits for "no active alerts" between experiments, so every alert must be quiet with healthy
+  # traffic (minute 60) and with no traffic at all (minute 120: the counters stop, so the ratios are 0/0).
+  - interval: 1m
+    input_series:
+      - series: 'traces_span_metrics_calls_total{span_name="Received Proxy Server Request",metadata_user_api_key_team_alias="payments",http_response_status_code="200"}'
+        values: '0+60x60 3600x60'
+      - series: 'vllm:time_to_first_token_seconds_count{model_name="qwen"}'
+        values: '0+60x60 3600x60'
+      - series: 'vllm:time_to_first_token_seconds_bucket{model_name="qwen",le="2.5"}'
+        values: '0+60x60 3600x60'
+      - series: 'traces_span_metrics_calls_total{span_name="litellm_request",litellm_model_group="chat-default",status_code="STATUS_CODE_UNSET"}'
+        values: '0+30x60 1800x60'
+    alert_rule_test:
+      - {eval_time: 60m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 60m, alertname: VllmTtftBudgetBurn, exp_alerts: []}
+      - {eval_time: 60m, alertname: ChatDefaultFallbackHigh, exp_alerts: []}
+      - {eval_time: 120m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 120m, alertname: VllmTtftBudgetBurn, exp_alerts: []}
+      - {eval_time: 120m, alertname: ChatDefaultFallbackHigh, exp_alerts: []}
+
+  # No series at all (a fresh cluster before any request): quiet too.
+  - interval: 1m
+    input_series:
+      - series: 'up{job="unrelated"}'
+        values: '1x60'
+    alert_rule_test:
+      - {eval_time: 30m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 30m, alertname: VllmTtftBudgetBurn, exp_alerts: []}
+      - {eval_time: 30m, alertname: ChatDefaultFallbackHigh, exp_alerts: []}
+
   # Fallback at 0.5% of attempts (P2 session 3 counted 3 in 600): quiet.
   - interval: 1m
     input_series:

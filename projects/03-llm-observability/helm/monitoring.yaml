@@ -149,6 +149,8 @@ extraManifests:
     spec:
       route:
         receiver: alert-receiver
+        # One notification group per alert, so a new alert never waits out an older group's
+        # groupInterval. Sloth gives an SLO's page and ticket the same alertname: severity splits them.
         groupBy: [alertname, severity]
         groupWait: 10s
         groupInterval: 1m

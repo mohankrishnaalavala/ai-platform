@@ -34,6 +34,7 @@ Traces, the right metrics, SLOs (service level objectives) with burn-rate alerts
   - vLLM dead: the fallback alert after 10 min (its `for`).
   - Quiet at 1% errors (a ticket only, no page) and at 0.5% fallbacks.
 - **Alert receiver** ([`alert-receiver/receiver.py`](alert-receiver/receiver.py)): Alertmanager's only receiver, one stdlib Python file. It records each alert and the time it arrived, and serves them at `GET /log`. Nothing is sent outside the cluster.
+- **Alert timing settings** (all part of time-to-alert): rules are evaluated every 30 s. Alertmanager groups by alert name and severity, so each alert has its own group, with `group_wait` 10 s, `group_interval` 1 min and `repeat_interval` 4 h. No alert fires all the time: there is no Watchdog, and the promtool tests check every alert is quiet with healthy traffic and with none.
 - **Network:** nothing is public. Every Service is ClusterIP, reached by `kubectl port-forward`.
 - **In CI on every pull request** (the gateway job, with the collector's and Tempo's configs rendered from their charts):
   - [`tests/test_metrics.py`](tests/test_metrics.py): a trace reaches Tempo, the span metrics reach Prometheus with only the chosen labels, and the scale-from-zero query returns a number.
