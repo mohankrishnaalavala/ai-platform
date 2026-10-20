@@ -2,9 +2,9 @@
 # P3 checks against the running session (`make up LAYERS="02 03"`, or "01 02 03"): test_session.py through
 # port-forwards to Grafana, Prometheus, Tempo, the gateway and (when deployed) the alert receiver. The
 # gateway's master key is read into memory only, as in P2's run.sh.
-# `run.sh gpu-start` (obs-shakedown): a pause pod asks for one GPU, so GKE starts a GPU node, which runs
-# GKE's DCGM exporter. `run.sh gpu-check` then waits for GPU metrics in Prometheus and deletes the pod
-# (the workflow sets the GPU pool to 0 nodes after it).
+# `run.sh gpu-check` (obs-shakedown): a pause pod asks for one GPU, so GKE starts a GPU node, which runs
+# GKE's DCGM exporter; then it waits for GPU metrics in Prometheus and deletes the pod. At most 17 min
+# (12 for the node, 5 for the metrics); the workflow then sets the GPU pool to 0 nodes.
 # `run.sh fallback-alert` (obs-shakedown, no vLLM): chat-default calls until the fallback alert reaches
 # the receiver, with the time it took (test_session.FallbackAlertTest). Skipped until the receiver exists.
 set -euo pipefail
@@ -19,7 +19,8 @@ export GATEWAY_URL=http://127.0.0.1:14300 GRAFANA_URL=http://127.0.0.1:13000 PRO
   TEMPO_URL=http://127.0.0.1:13200
 receiver=alert-receiver  # P3-06's webhook recorder: alert-receiver.monitoring:8080, GET /log (one JSON line per alert)
 
-if [ "${1:-}" = gpu-start ]; then
+if [ "${1:-}" = gpu-check ]; then
+  trap 'kubectl delete pod gpu-check -n monitoring --ignore-not-found --wait=false; kill ${pids[@]+"${pids[@]}"} 2>/dev/null || true' EXIT
   project=$(gcloud config get project 2>/dev/null)
   owner=$(gcloud projects describe "$project" --format='value(labels.owner)')
   session=$(gcloud container clusters describe ai-platform --location="${ZONE:?set ZONE}" --format='value(resourceLabels.session)')
@@ -42,12 +43,7 @@ spec:
         requests: {cpu: 10m, memory: 16Mi}
         limits: {memory: 16Mi, nvidia.com/gpu: 1}
 EOF
-  exit
-fi
-
-if [ "${1:-}" = gpu-check ]; then
-  trap 'kubectl delete pod gpu-check -n monitoring --ignore-not-found --wait=false; kill ${pids[@]+"${pids[@]}"} 2>/dev/null || true' EXIT
-  kubectl wait --for=condition=Ready pod/gpu-check -n monitoring --timeout=15m || {
+  kubectl wait --for=condition=Ready pod/gpu-check -n monitoring --timeout=12m || {
     echo "FAIL: no GPU node for the check (a spot stockout or the quota shows in these events)"
     kubectl get events -n monitoring --sort-by=.lastTimestamp | tail -20; exit 1; }
   forward monitoring prometheus-kube-prometheus-prometheus 19090:9090

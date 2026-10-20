@@ -8,9 +8,9 @@
 #   gateway-full: P1 (FP8) and P2: make test P=02, the demo transcript, the gateway-overhead benchmark (3 rounds),
 #     then fallback after vLLM goes away and the demo's 20 calls (estimate: 1.5-2 h; at most 165 + 45 min of
 #     cluster time from the two jobs' limits, about $4.40 at on-demand list prices)
-#   obs-shakedown: P2 and P3, no vLLM: make test P=03, the fallback alert end to end, and a short spot GPU
-#     check that Prometheus gets GKE's DCGM GPU metrics (estimate: about 1 h, about $0.70; at most 70 + 45 min
-#     of cluster time, about $1.00 with the GPU pool set to 0 after its check)
+#   obs-shakedown: P2 and P3, no vLLM: make test P=03, a short spot GPU check that Prometheus gets GKE's DCGM
+#     GPU metrics (then the GPU pool goes to 0), and the fallback alert end to end (estimate: about 70 min of
+#     cluster time, about $0.70; at most 85 + 45 min, about $1.23 with NAT data and the GKE fee, see PR #50)
 # Results go to the results bucket as each step finishes, so a run that ends early keeps them.
 # Teardown is its own job with its own time limit, so it runs in full even after the session job
 # fails, times out or is cancelled. cost-guard (nightly, clusters older than 8 h) is the backstop.
@@ -50,7 +50,7 @@ jobs:
   session:
     runs-on: ubuntu-24.04
     # GitHub stops any job at 6 hours. Teardown runs in its own job afterwards.
-    timeout-minutes: ${{ inputs.mode == 'full' && 350 || inputs.mode == 'gateway-shakedown' && 90 || inputs.mode == 'gateway-full' && 165 || inputs.mode == 'obs-shakedown' && 70 || 150 }}
+    timeout-minutes: ${{ inputs.mode == 'full' && 350 || inputs.mode == 'gateway-shakedown' && 90 || inputs.mode == 'gateway-full' && 165 || inputs.mode == 'obs-shakedown' && 85 || 150 }}
     outputs:
       started: ${{ steps.precheck.outputs.started }}
     env:
@@ -63,7 +63,7 @@ jobs:
       PROFILE: ${{ (inputs.mode == 'full' || inputs.mode == 'obs-shakedown') && 'OPTIMIZE_UTILIZATION' || 'BALANCED' }}
       SPOT: ${{ inputs.spot }}
       # Every measurement ends by this many minutes after the job starts, leaving time for diagnostics.
-      MEASURE_MINUTES: ${{ inputs.mode == 'full' && 330 || inputs.mode == 'gateway-shakedown' && 75 || inputs.mode == 'gateway-full' && 145 || inputs.mode == 'obs-shakedown' && 60 || 130 }}
+      MEASURE_MINUTES: ${{ inputs.mode == 'full' && 330 || inputs.mode == 'gateway-shakedown' && 75 || inputs.mode == 'gateway-full' && 145 || inputs.mode == 'obs-shakedown' && 70 || 130 }}
       # P1 (vLLM), P2 (the gateway; with no GPU the GPU pool stays at 0 nodes), both, or P2 and P3 (no vLLM).
       LAYERS: ${{ inputs.mode == 'gateway-shakedown' && '02' || inputs.mode == 'gateway-full' && '01 02' || inputs.mode == 'obs-shakedown' && '02 03' || '01' }}
       TEST_P: ${{ startsWith(inputs.mode, 'gateway-') && '02' || inputs.mode == 'obs-shakedown' && '03' || '01' }}
@@ -150,27 +150,24 @@ jobs:
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'gateway-full' }}
         run: timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) bash projects/02-llm-gateway/tests/run.sh demo vllm-down
 
-      # The GPU node takes minutes to start, so the check starts first and runs alongside the alert wait.
-      - name: "obs-shakedown: GPU check, part 1 (a pause pod asks for one spot GPU)"
-        if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'obs-shakedown' }}
-        run: bash projects/03-llm-observability/tests/run.sh gpu-start
-
-      # With no vLLM every chat-default call falls back. Skipped until P3-06's alert receiver exists.
-      - name: "obs-shakedown: fallback alert end to end (time to alert)"
-        if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'obs-shakedown' }}
-        run: timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) bash projects/03-llm-observability/tests/run.sh fallback-alert
-
-      - name: "obs-shakedown: GPU check, part 2 (GKE's DCGM GPU metrics in Prometheus)"
+      # The GPU's time in one short block: the check (at most 17 min, and cut at the deadline), then the pool
+      # to 0 nodes however the check went. The job's limit (85 min) is past deadline + 10, so it can't land here.
+      - name: "obs-shakedown: GPU check (a pause pod asks for one spot GPU; GKE's DCGM GPU metrics in Prometheus)"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'obs-shakedown' }}
         run: timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) bash projects/03-llm-observability/tests/run.sh gpu-check
 
-      # However the check went, the GPU node goes now, not when teardown deletes the cluster.
       - name: "obs-shakedown: GPU pool to 0 nodes"
         if: ${{ always() && steps.up.outcome == 'success' && inputs.mode == 'obs-shakedown' }}
         timeout-minutes: 10
         run: |
           kubectl --kubeconfig "$HOME/.kube/ai-platform" delete pod gpu-check -n monitoring --ignore-not-found --wait=false
           gcloud container clusters resize ai-platform --location="$ZONE" --node-pool=gpu --num-nodes=0 --quiet
+
+      # After the GPU is gone. With no vLLM every chat-default call falls back. Skipped until P3-06's alert
+      # receiver exists.
+      - name: "obs-shakedown: fallback alert end to end (time to alert, at most 15 min)"
+        if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'obs-shakedown' }}
+        run: timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) bash projects/03-llm-observability/tests/run.sh fallback-alert
 
       - name: "shakedown: one short benchmark (BF16, chat, concurrency 8)"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'shakedown' }}

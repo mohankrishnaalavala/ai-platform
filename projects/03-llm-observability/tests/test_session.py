@@ -22,7 +22,7 @@ from test_spans import MASTER, URL, chat, onboard_team  # P2's test client
 
 GRAFANA, RECEIVER = os.environ.get("GRAFANA_URL", ""), os.environ.get("RECEIVER_URL", "")
 P3 = pathlib.Path(__file__).resolve().parent.parent
-ALERT_WAIT_S = 20 * 60  # the fallback alert needs 10 min over its threshold, plus rule and scrape intervals
+ALERT_WAIT_S = 15 * 60  # the fallback alert needs 10 min over its threshold, plus rule, scrape and group waits
 
 
 def new_team(tag):
