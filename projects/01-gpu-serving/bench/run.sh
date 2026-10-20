@@ -28,13 +28,16 @@ for s in $SCENARIOS; do
   for c in $CONCURRENCY; do
     # Enough prompts for stable percentiles without making concurrency 1 take forever.
     n=$(( c * 10 > 20 ? c * 10 : 20 )); w=$(( c > 2 ? c : 2 ))
+    # P3's game-day flood: open-loop, NUM_PROMPTS arriving at REQUEST_RATE a second; CONCURRENCY only caps
+    # how many are in flight. Unset, every run is closed-loop as in P1.
+    rate=${REQUEST_RATE:-inf}; [ "$rate" = inf ] || { n=${NUM_PROMPTS:?set NUM_PROMPTS with REQUEST_RATE}; w=2; }
     echo "== $s, concurrency $c: $n prompts after $w warm-up requests"
     # META holds key=value pairs without spaces; splitting it into words is intended.
     # shellcheck disable=SC2086
     vllm bench serve --base-url "$VLLM_URL" --model "$TARGET_MODEL" --tokenizer /tmp/tok \
       --backend "$BACKEND" --endpoint "$ENDPOINT" \
       --dataset-name random --random-input-len "$in" --random-output-len "$len" --random-range-ratio 0 --ignore-eos \
-      --num-prompts "$n" --max-concurrency "$c" --request-rate inf --num-warmups "$w" --seed 0 \
+      --num-prompts "$n" --max-concurrency "$c" --request-rate "$rate" --num-warmups "$w" --seed 0 \
       --percentile-metrics ttft,tpot,itl,e2el --metric-percentiles 50,95,99 --ready-check-timeout-sec 600 \
       --disable-tqdm --save-result --result-dir "$out" --result-filename "$s-c$c.json" \
       --metadata scenario="$s" $META || { echo "FAILED: $s, concurrency $c"; bad=1; }

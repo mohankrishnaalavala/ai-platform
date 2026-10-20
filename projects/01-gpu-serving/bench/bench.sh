@@ -6,7 +6,8 @@
 #   [CONCURRENCY="1 8 16 24 32"] projects/01-gpu-serving/bench/bench.sh
 # P2's gateway-overhead benchmark reuses it, with TARGET_URL and TARGET_MODEL (the gateway and its
 # alias), KEY_SECRET (a Secret in this namespace whose OPENAI_API_KEY the client sends), BACKEND and
-# ENDPOINT (the chat API), and RESULTS_PREFIX (where under the results bucket). Defaults: P1's run.
+# ENDPOINT (the chat API), and RESULTS_PREFIX (where under the results bucket). P3's game-day flood adds
+# REQUEST_RATE and NUM_PROMPTS (open-loop; run.sh). Defaults: P1's run.
 set -euo pipefail
 export CLOUDSDK_ACTIVE_CONFIG_NAME=ai-platform CLOUDSDK_CORE_DISABLE_PROMPTS=1 KUBECONFIG=${KUBECONFIG:-$HOME/.kube/ai-platform}
 
@@ -93,6 +94,8 @@ spec:
             - {name: REVISION, value: "$rev"}
             - {name: SCENARIOS, value: "$scenarios"}
             - {name: CONCURRENCY, value: "$concurrency"}
+            - {name: REQUEST_RATE, value: "${REQUEST_RATE:-inf}"}
+            - {name: NUM_PROMPTS, value: "${NUM_PROMPTS:-}"}
             - {name: RESULTS, value: "$results"}
             - {name: META, value: "$meta"}
             - {name: VLLM_NO_USAGE_STATS, value: "1"}

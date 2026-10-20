@@ -35,13 +35,35 @@ Traces, the right metrics, SLOs (service level objectives) with burn-rate alerts
   - Quiet at 1% errors (a ticket only, no page) and at 0.5% fallbacks.
 - **Alert receiver** ([`alert-receiver/receiver.py`](alert-receiver/receiver.py)): Alertmanager's only receiver, one stdlib Python file. It records each alert and the time it arrived, and serves them at `GET /log`. Nothing is sent outside the cluster.
 - **Alert timing settings** (all part of time-to-alert): rules are evaluated every 30 s. Alertmanager groups by alert name and severity, so each alert has its own group, with `group_wait` 10 s, `group_interval` 1 min and `repeat_interval` 4 h. No alert fires all the time: there is no Watchdog, and the promtool tests check every alert is quiet with healthy traffic and with none.
+- **Dashboards** ([`dashboards/`](dashboards/)), JSON in Git that `deploy.sh` loads as ConfigMaps for Grafana:
+  - **Model serving:** time to first token, inter-token latency, tokens per second, queue, KV cache, and GPU use and memory used.
+    - The vLLM metric names come from vLLM's metrics code for v0.30.0, and the GPU names from GKE's managed DCGM list. Not proven yet: session 1 checks the GPU names and session 2 the vLLM ones, with [`tests/test_dashboard_metrics.py`](tests/test_dashboard_metrics.py).
+  - **Gateway:** model tries by team and model, the 5xx share, the fallback share, and request duration.
+  - Cost per team comes with P3-05.
 - **Network:** nothing is public. Every Service is ClusterIP, reached by `kubectl port-forward`.
 - **In CI on every pull request** (the gateway job, with the collector's and Tempo's configs rendered from their charts):
   - [`tests/test_metrics.py`](tests/test_metrics.py): a trace reaches Tempo, the span metrics reach Prometheus with only the chosen labels, and the scale-from-zero query returns a number.
+  - [`tests/test_dashboards.py`](tests/test_dashboards.py): every gateway dashboard query returns data, and each of its selectors matches series on its own. Its file checks run in the lint job too, and `tests/charts.sh` has promtool parse every dashboard query.
   - [`tests/test_spans.py`](tests/test_spans.py), the span contract: the span names and attributes LiteLLM v1.103.3 sends, which P3's metrics are built from.
   - **No model on the request span:** the request (SERVER) span has the route, the status code and the team.
   - **Attempt spans:** each attempt at a model has its own span, with the model group, the team, the cost on success and ERROR on failure.
   - **No fallback flag:** a fallback is a failed `chat-default` attempt followed by a successful `chat-hosted` one.
+
+## Scale from zero and the game day (session 2; not run yet)
+
+- **Scale from zero** ([`tests/scale_from_zero.sh`](tests/scale_from_zero.sh)):
+  - It puts [`helm/vllm-scale-from-zero.yaml`](helm/vllm-scale-from-zero.yaml) on P1's vLLM release: 0 replicas allowed, and a KEDA trigger on the gateway's `chat-default` request rate. That's the same query CI checks.
+  - It waits until no vLLM pod and no GPU node are left, then probes `chat-default` every 2 s.
+  - It records how fast the first request is answered (by the hosted fallback) and how long until vLLM answers itself.
+  - P1's own defaults stay unchanged: 1 replica, scaled on the queue.
+- **Game day** ([`tests/gameday/gameday.sh`](tests/gameday/gameday.sh)): it runs before scale from zero. A low load (1 request every 2 s) runs through the gateway the whole time, and each experiment is timed to its first alert.
+  - **Flood:** an open-loop flood of long prompts straight to vLLM, from P1's bench Job, stopped after 30 min. It burns the latency SLO.
+    - Only 2 min of good traffic come before it. The SLO rules' tests put the latency page about 23 min into the flood after an hour of good traffic, so the warm-up stays short and 30 min leaves room.
+  - **vLLM killed:** vLLM is killed and held at 0 replicas for 15 min. The fallback alert must catch it, because users are still served.
+  - **Hosted model blocked:** with vLLM still down, a NetworkPolicy ([`tests/gameday/block-hosted.yaml`](tests/gameday/block-hosted.yaml)) blocks the gateway's calls outside the cluster. The fallback fails too, and the availability SLO burns.
+    - The policy drops packets rather than refusing them, so failure takes `chat-hosted`'s timeout: 10 s streaming, 60 s plain.
+  - **Recovery:** vLLM is then restored, and its recovery is timed.
+- **Output:** [`tests/gameday/time_to_alert.py`](tests/gameday/time_to_alert.py) reads the alert receiver's log and prints the time to alert per experiment. Each run records the scrape interval, the rule interval, each alert's `for:` and Alertmanager's `group_wait`, since all of them add to time to alert.
 
 ## Run it
 
