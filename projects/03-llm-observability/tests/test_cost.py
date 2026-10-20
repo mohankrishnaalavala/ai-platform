@@ -16,10 +16,13 @@ SPEND = ('select t.team_alias, sum(s.spend) from "LiteLLM_SpendLogs" s join "Lit
          'on s.team_id = t.team_id group by 1 having sum(s.spend) > 0')
 
 
+def psql(sql):
+    return subprocess.run(["docker", "compose", "exec", "-T", "postgres", "psql", "-U", "litellm", "-d", "litellm",
+                           "-Atc", sql], cwd=P2_TESTS, check=True, capture_output=True, text=True).stdout
+
+
 def spend_logs():
-    out = subprocess.run(["docker", "compose", "exec", "-T", "postgres", "psql", "-U", "litellm", "-d", "litellm",
-                          "-Atc", SPEND], cwd=P2_TESTS, check=True, capture_output=True, text=True).stdout
-    return {team: float(v) for team, v in (line.split("|") for line in out.splitlines() if line)}
+    return {team: float(v) for team, v in (line.split("|") for line in psql(SPEND).splitlines() if line)}
 
 
 def traces():
@@ -40,6 +43,9 @@ class CostPerTeamTest(unittest.TestCase):
         until(agree, seconds=90)
         logs, seen = spend_logs(), traces()
         print(f"\nspend logs per team: {logs}\ncost per team from traces: {seen}")
+        if not same(logs, seen):  # every spend-log row: is a team's row missing, or there without its team?
+            print(psql('select team_id is not null, metadata->>\'user_api_key_team_alias\', spend, call_type, status '
+                       'from "LiteLLM_SpendLogs" order by "startTime"'))
         self.assertTrue(logs, "no team spent anything")
         self.assertTrue(same(logs, seen), "traces and spend logs disagree")
 
