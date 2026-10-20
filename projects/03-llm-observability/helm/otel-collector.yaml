@@ -30,6 +30,9 @@ config:
           # 2.5 s is the latency SLO's threshold and 10 s and 30 s are chat-default's timeouts: the SLO
           # math is exact only at a bucket boundary.
           buckets: [100ms, 250ms, 500ms, 1s, 2.5s, 5s, 10s, 30s, 60s]
+      # The connector's default collector.instance.id (a UUID per collector process) would split every
+      # series on each restart; one collector replica doesn't need it.
+      exclude_dimensions: [collector.instance.id]
       dimensions:
         - name: litellm.model_group
         - name: metadata.user_api_key_team_alias

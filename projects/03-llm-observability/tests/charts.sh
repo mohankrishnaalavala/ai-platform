@@ -30,7 +30,7 @@ trap 'rm -rf "$out" "$cfg"' EXIT
 # listen addresses use the pod's IP from the environment.
 helm template otel-collector "${collector[@]}" --show-only templates/configmap.yaml \
   | docker run --rm -i "$yq" '.data.relay' > "$cfg/relay.yaml"
-docker run --rm -e MY_POD_IP=0.0.0.0 -v "$cfg:/cfg:ro" "$otelcol" validate --config=/cfg/relay.yaml
+docker run --rm --user "$(id -u)" -e MY_POD_IP=0.0.0.0 -v "$cfg:/cfg:ro" "$otelcol" validate --config=/cfg/relay.yaml
 
 docker run --rm -i "$kubeconform" -strict -kubernetes-version 1.36.0 -schema-location default -schema-location "$crds" -summary - < "$out"
 if grep -nE 'type: (LoadBalancer|NodePort|ExternalName)|kind: (Ingress|PersistentVolumeClaim|Secret)$|hostNetwork: true|hostPort: [0-9]|hostPath:' "$out"; then

@@ -25,9 +25,10 @@ CALLS = 'traces_span_metrics_calls_total{span_name="litellm_request"}'
 SCALE_QUERY = ('sum(rate(traces_span_metrics_calls_total{span_name="litellm_request",'
                'litellm_model_group="chat-default"}[2m]))')
 # The span metrics' own labels (helm/otel-collector.yaml's dimensions plus the connector's defaults).
-# job and instance come from the scrape; otel_scope_* name the connector. Nothing else may appear.
+# job and instance come from the scrape; exported_job is the exporter's own job (from service.name), which
+# Prometheus renames; otel_scope_* name the connector. One value each per service. Nothing else may appear.
 LABELS = {"__name__", "service_name", "span_name", "span_kind", "status_code", "litellm_model_group",
-          "metadata_user_api_key_team_alias", "http_response_status_code", "job", "instance"}
+          "metadata_user_api_key_team_alias", "http_response_status_code", "job", "instance", "exported_job"}
 
 
 def get(url):
@@ -41,6 +42,7 @@ def query(q):
 
 def until(check, seconds=60):
     """check() until it returns something truthy; the collector flushes every 15 s, Prometheus scrapes every 5 s."""
+    found = None
     for _ in range(seconds // 3):
         try:
             if found := check():
@@ -48,7 +50,7 @@ def until(check, seconds=60):
         except (urllib.error.URLError, ValueError):
             pass
         time.sleep(3)
-    return check()
+    return found
 
 
 @unittest.skipUnless(SPANS_FILE and TEMPO and PROMETHEUS, "needs the CI gateway stack (SPANS_FILE, TEMPO_URL, PROMETHEUS_URL)")
@@ -64,19 +66,23 @@ class MetricsTest(unittest.TestCase):
         self.assertTrue(until(found), f"trace {trace} not in Tempo")
 
     def test_span_metrics_for_both_models_and_fallbacks(self):
-        series = until(lambda: query(CALLS))
-        seen = {(s["metric"].get("litellm_model_group"), s["metric"].get("status_code")) for s in series}
-        print(f"\nlitellm_request series (model group, status): {sorted(seen, key=str)}")
-        self.assertIn(("chat-default", "STATUS_CODE_ERROR"), seen)  # the fallbacks
-        self.assertTrue({("chat-hosted", "STATUS_CODE_OK"), ("chat-hosted", "STATUS_CODE_UNSET")} & seen)
+        def seen():
+            pairs = {(s["metric"].get("litellm_model_group"), s["metric"].get("status_code")) for s in query(CALLS)}
+            hosted = {("chat-hosted", "STATUS_CODE_OK"), ("chat-hosted", "STATUS_CODE_UNSET")} & pairs
+            return pairs if ("chat-default", "STATUS_CODE_ERROR") in pairs and hosted else None
+        pairs = until(seen)
+        print(f"\nlitellm_request series (model group, status): {sorted(pairs or [], key=str)}")
+        self.assertTrue(pairs, "no failed chat-default attempts (fallbacks) and answered chat-hosted ones")
 
     def test_latency_histogram_has_the_slo_bucket(self):
         self.assertTrue(until(lambda: query('traces_span_metrics_duration_seconds_bucket{le="2.5"}')))
 
-    def test_no_unexpected_labels(self):
-        series = until(lambda: query("traces_span_metrics_calls_total"))
-        extra = {k for s in series for k in s["metric"]} - LABELS
-        self.assertEqual({k for k in extra if not k.startswith("otel_scope_")}, set())
+    def test_the_chosen_labels_and_no_others(self):
+        series = until(lambda: query(CALLS))
+        labels = {k for s in series for k in s["metric"]}
+        self.assertEqual({k for k in labels - LABELS if not k.startswith("otel_scope_")}, set())
+        # A misnamed dimension would make its label vanish, not fail: each must be on some series.
+        self.assertLessEqual({"litellm_model_group", "metadata_user_api_key_team_alias", "http_response_status_code"}, labels)
 
     def test_the_scale_from_zero_query_returns_a_number(self):
         result = until(lambda: query(SCALE_QUERY))

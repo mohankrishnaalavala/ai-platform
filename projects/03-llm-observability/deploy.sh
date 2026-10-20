@@ -17,6 +17,8 @@ session=$(gcloud container clusters describe ai-platform --location="${ZONE:?set
 [ "$(kubectl config current-context)" = "gke_${project}_${ZONE}_ai-platform" ] \
   || { echo "kubectl doesn't point at this session's cluster (run make up first)"; exit 1; }
 
+# The collector it upgrades is P2's.
+kubectl get namespace gateway >/dev/null 2>&1 || { echo "deploy P2 first (make up LAYERS=\"02 03\")"; exit 1; }
 # P1's namespaces (monitoring among them): without P1 the others stay empty.
 kubectl apply -f "$p1/helm/namespaces.yaml"
 kubectl label namespace monitoring owner="$owner" session="$session" --overwrite

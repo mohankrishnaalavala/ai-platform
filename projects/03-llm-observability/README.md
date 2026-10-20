@@ -21,6 +21,7 @@ Traces, the right metrics, SLOs (service level objectives) with burn-rate alerts
   - Its span metrics connector turns traces into request, error and latency metrics, which Prometheus scrapes.
   - Labels: model group, team and status code only. The latency buckets include 2.5 s (the latency SLO's threshold) and chat-default's 10 s and 30 s timeouts.
   - Metrics refresh every 15 s, not the default 60 s, since that delay adds to every alert.
+  - Running P2's `deploy.sh` again puts P2's collector values back. Run P3's after it.
 - **Network:** nothing is public. Every Service is ClusterIP, reached by `kubectl port-forward`.
 - **In CI on every pull request** (the gateway job, with the collector's and Tempo's configs rendered from their charts):
   - [`tests/test_metrics.py`](tests/test_metrics.py): a trace reaches Tempo, the span metrics reach Prometheus with only the chosen labels, and the scale-from-zero query returns a number.
