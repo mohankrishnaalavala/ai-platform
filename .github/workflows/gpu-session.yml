@@ -11,6 +11,9 @@
 #   obs-shakedown: P2 and P3, no vLLM: make test P=03, a short spot GPU check that Prometheus gets GKE's DCGM
 #     GPU metrics (then the GPU pool goes to 0), and the fallback alert end to end (estimate: about 70 min of
 #     cluster time, about $0.70; at most 85 + 45 min, about $1.23 with NAT data and the GKE fee, see PR #50)
+#   obs-full: P1 (FP8, on-demand GPU), P2 and P3: make test P=03 with the vLLM metric names, Grafana screenshots,
+#     the game day, then scale from zero; results uploaded, then the GPU pool to 0 (estimate: about 2.8 h of
+#     cluster time, about $3.20; at most 170 + 45 min, about $3.87 with NAT data and the GKE fee)
 # Results go to the results bucket as each step finishes, so a run that ends early keeps them.
 # Teardown is its own job with its own time limit, so it runs in full even after the session job
 # fails, times out or is cancelled. cost-guard (nightly, clusters older than 8 h) is the backstop.
@@ -21,7 +24,7 @@ on:
       mode:
         description: What to run
         type: choice
-        options: [shakedown, full, bf16-bench, gateway-shakedown, gateway-full, obs-shakedown]
+        options: [shakedown, full, bf16-bench, gateway-shakedown, gateway-full, obs-shakedown, obs-full]
         default: shakedown
       zone:
         description: Zone of the cluster (GPU nodes may start in any us-central1 zone with L4s)
@@ -50,7 +53,7 @@ jobs:
   session:
     runs-on: ubuntu-24.04
     # GitHub stops any job at 6 hours. Teardown runs in its own job afterwards.
-    timeout-minutes: ${{ inputs.mode == 'full' && 350 || inputs.mode == 'gateway-shakedown' && 90 || inputs.mode == 'gateway-full' && 165 || inputs.mode == 'obs-shakedown' && 85 || 150 }}
+    timeout-minutes: ${{ inputs.mode == 'full' && 350 || inputs.mode == 'gateway-shakedown' && 90 || inputs.mode == 'gateway-full' && 165 || inputs.mode == 'obs-shakedown' && 85 || inputs.mode == 'obs-full' && 170 || 150 }}
     outputs:
       started: ${{ steps.precheck.outputs.started }}
     env:
@@ -59,14 +62,16 @@ jobs:
       ZONE: ${{ inputs.zone }}
       BF16: config/models/qwen2.5-7b-bf16.yaml
       FP8: config/models/qwen2.5-7b-fp8.yaml
-      # The full run's cold starts and obs-shakedown's GPU check wait for idle GPU nodes to go; this profile removes them sooner.
-      PROFILE: ${{ (inputs.mode == 'full' || inputs.mode == 'obs-shakedown') && 'OPTIMIZE_UTILIZATION' || 'BALANCED' }}
-      SPOT: ${{ inputs.spot }}
+      # The full run's cold starts, obs-shakedown's GPU check and obs-full's scale from zero wait for idle GPU
+      # nodes to go; this profile removes them sooner.
+      PROFILE: ${{ (inputs.mode == 'full' || startsWith(inputs.mode, 'obs-')) && 'OPTIMIZE_UTILIZATION' || 'BALANCED' }}
+      # obs-full is always on-demand (decision 3): a preemption mid-game-day would make its time to alert invalid.
+      SPOT: ${{ inputs.mode == 'obs-full' && 'false' || inputs.spot }}
       # Every measurement ends by this many minutes after the job starts, leaving time for diagnostics.
-      MEASURE_MINUTES: ${{ inputs.mode == 'full' && 330 || inputs.mode == 'gateway-shakedown' && 75 || inputs.mode == 'gateway-full' && 145 || inputs.mode == 'obs-shakedown' && 70 || 130 }}
-      # P1 (vLLM), P2 (the gateway; with no GPU the GPU pool stays at 0 nodes), both, or P2 and P3 (no vLLM).
-      LAYERS: ${{ inputs.mode == 'gateway-shakedown' && '02' || inputs.mode == 'gateway-full' && '01 02' || inputs.mode == 'obs-shakedown' && '02 03' || '01' }}
-      TEST_P: ${{ startsWith(inputs.mode, 'gateway-') && '02' || inputs.mode == 'obs-shakedown' && '03' || '01' }}
+      MEASURE_MINUTES: ${{ inputs.mode == 'full' && 330 || inputs.mode == 'gateway-shakedown' && 75 || inputs.mode == 'gateway-full' && 145 || inputs.mode == 'obs-shakedown' && 70 || inputs.mode == 'obs-full' && 150 || 130 }}
+      # P1 (vLLM), P2 (the gateway; with no GPU the GPU pool stays at 0 nodes), both, P2 and P3 (no vLLM), or all three.
+      LAYERS: ${{ inputs.mode == 'gateway-shakedown' && '02' || inputs.mode == 'gateway-full' && '01 02' || inputs.mode == 'obs-shakedown' && '02 03' || inputs.mode == 'obs-full' && '01 02 03' || '01' }}
+      TEST_P: ${{ startsWith(inputs.mode, 'gateway-') && '02' || startsWith(inputs.mode, 'obs-') && '03' || '01' }}
       MOCK_PROVIDER: ${{ startsWith(inputs.mode, 'gateway-') && '1' || '' }}  # P2's test-only mock, for the PII test
     steps:
       - name: measurement deadline
@@ -122,14 +127,16 @@ jobs:
       - name: make up
         id: up
         timeout-minutes: 75
-        # gateway-full serves FP8 (faster: fewer requests reach the 10 s stream timeout at 50 concurrent).
-        run: CONFIG=${{ inputs.mode == 'gateway-full' && '$FP8' || '' }} make up LAYERS="$LAYERS"
+        # gateway-full and obs-full serve FP8 (faster: fewer requests reach the 10 s stream timeout at 50 concurrent).
+        run: CONFIG=${{ (inputs.mode == 'gateway-full' || inputs.mode == 'obs-full') && '$FP8' || '' }} make up LAYERS="$LAYERS"
 
       # Each measuring step runs even if an earlier one failed (the run still ends red), and is cut off
       # at the deadline: `timeout` gets the seconds left (none left = the step fails at once).
       - name: make test (P1 smoke tests and autoscaling path, every P2 check, or every P3 check)
         if: ${{ !cancelled() && steps.up.outcome == 'success' }}
         timeout-minutes: 30
+        env:
+          DASHBOARD_METRICS: ${{ inputs.mode == 'obs-full' && 'vllm:' || '' }}  # obs-full proves the vLLM metric names
         run: make test P="$TEST_P"
 
       # Printed for the blog's screenshots (no key is printed). Before the benchmark: it takes minutes.
@@ -168,6 +175,36 @@ jobs:
       - name: "obs-shakedown: fallback alert end to end (time to alert, at most 15 min)"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'obs-shakedown' }}
         run: timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) bash projects/03-llm-observability/tests/run.sh fallback-alert
+
+      # obs-full's results go to $RUNNER_TEMP/p3/<what>, uploaded together after scale from zero.
+      - name: "obs-full: Grafana screenshots of the 3 dashboards under background load (decision 15)"
+        if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'obs-full' }}
+        run: OUT="$RUNNER_TEMP/p3/screenshots" timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) projects/03-llm-observability/tests/screenshots.sh
+
+      - name: "obs-full: game day (flood, vLLM killed, hosted model blocked; time to alert)"
+        if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'obs-full' }}
+        run: CONFIG=$FP8 OUT="$RUNNER_TEMP/p3/gameday" timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) projects/03-llm-observability/tests/gameday/gameday.sh
+
+      # After the game day: it needs no other chat-default traffic (the game day's load has stopped).
+      - name: "obs-full: scale from zero on the gateway's traffic"
+        if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'obs-full' }}
+        run: OUT="$RUNNER_TEMP/p3/scale-from-zero" timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) projects/03-llm-observability/tests/scale_from_zero.sh
+
+      # Text files get the project ID, number and emails taken out first; check the screenshots by eye before a post.
+      - name: "obs-full: upload P3's results"
+        if: ${{ always() && steps.up.outcome == 'success' && inputs.mode == 'obs-full' }}
+        timeout-minutes: 5
+        run: |
+          session=$(gcloud container clusters describe ai-platform --location="$ZONE" --format='value(resourceLabels.session)')
+          number=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
+          [ -n "$session" ] && [ -n "$number" ]
+          for d in screenshots gameday scale-from-zero; do
+            dir="$RUNNER_TEMP/p3/$d"
+            [ -n "$(ls -A "$dir" 2>/dev/null)" ] || { echo "no $d results"; continue; }
+            find "$dir" -type f ! -name '*.png' -exec sed -i -E "s/$PROJECT_ID/<project>/g; s/$number/<project-number>/g; s/[[:alnum:]._+-]+@[[:alnum:].-]+/<email>/g; s/sk-[[:alnum:]_.-]{4,}/sk-<redacted>/g" {} +
+            GCS_TOKEN=$(gcloud auth print-access-token) python3 projects/01-gpu-serving/bench/upload.py \
+              "gs://$PROJECT_ID-results/p3/obs-full/$session/$d" "$dir"/*
+          done
 
       - name: "shakedown: one short benchmark (BF16, chat, concurrency 8)"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'shakedown' }}
@@ -243,10 +280,17 @@ jobs:
         if: ${{ always() && steps.diag.outcome == 'success' }}
         timeout-minutes: 10
         with:
-          name: ${{ startsWith(inputs.mode, 'gateway-') && 'p2' || inputs.mode == 'obs-shakedown' && 'p3' || 'p1' }}-${{ inputs.mode }}-diagnostics
+          name: ${{ startsWith(inputs.mode, 'gateway-') && 'p2' || startsWith(inputs.mode, 'obs-') && 'p3' || 'p1' }}-${{ inputs.mode }}-diagnostics
           path: diag/
           retention-days: 14
           if-no-files-found: ignore
+
+      # Last, after the diagnostics read vLLM: the GPU node goes now, not when teardown deletes the cluster. The
+      # job's limit (170 min) leaves this step room after the deadline (150), upload (5) and diagnostics (10).
+      - name: "obs-full: GPU pool to 0 nodes"
+        if: ${{ always() && steps.up.outcome == 'success' && inputs.mode == 'obs-full' }}
+        timeout-minutes: 5
+        run: gcloud container clusters resize ai-platform --location="$ZONE" --node-pool=gpu --num-nodes=0 --quiet
 
   # Its own job and time limit: it runs in full after the session job ends, however it ends.
   # Skipped only when the session job found someone else's cluster (started=no).
