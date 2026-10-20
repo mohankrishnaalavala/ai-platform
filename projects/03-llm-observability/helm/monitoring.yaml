@@ -105,6 +105,9 @@ grafana:
       resource: configmap
       skipReload: true
       initDatasources: true
+      # The init container must list once and exit; in the default WATCH mode it never exits and Grafana
+      # never starts (session 1, 2026-10-20: stuck at Init:0/1 until Helm's 10-min wait gave up).
+      watchMethod: LIST
 
 kubeStateMetrics:
   enabled: true
