@@ -114,8 +114,9 @@ jobs:
           for query in "$q" "$h"; do
             chart=$(docker run --rm -i "$YQ" -o=json "$query" < ../helm/gateway/values.yaml)
             ci=$(docker run --rm -i "$YQ" -o=json "$query" < ../helm/gateway/values-ci.yaml)
+            [ -n "$chart" ] && [ "$chart" != null ] || { echo "no match in values.yaml for: $query"; exit 1; }
             [ "$chart" = "$ci" ] || { echo "values-ci.yaml differs from values.yaml: $ci vs $chart"; exit 1; }
-            echo "$query -> $chart"
+            echo "timeouts (and chat-default's prices): $chart"
           done
 
       - name: random secrets as files, the chart's config rendered
