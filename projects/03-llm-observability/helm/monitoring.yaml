@@ -195,6 +195,7 @@ extraManifests:
                 limits: {memory: 64Mi}
               securityContext:
                 allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true  # it writes nothing: alerts stay in memory
                 capabilities: {drop: [ALL]}
               volumeMounts:
                 - {name: app, mountPath: /app, readOnly: true}

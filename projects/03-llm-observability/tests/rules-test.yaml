@@ -142,6 +142,40 @@ tests:
       - {eval_time: 30m, alertname: VllmTtftBudgetBurn, exp_alerts: []}
       - {eval_time: 30m, alertname: ChatDefaultFallbackHigh, exp_alerts: []}
 
+  # Only 429s (budget, rate limit) and 401s (bad keys), half of all traffic: the gateway working, no alert.
+  - interval: 1m
+    input_series:
+      - series: 'traces_span_metrics_calls_total{span_name="Received Proxy Server Request",metadata_user_api_key_team_alias="payments",http_response_status_code="200"}'
+        values: '0+30x120'
+      - series: 'traces_span_metrics_calls_total{span_name="Received Proxy Server Request",metadata_user_api_key_team_alias="payments",http_response_status_code="429"}'
+        values: '0+20x120'
+      - series: 'traces_span_metrics_calls_total{span_name="Received Proxy Server Request",metadata_user_api_key_team_alias="payments",http_response_status_code="401"}'
+        values: '0+10x120'
+    alert_rule_test:
+      - {eval_time: 60m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 120m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+
+  # Every chat-default attempt fails, but there is only 1 a minute (under the minimum of 3): no alert.
+  - interval: 1m
+    input_series:
+      - series: 'traces_span_metrics_calls_total{span_name="litellm_request",litellm_model_group="chat-default",status_code="STATUS_CODE_ERROR"}'
+        values: '0+1x120'
+    alert_rule_test:
+      - {eval_time: 60m, alertname: ChatDefaultFallbackHigh, exp_alerts: []}
+      - {eval_time: 120m, alertname: ChatDefaultFallbackHigh, exp_alerts: []}
+
+  # vLLM fails for 5 minutes (minutes 61 to 65), then recovers: shorter than the 10-minute `for`, no alert.
+  - interval: 1m
+    input_series:
+      - series: 'traces_span_metrics_calls_total{span_name="litellm_request",litellm_model_group="chat-default",status_code="STATUS_CODE_UNSET"}'
+        values: '0+30x60 1800x5 1830+30x55'
+      - series: 'traces_span_metrics_calls_total{span_name="litellm_request",litellm_model_group="chat-default",status_code="STATUS_CODE_ERROR"}'
+        values: '0x60 30+30x4 150x55'
+    alert_rule_test:
+      - {eval_time: 66m, alertname: ChatDefaultFallbackHigh, exp_alerts: []}
+      - {eval_time: 72m, alertname: ChatDefaultFallbackHigh, exp_alerts: []}
+      - {eval_time: 80m, alertname: ChatDefaultFallbackHigh, exp_alerts: []}
+
   # Fallback at 0.5% of attempts (P2 session 3 counted 3 in 600): quiet.
   - interval: 1m
     input_series:

@@ -1,4 +1,5 @@
 """Unit tests for the alert receiver. Run: python3 -m unittest discover -s projects/03-llm-observability/alert-receiver"""
+import http.client
 import json
 import threading
 import time
@@ -53,6 +54,22 @@ class AlertReceiverTest(unittest.TestCase):
         self.assertEqual(lines[0]["labels"], {"alertname": "ChatDefaultFallbackHigh", "severity": "page"})
         self.assertEqual(lines[0]["startsAt"], "2026-10-20T10:00:00Z")
         self.assertTrue(before <= lines[0]["received_at"] <= time.time())
+
+    def test_a_body_over_1_mib_is_refused_unread(self):
+        # Only the header is sent: the receiver answers from it, without reading a byte of the body.
+        conn = http.client.HTTPConnection("127.0.0.1", self.httpd.server_address[1], timeout=5)
+        conn.putrequest("POST", "/")
+        conn.putheader("Content-Length", str(receiver.MAX_BODY + 1))
+        conn.endheaders()
+        self.assertEqual(conn.getresponse().status, 413)
+        conn.close()
+        self.assertEqual(self.log(), [])
+
+    def test_only_the_newest_alerts_are_kept(self):
+        receiver.LOG.extend({"alertname": str(i)} for i in range(receiver.LOG.maxlen + 5))
+        lines = self.log()
+        self.assertEqual(len(lines), receiver.LOG.maxlen)
+        self.assertEqual(lines[0]["alertname"], "5")
 
     def test_not_a_webhook_is_refused_and_not_recorded(self):
         with self.assertRaises(urllib.error.HTTPError) as e:

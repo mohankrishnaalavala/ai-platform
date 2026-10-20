@@ -29,7 +29,8 @@ slos:
         labels:
           severity: ticket
   # vLLM's own time to first token (TTFT). 2.5 s is a bucket boundary in vLLM v0.30.0
-  # (vllm/v1/metrics/buckets.py), so the ratio is exact.
+  # (vllm/v1/metrics/buckets.py), so the ratio is exact. The metric's name comes from vLLM's source
+  # (vllm/v1/metrics/loggers.py): not proven yet; session 2 checks the series exists.
   - name: "vllm-ttft"
     objective: 95
     description: "95% of vLLM's requests get their first token within 2.5 s."

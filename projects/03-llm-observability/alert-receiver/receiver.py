@@ -5,17 +5,19 @@ It runs in the cluster from a ConfigMap (deploy.sh), like P2's mock provider. Al
 
 Env: PORT (default 8080).
 Endpoints:
-- POST / (Alertmanager's webhook)
-- GET /log: one JSON object per line, one line per alert:
+- POST / (Alertmanager's webhook; at most 1 MiB)
+- GET /log: one JSON object per line, one line per alert, the newest 10,000:
   {"received_at": <unix seconds>, "status": "firing|resolved", "alertname": ..., "labels": {...}, "startsAt": ...}
 - GET /health
 """
+import collections
 import json
 import os
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-LOG = []  # in memory: it lasts one session, like the rest of P3's data
+MAX_BODY = 1 << 20  # a webhook is a few KB; refusing more keeps the pod under its 64Mi limit
+LOG = collections.deque(maxlen=10000)  # in memory, for one session; the oldest go first
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -28,9 +30,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         received_at = time.time()
+        length = int(self.headers.get("Content-Length") or 0)
+        if length > MAX_BODY:
+            self._send(413, b'{"error": "webhook too large"}')
+            return
         try:
-            body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
-            alerts = body.get("alerts", [])
+            alerts = json.loads(self.rfile.read(length) or b"{}").get("alerts", [])
         except (ValueError, AttributeError):
             self._send(400, b'{"error": "not an Alertmanager webhook"}')
             return
@@ -42,7 +47,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/log":
-            self._send(200, "".join(json.dumps(e) + "\n" for e in LOG).encode(), "application/x-ndjson")
+            self._send(200, "".join(json.dumps(e) + "\n" for e in list(LOG)).encode(), "application/x-ndjson")
         elif self.path == "/health":
             self._send(200, b'{"status": "ok"}')
         else:
