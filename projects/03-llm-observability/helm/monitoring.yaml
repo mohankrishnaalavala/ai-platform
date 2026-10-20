@@ -88,9 +88,11 @@ grafana:
       url: http://tempo.monitoring:3200
       access: proxy
       editable: false
+  # At a 256 MiB limit, Grafana was OOMKilled drawing its first dashboard (session 2, 2026-10-20; the idle pod
+  # with its sidecars read 306 MiB).
   resources:
     requests: {cpu: 100m, memory: 256Mi}
-    limits: {memory: 256Mi}
+    limits: {memory: 512Mi}
   # The sidecars copy dashboards and data sources from ConfigMaps. With no admin user they can't call
   # Grafana's reload API, so data sources load before Grafana starts, and Grafana rereads dashboard files.
   sidecar:
