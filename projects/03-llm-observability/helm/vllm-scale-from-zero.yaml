@@ -1,0 +1,15 @@
+# P3-08: values on top of P1's vLLM release (tests/scale_from_zero.sh applies them in session 2). vLLM may
+# go to 0 replicas, and the gateway's chat-default request rate (P3's span metrics, the query
+# tests/test_metrics.py checks in CI) wakes it: the gateway falls back to the hosted model meanwhile.
+# P1's defaults stay 1 replica with the queue trigger only, so P1's results stay reproducible.
+scaling:
+  minReplicas: 0
+  extraTriggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus-operated.monitoring.svc:9090
+        query: sum(rate(traces_span_metrics_calls_total{span_name="litellm_request",litellm_model_group="chat-default"}[2m]))
+        activationThreshold: "0"  # any chat-default request wakes it
+        threshold: "1000"         # per replica: never asks for a second one; the queue trigger does that
+        # The collector's exporter drops a series idle for about 5 min: an empty result counts as 0.
+        ignoreNullValues: "true"
