@@ -47,6 +47,8 @@ class CostPerTeamTest(unittest.TestCase):
             print("team_id | team alias | key alias | spend | status")
             print(psql('select quote_literal(coalesce(team_id, \'null\')), metadata->>\'user_api_key_team_alias\', '
                        'metadata->>\'user_api_key_alias\', spend, status from "LiteLLM_SpendLogs" order by "startTime"'))
+            # The team's running spend, which budgets read: does it count a call the spend logs lack?
+            print("team table spend:", psql('select team_alias, spend from "LiteLLM_TeamTable" order by 1'))
         self.assertTrue(logs, "no team spent anything")
         self.assertTrue(same(logs, seen), "traces and spend logs disagree")
 
