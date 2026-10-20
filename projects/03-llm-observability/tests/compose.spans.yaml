@@ -1,0 +1,9 @@
+# P3's override of P2's CI stack (projects/02-llm-gateway/tests/compose.yaml): the collector also writes
+# every span to $SPANS_DIR/spans.jsonl, for test_spans.py. ci.yml's gateway job sets COMPOSE_FILE to both
+# files. Paths are relative to P2's tests folder, the first file's folder.
+services:
+  otel-collector:
+    user: "${SPANS_UID:?}"  # the runner's user, so the test can read the file the collector creates
+    volumes:
+      - "../../03-llm-observability/tests/otel-spans.yaml:/etc/otel.yaml:ro"
+      - "${SPANS_DIR:?}:/spans"

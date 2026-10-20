@@ -127,6 +127,15 @@ jobs:
           docker run --rm -i "$YQ" '.data["start.sh"]' < "$RUNNER_TEMP/cm.yaml" > "$config/start.sh"
           { echo "SECRETS_DIR=$secrets"; echo "CONFIG_DIR=$config"; echo "MASTER_KEY=$master"; } >> "$GITHUB_ENV"
 
+      # P3's override: the collector also writes every span to a file (test_spans.py), as the runner's user.
+      # Every compose command below uses both files.
+      - name: the span file for P3
+        run: |
+          spans="$RUNNER_TEMP/spans"
+          mkdir "$spans"
+          { echo "SPANS_DIR=$spans"; echo "SPANS_FILE=$spans/spans.jsonl"; echo "SPANS_UID=$(id -u)"
+            echo "COMPOSE_FILE=compose.yaml:../../03-llm-observability/tests/compose.spans.yaml"; } >> "$GITHUB_ENV"
+
       # Presidio's anonymizer once hung at start (its worker never booted). In the cluster the startup
       # probe restarts it; here an unhealthy Presidio container is restarted once, with a warning.
       - name: start the gateway
@@ -140,6 +149,10 @@ jobs:
 
       - name: smoke, budget, rate limit, keys, PII on the hosted route
         run: python3 -m unittest discover -s . -v
+
+      # The span names and attributes P3's metrics, alerts and scale-from-zero trigger are built on.
+      - name: "P3: the span contract (LiteLLM's trace fields; stops the mock vLLM for the next step)"
+        run: python3 -m unittest discover -s ../../03-llm-observability/tests -p test_spans.py -v
 
       - name: fallback, and PII on the fallback (the mock vLLM stopped)
         run: |
