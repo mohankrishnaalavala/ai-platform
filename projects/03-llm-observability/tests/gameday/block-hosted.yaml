@@ -1,7 +1,7 @@
 # Game day experiment 3 (gameday.sh applies it, then deletes it): the gateway may reach pods in the cluster
 # and DNS only, so its calls to the hosted model on Vertex AI fail, and so does the metadata server its
-# keyless login uses. Dataplane V2 enforces it (it drops packets, it doesn't refuse them). owner and session
-# labels come from gameday.sh.
+# keyless login uses. Dataplane V2 enforces it: it drops packets, so a call fails at chat-hosted's timeout
+# (10 s streaming, 60 s plain). owner and session labels come from gameday.sh.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

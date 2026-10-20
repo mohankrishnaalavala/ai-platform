@@ -38,10 +38,12 @@ Traces, the right metrics, SLOs (service level objectives) with burn-rate alerts
   - It waits until no vLLM pod and no GPU node are left, then probes `chat-default` every 2 s.
   - It records how fast the first request is answered (by the hosted fallback) and how long until vLLM answers itself.
   - P1's own defaults stay unchanged: 1 replica, scaled on the queue.
-- **Game day** ([`tests/gameday/gameday.sh`](tests/gameday/gameday.sh)): a low load (1 request every 2 s) runs through the gateway the whole time, and each experiment is timed to its first alert.
-  - **Flood:** an open-loop flood of long prompts straight to vLLM, from P1's bench Job. It burns the latency SLO.
+- **Game day** ([`tests/gameday/gameday.sh`](tests/gameday/gameday.sh)): it runs before scale from zero. A low load (1 request every 2 s) runs through the gateway the whole time, and each experiment is timed to its first alert.
+  - **Flood:** an open-loop flood of long prompts straight to vLLM, from P1's bench Job, stopped after 30 min. It burns the latency SLO.
+    - Only 2 min of good traffic come before it. The SLO rules' tests put the latency page about 23 min into the flood after an hour of good traffic, so the warm-up stays short and 30 min leaves room.
   - **vLLM killed:** vLLM is killed and held at 0 replicas for 15 min. The fallback alert must catch it, because users are still served.
   - **Hosted model blocked:** with vLLM still down, a NetworkPolicy ([`tests/gameday/block-hosted.yaml`](tests/gameday/block-hosted.yaml)) blocks the gateway's calls outside the cluster. The fallback fails too, and the availability SLO burns.
+    - The policy drops packets rather than refusing them, so failure takes `chat-hosted`'s timeout: 10 s streaming, 60 s plain.
   - **Recovery:** vLLM is then restored, and its recovery is timed.
 - **Output:** [`tests/gameday/time_to_alert.py`](tests/gameday/time_to_alert.py) reads the alert receiver's log and prints the time to alert per experiment. Each run records the scrape interval, the rule interval, each alert's `for:` and Alertmanager's `group_wait`, since all of them add to time to alert.
 
