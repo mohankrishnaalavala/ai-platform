@@ -13,7 +13,7 @@ Traces, the right metrics, SLOs (service level objectives) with burn-rate alerts
   - **No disks:** data lasts one session.
   - **The charts create no Secret** (the operator and Helm keep their own):
     - Grafana has no admin user. Anyone who reaches it is an anonymous viewer.
-    - Alertmanager's config comes from an `AlertmanagerConfig` resource. Alerts go nowhere yet; P3-06 adds the receiver.
+    - Alertmanager's config comes from an `AlertmanagerConfig` resource. Every alert goes to the alert receiver (below).
   - **Nothing here can read Secrets:** Grafana may read ConfigMaps in its own namespace only, and kube-state-metrics doesn't collect Secrets.
 - **GPU metrics:** read from the NVIDIA DCGM exporter GKE already runs on GPU nodes, so P3 runs no exporter of its own. It's selected by pod name and an assumed port, because its labels aren't documented. Not proven yet: session 1 checks it.
 - **Traces:** Tempo, a single binary with no disk: a scratch volume of at most 2 GiB goes with the pod ([`helm/tempo.yaml`](helm/tempo.yaml)). Grafana reads it as a second data source.
@@ -23,6 +23,18 @@ Traces, the right metrics, SLOs (service level objectives) with burn-rate alerts
   - Labels: model group, team and status code only. The latency buckets include 2.5 s (the latency SLO's threshold) and chat-default's 10 s and 30 s timeouts.
   - Metrics refresh every 15 s, not the default 60 s, since that delay adds to every alert.
   - Running P2's `deploy.sh` again puts P2's collector values back. Run P3's after it.
+- **SLOs (service level objectives) as code** ([`slos/platform.yaml`](slos/platform.yaml)), over a 28-day window. Sloth generates the burn-rate rules ([`slos/platform.rules.yaml`](slos/platform.rules.yaml)), and CI checks that the committed file is exactly Sloth's output.
+  - **Availability:** 99.5% of teams' gateway requests return a non-5xx status. A 429 (budget or rate limit) is the gateway working, not an error.
+  - **Latency:** 95% of vLLM's requests get their first token within 2.5 s, a bucket boundary in vLLM v0.30.0, so the ratio is exact. The metric's name (`vllm:time_to_first_token_seconds`) comes from vLLM's source: not proven yet; session 2 checks the series exists.
+  - **Alerts:** each SLO pages when its error budget burns 13.44x too fast over 1 h and 5 min, or 5.6x over 6 h and 30 min. It opens a ticket at 2.8x over 1 day and 2 h, or 0.93x over 3 days and 6 h. These are Sloth's 28-day windows.
+- **Fallback alert** ([`slos/fallback.rules.yaml`](slos/fallback.rules.yaml)): over 10% of chat-default attempts fail (and fall back to the hosted model) for 10 min, with at least 3 attempts a minute.
+- **Predicted time-to-alert** (promtool unit tests in [`tests/rules-test.yaml`](tests/rules-test.yaml), at a 1-minute rule interval; the game day measures the real one). The cluster evaluates rules every 30 s, so add the 15 s scrape, the collector's 15 s flush, the rule interval and Alertmanager's 10 s group wait to these minutes:
+  - The gateway failing every request: ticket the minute the first errors land, page a minute later.
+  - Every first token over 2.5 s after an hour of normal traffic: ticket after 2 min, page after 23 min. The good hour dilutes the 6-hour window.
+  - vLLM dead: the fallback alert after 10 min (its `for`).
+  - Quiet at 1% errors (a ticket only, no page) and at 0.5% fallbacks.
+- **Alert receiver** ([`alert-receiver/receiver.py`](alert-receiver/receiver.py)): Alertmanager's only receiver, one stdlib Python file. It records each alert and the time it arrived, and serves them at `GET /log`. Nothing is sent outside the cluster.
+- **Alert timing settings** (all part of time-to-alert): rules are evaluated every 30 s. Alertmanager groups by alert name and severity, so each alert has its own group, with `group_wait` 10 s, `group_interval` 1 min and `repeat_interval` 4 h. No alert fires all the time: there is no Watchdog, and the promtool tests check every alert is quiet with healthy traffic and with none.
 - **Dashboards** ([`dashboards/`](dashboards/)), JSON in Git that `deploy.sh` loads as ConfigMaps for Grafana:
   - **Model serving:** time to first token, inter-token latency, tokens per second, queue, KV cache, and GPU use and memory used.
     - The vLLM metric names come from vLLM's metrics code for v0.30.0, and the GPU names from GKE's managed DCGM list. Not proven yet: session 1 checks the GPU names and session 2 the vLLM ones, with [`tests/test_dashboard_metrics.py`](tests/test_dashboard_metrics.py).
@@ -32,15 +44,17 @@ Traces, the right metrics, SLOs (service level objectives) with burn-rate alerts
   - **Source:** the collector's `sum` connector (alpha) adds up each model try's cost (`gen_ai.cost.total_cost`, the price the spend logs use) and output tokens, per team and per model.
   - **One label per metric:** in 0.161.0 the connector counts a value once per label, so two labels would double it.
   - **Running totals:** a delta-to-cumulative processor keeps them, because the Prometheus exporter can't add up the connector's deltas.
-  - **Recording rules** ([`rules/cost.yaml`](rules/cost.yaml)):
-    - self-hosted cost per 1M output tokens = the GPU node's on-demand list price ($0.853624271/h, read 2026-10-17) over the tokens vLLM produced
+  - **Recording rules** ([`slos/cost.rules.yaml`](slos/cost.rules.yaml), loaded like the SLO rules):
+    - self-hosted cost per 1M output tokens = the GPU node's on-demand list price ($0.853624271/h, read 2026-10-17, used even when a session runs spot) over the tokens vLLM produced
+      - its vLLM metric (`vllm:generation_tokens_total`) isn't proven yet: session 2 checks it with `tests/test_dashboard_metrics.py`
     - hosted = LiteLLM's charge for chat-hosted over its output tokens. LiteLLM's price list isn't checked against Google's page.
+    - Each returns nothing when there were no output tokens.
 - **Network:** nothing is public. Every Service is ClusterIP, reached by `kubectl port-forward`.
 - **In CI on every pull request** (the gateway job, with the collector's and Tempo's configs rendered from their charts):
   - [`tests/test_metrics.py`](tests/test_metrics.py): a trace reaches Tempo, the span metrics reach Prometheus with only the chosen labels, and the scale-from-zero query returns a number.
   - [`tests/test_dashboards.py`](tests/test_dashboards.py): every gateway dashboard query returns data, and each of its selectors matches series on its own. Its file checks run in the lint job too, and `tests/charts.sh` has promtool parse every dashboard query.
-  - [`tests/test_cost.py`](tests/test_cost.py): for every team, the cost from the traces equals the team's running spend in LiteLLM's team table, which budgets are checked against. `tests/charts.sh` also tests the cost rules' math on made-up series (`promtool test rules`).
-    - It compares with the team table, not the spend logs: in CI, LiteLLM writes no spend-log row for a team key's streamed call. The team's spend still counts it, so budgets aren't affected.
+  - [`tests/test_cost.py`](tests/test_cost.py): for every team, the cost from the traces equals the team's running spend in LiteLLM's team table, which budgets are checked against. `tests/rules.sh` also tests the cost rules' math on made-up series (`promtool test rules`).
+    - It compares with the team table, not the spend logs. In 5 CI runs, LiteLLM wrote no spend-log row for a team key's streamed call, while the team's spend counted it. The cause isn't proven. The spend-log totals are printed for reference.
   - [`tests/test_spans.py`](tests/test_spans.py), the span contract: the span names and attributes LiteLLM v1.103.3 sends, which P3's metrics are built from.
   - **No model on the request span:** the request (SERVER) span has the route, the status code and the team.
   - **Attempt spans:** each attempt at a model has its own span, with the model group, the team, the cost on success and ERROR on failure.

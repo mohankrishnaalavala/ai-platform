@@ -1,6 +1,7 @@
-# promtool test rules for rules/cost.yaml (tests/charts.sh runs it on the rule groups taken out of the
-# PrometheusRule). Made-up series, so the expected numbers are worked out by hand.
-rule_files: [cost.rules.yaml]
+# promtool unit tests for slos/cost.rules.yaml (tests/rules.sh runs them in CI). Made-up series, so the
+# expected numbers are worked out by hand.
+rule_files:
+  - ../slos/cost.rules.yaml
 evaluation_interval: 1m
 tests:
   - interval: 1m
@@ -24,3 +25,19 @@ tests:
         eval_time: 10m
         exp_samples:
           - value: 1
+  # No output tokens (an idle or scaled-to-zero vLLM, no hosted calls): no value, not a division by zero.
+  - interval: 1m
+    input_series:
+      - series: 'vllm:generation_tokens_total'
+        values: '500x10'
+      - series: 'llm_cost_by_model_total{litellm_model_group="chat-hosted"}'
+        values: '0x10'
+      - series: 'llm_output_tokens_by_model_total{litellm_model_group="chat-hosted"}'
+        values: '0x10'
+    promql_expr_test:
+      - expr: p3:self_hosted_usd_per_1m_output_tokens
+        eval_time: 10m
+        exp_samples: []
+      - expr: p3:hosted_usd_per_1m_output_tokens
+        eval_time: 10m
+        exp_samples: []

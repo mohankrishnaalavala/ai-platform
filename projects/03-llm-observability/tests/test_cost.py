@@ -4,9 +4,9 @@ running spend in LiteLLM's team table in Postgres, the number team budgets are c
 chat-default costs $0.00000075 per output token and the mock always returns 10 output tokens; the mock
 hosted model has no price.
 
-It compares with the team table, not the spend logs. In this CI stack LiteLLM writes no spend-log row for
-a team key's streamed call, though the team's spend counts it (CI runs on PR #52, 2026-10-20; a stack
-without Presidio logs it). So the spend logs are printed for reference only.
+It compares with the team table, not the spend logs: in 5 CI runs (PR #52, 2026-10-20) LiteLLM wrote no
+spend-log row for a team key's streamed call, while the team's spend counted it. The cause isn't proven.
+The spend logs are printed for reference only.
 Runs in ci.yml's gateway job after test_metrics.py. Skipped unless SPANS_FILE, TEMPO_URL and PROMETHEUS_URL
 are set.
 """

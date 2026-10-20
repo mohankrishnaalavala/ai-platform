@@ -30,14 +30,7 @@ trap 'rm -rf "$out" "$cfg"' EXIT
   helm template vllm ../01-gpu-serving/helm/vllm -n vllm -f ../../config/models/qwen2.5-7b-fp8.yaml \
     -f helm/vllm-scale-from-zero.yaml --set modelsBucket=p-models --set registry=r/p/images \
     --set labels.owner=o --set labels.session=20261020t0000z --show-only templates/scaledobject.yaml; echo ---
-  cat tests/gameday/block-hosted.yaml; echo ---
-  cat rules/cost.yaml; } >> "$out"
-
-# The recording rules: taken out of the PrometheusRule, checked, and their math tested on made-up series.
-docker run --rm -i "$yq" '.spec' < rules/cost.yaml > "$cfg/cost.rules.yaml"
-cp tests/cost.rules.test.yaml "$cfg/"
-docker run --rm --user "$(id -u)" --entrypoint /bin/promtool -v "$cfg:/cfg:ro" -w /cfg "$promtool" check rules cost.rules.yaml
-docker run --rm --user "$(id -u)" --entrypoint /bin/promtool -v "$cfg:/cfg:ro" -w /cfg "$promtool" test rules cost.rules.test.yaml
+  cat tests/gameday/block-hosted.yaml; } >> "$out"
 
 # The collector's config, checked by the pinned collector itself (component names, pipelines). Its
 # listen addresses use the pod's IP from the environment.

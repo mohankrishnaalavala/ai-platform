@@ -1,0 +1,27 @@
+# P3-07: the self-hosted path is unhealthy even when users are fine, because the gateway falls back to the
+# hosted model (cost, and data leaving the cluster). LiteLLM marks no fallback on its spans: a fallback is a
+# failed chat-default attempt followed by a hosted one (tests/test_spans.py). So the alert watches the share
+# of chat-default attempts that failed.
+groups:
+  - name: llm-gateway-fallback
+    rules:
+      - alert: ChatDefaultFallbackHigh
+        # Over 10% of chat-default attempts failed (and fell back) for 10 min, with at least 3 attempts a
+        # minute so a single failure at night doesn't page. Any share under 100% gives the same
+        # time-to-alert for a dead backend; 10% only sets how noisy it is.
+        expr: |
+          (
+            sum(rate(traces_span_metrics_calls_total{span_name="litellm_request",litellm_model_group="chat-default",status_code="STATUS_CODE_ERROR"}[5m]))
+            /
+            sum(rate(traces_span_metrics_calls_total{span_name="litellm_request",litellm_model_group="chat-default"}[5m]))
+          ) > 0.10
+          and
+          sum(rate(traces_span_metrics_calls_total{span_name="litellm_request",litellm_model_group="chat-default"}[5m])) > 0.05
+        for: 10m
+        labels:
+          severity: page
+          category: fallback
+          layer: "03"
+        annotations:
+          summary: "Over 10% of chat-default requests are falling back to the hosted model."
+          description: "The self-hosted model (vLLM) is failing or too slow, so the gateway is sending requests to the hosted model instead: users still get answers, at a higher cost and with data leaving the cluster."

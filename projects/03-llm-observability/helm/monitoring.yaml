@@ -25,6 +25,9 @@ prometheus:
     resources:
       requests: {cpu: 250m, memory: 1Gi}
       limits: {memory: 1Gi}
+    evaluationInterval: 30s  # part of every time-to-alert, so set, not left to the default
+    # Pick up every PrometheusRule, not only this release's: deploy.sh applies the SLO and fallback rules.
+    ruleSelectorNilUsesHelmValues: false
   # GPU metrics (P3-03) from the NVIDIA DCGM exporter GKE runs on GPU nodes (a dcgm-exporter-* pod in
   # gke-managed-system on the GPU node, seen in P2 session 4's diagnostics), so P3 runs no exporter of its
   # own. Its labels aren't documented: this keeps pods by name, on dcgm-exporter's default port 9400
@@ -136,7 +139,8 @@ extraManifests:
       - kind: ServiceAccount
         name: prometheus-grafana
         namespace: "{{ .Release.Namespace }}"
-  # Alertmanager's whole config. Alerts go nowhere until P3-06 adds the webhook recorder as the receiver.
+  # Alertmanager's whole config: every alert goes to the alert receiver, which records it (the game day
+  # reads its times). Group wait, the rule interval and the scrape interval all add to time-to-alert.
   - apiVersion: monitoring.coreos.com/v1alpha1
     kind: AlertmanagerConfig
     metadata:
@@ -144,6 +148,68 @@ extraManifests:
       labels: *p3
     spec:
       route:
-        receiver: "null"
+        receiver: alert-receiver
+        # One notification group per alert, so a new alert never waits out an older group's
+        # groupInterval. Sloth gives an SLO's page and ticket the same alertname: severity splits them.
+        groupBy: [alertname, severity]
+        groupWait: 10s
+        groupInterval: 1m
+        repeatInterval: 4h
       receivers:
-        - name: "null"
+        - name: alert-receiver
+          webhookConfigs:
+            - url: http://alert-receiver.monitoring:8080/
+              sendResolved: true
+  # The alert receiver (alert-receiver/receiver.py, loaded into the ConfigMap alert-receiver by deploy.sh):
+  # one stdlib Python file, no image of our own. Inside the cluster only.
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: alert-receiver
+      labels: *p3
+    spec:
+      replicas: 1
+      selector:
+        matchLabels: {app.kubernetes.io/name: alert-receiver}
+      template:
+        metadata:
+          labels: {app.kubernetes.io/name: alert-receiver, app: ai-platform, layer: "03", owner: "{{ .Values.commonLabels.owner }}", session: "{{ .Values.commonLabels.session }}"}
+        spec:
+          automountServiceAccountToken: false
+          enableServiceLinks: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            seccompProfile: {type: RuntimeDefault}
+          containers:
+            - name: alert-receiver
+              image: python:3.13-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f  # P2's mock-provider pin
+              command: ["python3", "/app/receiver.py"]
+              ports:
+                - {name: http, containerPort: 8080}
+              readinessProbe:
+                httpGet: {path: /health, port: http}
+                periodSeconds: 5
+              resources:
+                requests: {cpu: 10m, memory: 32Mi}
+                limits: {memory: 64Mi}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true  # it writes nothing: alerts stay in memory
+                capabilities: {drop: [ALL]}
+              volumeMounts:
+                - {name: app, mountPath: /app, readOnly: true}
+          volumes:
+            - name: app
+              configMap:
+                name: alert-receiver
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: alert-receiver
+      labels: *p3
+    spec:
+      type: ClusterIP
+      selector: {app.kubernetes.io/name: alert-receiver}
+      ports:
+        - {name: http, port: 8080, targetPort: http}

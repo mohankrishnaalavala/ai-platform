@@ -1,0 +1,188 @@
+# promtool unit tests for P3's alerts (tests/rules.sh runs them in CI). Each test feeds made-up series and
+# checks the minute an alert starts firing and the minute before: that minute is the predicted
+# time-to-alert at a 1-minute rule interval. In the cluster add the scrape interval (15 s), the collector's
+# 15 s flush, the 30 s rule interval and Alertmanager's 10 s group wait; there the alert groups and the
+# recording groups run on separate schedules, which can add up to one more rule interval.
+# The bad traffic always starts at minute 61.
+# Sloth's 28-day windows page at 13.44x the budget burn over 1 h and 5 min, or 5.6x over 6 h and 30 min.
+rule_files:
+  - ../slos/platform.rules.yaml
+  - ../slos/fallback.rules.yaml
+evaluation_interval: 1m
+# Recordings before the alerts that read them, so an alert sees the same minute's ratios. Unordered, the
+# answer moved by a minute from run to run.
+group_eval_order:
+  - sloth-slo-sli-recordings-ai-platform-gateway-availability
+  - sloth-slo-meta-recordings-ai-platform-gateway-availability
+  - sloth-slo-sli-recordings-ai-platform-vllm-ttft
+  - sloth-slo-meta-recordings-ai-platform-vllm-ttft
+  - sloth-slo-alerts-ai-platform-gateway-availability
+  - sloth-slo-alerts-ai-platform-vllm-ttft
+  - llm-gateway-fallback
+
+tests:
+  # Gateway availability: 1 h of good traffic (60 requests a minute), then every request fails (5xx).
+  # Nothing at minute 60; the ticket fires at minute 61, the page at minute 62 (its 30-minute and 6-hour
+  # windows).
+  - interval: 1m
+    input_series:
+      - series: 'traces_span_metrics_calls_total{span_name="Received Proxy Server Request",metadata_user_api_key_team_alias="payments",http_response_status_code="200"}'
+        values: '0+60x60 3600x60'
+      - series: 'traces_span_metrics_calls_total{span_name="Received Proxy Server Request",metadata_user_api_key_team_alias="payments",http_response_status_code="500"}'
+        values: '0x60 60+60x60'
+    alert_rule_test:
+      - eval_time: 60m
+        alertname: GatewayAvailabilityBudgetBurn
+        exp_alerts: []
+      - eval_time: 61m
+        alertname: GatewayAvailabilityBudgetBurn
+        exp_alerts:
+          - &avail_ticket
+            exp_labels: {severity: ticket, sloth_severity: ticket, category: availability, layer: "03", sloth_id: ai-platform-gateway-availability, sloth_service: ai-platform, sloth_slo: gateway-availability}
+            exp_annotations: {summary: "The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title: "(ticket) ai-platform gateway-availability SLO error budget burn rate is too fast."}
+      - eval_time: 62m
+        alertname: GatewayAvailabilityBudgetBurn
+        exp_alerts:
+          - exp_labels: {severity: page, sloth_severity: page, category: availability, layer: "03", sloth_id: ai-platform-gateway-availability, sloth_service: ai-platform, sloth_slo: gateway-availability}
+            exp_annotations: {summary: "The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title: "(page) ai-platform gateway-availability SLO error budget burn rate is too fast."}
+          - *avail_ticket
+
+  # Gateway availability at 1% errors (2x the 0.5% budget), plus 429s, which aren't errors: a slow burn.
+  # A ticket, never a page, through 3 h.
+  - interval: 1m
+    input_series:
+      - series: 'traces_span_metrics_calls_total{span_name="Received Proxy Server Request",metadata_user_api_key_team_alias="payments",http_response_status_code="200"}'
+        values: '0+59.4x180'
+      - series: 'traces_span_metrics_calls_total{span_name="Received Proxy Server Request",metadata_user_api_key_team_alias="payments",http_response_status_code="503"}'
+        values: '0+0.6x180'
+      - series: 'traces_span_metrics_calls_total{span_name="Received Proxy Server Request",metadata_user_api_key_team_alias="payments",http_response_status_code="429"}'
+        values: '0+30x180'
+    alert_rule_test:
+      - {eval_time: 30m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: [*avail_ticket]}
+      - {eval_time: 90m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: [*avail_ticket]}
+      - {eval_time: 180m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: [*avail_ticket]}
+
+  # vLLM TTFT: 1 h of fast first tokens, then every first token takes over 2.5 s (the latency flood). The
+  # ticket fires at minute 63; the page waits until minute 84, because the hour of good traffic before
+  # dilutes the 6-hour window. The game day must expect that.
+  - interval: 1m
+    input_series:
+      - series: 'vllm:time_to_first_token_seconds_count{model_name="qwen"}'
+        values: '0+60x180'
+      - series: 'vllm:time_to_first_token_seconds_bucket{model_name="qwen",le="2.5"}'
+        values: '0+60x60 3600x120'
+    alert_rule_test:
+      - eval_time: 62m
+        alertname: VllmTtftBudgetBurn
+        exp_alerts: []
+      - eval_time: 63m
+        alertname: VllmTtftBudgetBurn
+        exp_alerts:
+          - &ttft_ticket
+            exp_labels: {severity: ticket, sloth_severity: ticket, category: latency, layer: "03", sloth_id: ai-platform-vllm-ttft, sloth_service: ai-platform, sloth_slo: vllm-ttft}
+            exp_annotations: {summary: "vLLM's first tokens are slower than 2.5 s often enough to use up its 28-day error budget.", title: "(ticket) ai-platform vllm-ttft SLO error budget burn rate is too fast."}
+      - eval_time: 83m
+        alertname: VllmTtftBudgetBurn
+        exp_alerts: [*ttft_ticket]
+      - eval_time: 84m
+        alertname: VllmTtftBudgetBurn
+        exp_alerts:
+          - exp_labels: {severity: page, sloth_severity: page, category: latency, layer: "03", sloth_id: ai-platform-vllm-ttft, sloth_service: ai-platform, sloth_slo: vllm-ttft}
+            exp_annotations: {summary: "vLLM's first tokens are slower than 2.5 s often enough to use up its 28-day error budget.", title: "(page) ai-platform vllm-ttft SLO error budget burn rate is too fast."}
+          - *ttft_ticket
+
+  # Fallback: chat-default fails on every attempt (vLLM dead), 30 attempts a minute. Fires at minute 71:
+  # the 10-minute `for` is the whole delay.
+  - interval: 1m
+    input_series:
+      - series: 'traces_span_metrics_calls_total{span_name="litellm_request",litellm_model_group="chat-default",status_code="STATUS_CODE_UNSET"}'
+        values: '0+30x60 1800x60'
+      - series: 'traces_span_metrics_calls_total{span_name="litellm_request",litellm_model_group="chat-default",status_code="STATUS_CODE_ERROR"}'
+        values: '0x60 30+30x60'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: ChatDefaultFallbackHigh
+        exp_alerts: []
+      - eval_time: 71m
+        alertname: ChatDefaultFallbackHigh
+        exp_alerts:
+          - exp_labels: {severity: page, category: fallback, layer: "03"}
+            exp_annotations:
+              summary: "Over 10% of chat-default requests are falling back to the hosted model."
+              description: "The self-hosted model (vLLM) is failing or too slow, so the gateway is sending requests to the hosted model instead: users still get answers, at a higher cost and with data leaving the cluster."
+
+  # No alert fires all the time (there is no Watchdog: P1 turns the chart's default rules off). The game
+  # day waits for "no active alerts" between experiments, so every alert must be quiet with healthy
+  # traffic (minute 60) and with no traffic at all (minute 120: the counters stop, so the ratios are 0/0).
+  - interval: 1m
+    input_series:
+      - series: 'traces_span_metrics_calls_total{span_name="Received Proxy Server Request",metadata_user_api_key_team_alias="payments",http_response_status_code="200"}'
+        values: '0+60x60 3600x60'
+      - series: 'vllm:time_to_first_token_seconds_count{model_name="qwen"}'
+        values: '0+60x60 3600x60'
+      - series: 'vllm:time_to_first_token_seconds_bucket{model_name="qwen",le="2.5"}'
+        values: '0+60x60 3600x60'
+      - series: 'traces_span_metrics_calls_total{span_name="litellm_request",litellm_model_group="chat-default",status_code="STATUS_CODE_UNSET"}'
+        values: '0+30x60 1800x60'
+    alert_rule_test:
+      - {eval_time: 60m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 60m, alertname: VllmTtftBudgetBurn, exp_alerts: []}
+      - {eval_time: 60m, alertname: ChatDefaultFallbackHigh, exp_alerts: []}
+      - {eval_time: 120m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 120m, alertname: VllmTtftBudgetBurn, exp_alerts: []}
+      - {eval_time: 120m, alertname: ChatDefaultFallbackHigh, exp_alerts: []}
+
+  # No series at all (a fresh cluster before any request): quiet too.
+  - interval: 1m
+    input_series:
+      - series: 'up{job="unrelated"}'
+        values: '1x60'
+    alert_rule_test:
+      - {eval_time: 30m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 30m, alertname: VllmTtftBudgetBurn, exp_alerts: []}
+      - {eval_time: 30m, alertname: ChatDefaultFallbackHigh, exp_alerts: []}
+
+  # Only 429s (budget, rate limit) and 401s (bad keys), half of all traffic: the gateway working, no alert.
+  - interval: 1m
+    input_series:
+      - series: 'traces_span_metrics_calls_total{span_name="Received Proxy Server Request",metadata_user_api_key_team_alias="payments",http_response_status_code="200"}'
+        values: '0+30x120'
+      - series: 'traces_span_metrics_calls_total{span_name="Received Proxy Server Request",metadata_user_api_key_team_alias="payments",http_response_status_code="429"}'
+        values: '0+20x120'
+      - series: 'traces_span_metrics_calls_total{span_name="Received Proxy Server Request",metadata_user_api_key_team_alias="payments",http_response_status_code="401"}'
+        values: '0+10x120'
+    alert_rule_test:
+      - {eval_time: 60m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 120m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+
+  # Every chat-default attempt fails, but there is only 1 a minute (under the minimum of 3): no alert.
+  - interval: 1m
+    input_series:
+      - series: 'traces_span_metrics_calls_total{span_name="litellm_request",litellm_model_group="chat-default",status_code="STATUS_CODE_ERROR"}'
+        values: '0+1x120'
+    alert_rule_test:
+      - {eval_time: 60m, alertname: ChatDefaultFallbackHigh, exp_alerts: []}
+      - {eval_time: 120m, alertname: ChatDefaultFallbackHigh, exp_alerts: []}
+
+  # vLLM fails for 5 minutes (minutes 61 to 65), then recovers: shorter than the 10-minute `for`, no alert.
+  - interval: 1m
+    input_series:
+      - series: 'traces_span_metrics_calls_total{span_name="litellm_request",litellm_model_group="chat-default",status_code="STATUS_CODE_UNSET"}'
+        values: '0+30x60 1800x5 1830+30x55'
+      - series: 'traces_span_metrics_calls_total{span_name="litellm_request",litellm_model_group="chat-default",status_code="STATUS_CODE_ERROR"}'
+        values: '0x60 30+30x4 150x55'
+    alert_rule_test:
+      - {eval_time: 66m, alertname: ChatDefaultFallbackHigh, exp_alerts: []}
+      - {eval_time: 72m, alertname: ChatDefaultFallbackHigh, exp_alerts: []}
+      - {eval_time: 80m, alertname: ChatDefaultFallbackHigh, exp_alerts: []}
+
+  # Fallback at 0.5% of attempts (P2 session 3 counted 3 in 600): quiet.
+  - interval: 1m
+    input_series:
+      - series: 'traces_span_metrics_calls_total{span_name="litellm_request",litellm_model_group="chat-default",status_code="STATUS_CODE_UNSET"}'
+        values: '0+29.85x120'
+      - series: 'traces_span_metrics_calls_total{span_name="litellm_request",litellm_model_group="chat-default",status_code="STATUS_CODE_ERROR"}'
+        values: '0+0.15x120'
+    alert_rule_test:
+      - {eval_time: 60m, alertname: ChatDefaultFallbackHigh, exp_alerts: []}
+      - {eval_time: 120m, alertname: ChatDefaultFallbackHigh, exp_alerts: []}

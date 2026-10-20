@@ -107,7 +107,7 @@
       "id": 3,
       "type": "timeseries",
       "title": "Cost per 1M output tokens",
-      "description": "Self-hosted: the GPU node's on-demand list price per hour (2026-10-17) over the tokens vLLM produced. It falls as load rises. Recording rules in rules/cost.yaml.",
+      "description": "Self-hosted: the GPU node's on-demand list price per hour (2026-10-17), even when the session runs spot, over the tokens vLLM produced; it falls as load rises. Its vLLM metric (vllm:generation_tokens_total) isn't proven yet (session 2). Hosted: LiteLLM's charge per output token. Recording rules in slos/cost.rules.yaml.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
