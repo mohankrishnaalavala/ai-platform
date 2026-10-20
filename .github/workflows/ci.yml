@@ -61,6 +61,9 @@ jobs:
         run: |
           for c in projects/*/tests/charts.sh; do echo "== $c"; "$c"; done
 
+      - name: "P3: SLO and alert rules (Sloth's output is committed, promtool checks and unit tests)"
+        run: projects/03-llm-observability/tests/rules.sh
+
       - name: the charts package with one version (what release.yml does on a tag)
         run: |
           scripts/package_charts.sh "$(sed -n 's/^version: //p' projects/02-llm-gateway/helm/gateway/Chart.yaml)" "$RUNNER_TEMP/charts"
