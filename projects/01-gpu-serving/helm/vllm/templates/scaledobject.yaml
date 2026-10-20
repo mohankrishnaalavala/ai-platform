@@ -8,7 +8,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: vllm
-  minReplicaCount: 1
+  minReplicaCount: {{ .Values.scaling.minReplicas }}
   maxReplicaCount: 2
   pollingInterval: 15
   advanced:
@@ -24,3 +24,6 @@ spec:
         query: sum(vllm:num_requests_waiting{namespace="vllm"})
         # Per replica: a second replica is wanted once more than 5 requests wait.
         threshold: "5"
+    {{- with .Values.scaling.extraTriggers }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}

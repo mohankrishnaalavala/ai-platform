@@ -13,7 +13,7 @@ otelcol=otel/opentelemetry-collector-contrib:0.161.0@sha256:fd328de2552466ad7838
 promtool=prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
 collector=(opentelemetry-collector --repo https://open-telemetry.github.io/opentelemetry-helm-charts --version 0.174.2
            -n gateway -f ../02-llm-gateway/helm/otel-collector.yaml -f helm/otel-collector.yaml)
-# Schemas for the custom resources (Prometheus, Alertmanager, AlertmanagerConfig, ServiceMonitor), pinned to a commit.
+# Schemas for the custom resources (Prometheus, Alertmanager, AlertmanagerConfig, ServiceMonitor, ScaledObject), pinned to a commit.
 crds='https://raw.githubusercontent.com/datreeio/CRDs-catalog/d373c2da9702bc9509a004db83e57263fe3bdfc1/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
 out=$(mktemp) cfg=$(mktemp -d)
 trap 'rm -rf "$out" "$cfg"' EXIT
@@ -26,6 +26,11 @@ trap 'rm -rf "$out" "$cfg"' EXIT
   helm template tempo tempo --repo https://grafana-community.github.io/helm-charts --version 3.1.0 -n monitoring \
     -f helm/tempo.yaml; echo ---
   helm template otel-collector "${collector[@]}"; echo ---
+  # P1's vLLM chart with P3's scale-from-zero values (P3-08), and the game day's NetworkPolicy (P3-09).
+  helm template vllm ../01-gpu-serving/helm/vllm -n vllm -f ../../config/models/qwen2.5-7b-fp8.yaml \
+    -f helm/vllm-scale-from-zero.yaml --set modelsBucket=p-models --set registry=r/p/images \
+    --set labels.owner=o --set labels.session=20261020t0000z --show-only templates/scaledobject.yaml; echo ---
+  cat tests/gameday/block-hosted.yaml; echo ---
   cat rules/cost.yaml; } >> "$out"
 
 # The recording rules: taken out of the PrometheusRule, checked, and their math tested on made-up series.
