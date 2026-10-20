@@ -1,7 +1,7 @@
 {
   "uid": "p3-model-serving",
   "title": "P3 · Model serving (vLLM)",
-  "description": "vLLM's own metrics (v0.30.0) and the GPU's, from the DCGM exporter GKE runs on the GPU node.",
+  "description": "vLLM's own metrics and the GPU's, from the DCGM exporter GKE runs on the GPU node. The vLLM names come from vLLM's metrics code for v0.30.0 and the GPU names from GKE's managed DCGM list; sessions prove them (tests/test_dashboard_metrics.py).",
   "tags": [
     "ai-platform",
     "p3"
@@ -297,8 +297,8 @@
     {
       "id": 7,
       "type": "timeseries",
-      "title": "GPU memory",
-      "description": "GPU frame buffer, in MiB.",
+      "title": "GPU memory used",
+      "description": "GPU frame buffer in use, in MiB (an L4 has about 23 GiB; vLLM takes most of it up front).",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -333,15 +333,6 @@
           },
           "expr": "sum(DCGM_FI_DEV_FB_USED)",
           "legendFormat": "used"
-        },
-        {
-          "refId": "B",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "sum(DCGM_FI_DEV_FB_TOTAL)",
-          "legendFormat": "total"
         }
       ]
     }

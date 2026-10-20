@@ -8,6 +8,7 @@ metrics. Skipped there unless SPANS_FILE, TEMPO_URL and PROMETHEUS_URL are set.
 """
 import json
 import pathlib
+import re
 import unittest
 
 from test_metrics import PROMETHEUS, SPANS_FILE, TEMPO, query, until
@@ -15,6 +16,7 @@ from test_metrics import PROMETHEUS, SPANS_FILE, TEMPO, query, until
 DASHBOARDS = pathlib.Path(__file__).resolve().parent.parent / "dashboards"
 UIDS = {"model-serving.json": "p3-model-serving", "gateway.json": "p3-gateway"}
 DATASOURCES = {"prometheus", "tempo"}
+FIVE_XX = 'http_response_status_code=~"5.."'
 
 
 def load(name):
@@ -43,6 +45,20 @@ class GatewayQueriesTest(unittest.TestCase):
         for t in targets(load("gateway.json")):
             with self.subTest(expr=t["expr"]):
                 self.assertTrue(until(lambda expr=t["expr"]: query(expr)), "no data")
+
+    def test_every_selector_matches_series(self):
+        """A ratio ending in 'or vector(0)' returns data even when its filter matches nothing, so each
+        selector must match on its own. CI makes no 5xx before this runs: the 5xx selector is checked
+        without its status filter, on series that carry the status label it filters on."""
+        for t in targets(load("gateway.json")):
+            for sel in re.findall(r"traces_span_metrics_\w+\{[^}]*\}", t["expr"]):
+                with self.subTest(selector=sel):
+                    if FIVE_XX in sel:
+                        unfiltered = sel.replace("," + FIVE_XX, "")
+                        series = until(lambda s=unfiltered: query(s))
+                        self.assertTrue(series and all("http_response_status_code" in s["metric"] for s in series))
+                    else:
+                        self.assertTrue(until(lambda s=sel: query(s)), "matches no series")
 
 
 if __name__ == "__main__":
