@@ -13,7 +13,7 @@ Traces, the right metrics, SLOs (service level objectives) with burn-rate alerts
   - **No disks:** data lasts one session.
   - **The charts create no Secret** (the operator and Helm keep their own):
     - Grafana has no admin user. Anyone who reaches it is an anonymous viewer.
-    - Alertmanager's config comes from an `AlertmanagerConfig` resource. Alerts go nowhere yet; P3-06 adds the receiver.
+    - Alertmanager's config comes from an `AlertmanagerConfig` resource. Every alert goes to the alert receiver (below).
   - **Nothing here can read Secrets:** Grafana may read ConfigMaps in its own namespace only, and kube-state-metrics doesn't collect Secrets.
 - **GPU metrics:** read from the NVIDIA DCGM exporter GKE already runs on GPU nodes, so P3 runs no exporter of its own. It's selected by pod name and an assumed port, because its labels aren't documented. Not proven yet: session 1 checks it.
 - **Traces:** Tempo, a single binary with no disk: a scratch volume of at most 2 GiB goes with the pod ([`helm/tempo.yaml`](helm/tempo.yaml)). Grafana reads it as a second data source.
@@ -23,6 +23,17 @@ Traces, the right metrics, SLOs (service level objectives) with burn-rate alerts
   - Labels: model group, team and status code only. The latency buckets include 2.5 s (the latency SLO's threshold) and chat-default's 10 s and 30 s timeouts.
   - Metrics refresh every 15 s, not the default 60 s, since that delay adds to every alert.
   - Running P2's `deploy.sh` again puts P2's collector values back. Run P3's after it.
+- **SLOs (service level objectives) as code** ([`slos/platform.yaml`](slos/platform.yaml)), over a 28-day window. Sloth generates the burn-rate rules ([`slos/platform.rules.yaml`](slos/platform.rules.yaml)), and CI checks that the committed file is exactly Sloth's output.
+  - **Availability:** 99.5% of teams' gateway requests return a non-5xx status. A 429 (budget or rate limit) is the gateway working, not an error.
+  - **Latency:** 95% of vLLM's requests get their first token within 2.5 s, a bucket boundary in vLLM v0.30.0, so the ratio is exact.
+  - **Alerts:** each SLO pages when its error budget burns 13.44x too fast over 1 h and 5 min, or 5.6x over 6 h and 30 min. It opens a ticket at 2.8x over 1 day and 2 h, or 0.93x over 3 days and 6 h. These are Sloth's 28-day windows.
+- **Fallback alert** ([`slos/fallback.rules.yaml`](slos/fallback.rules.yaml)): over 10% of chat-default attempts fail (and fall back to the hosted model) for 10 min, with at least 3 attempts a minute.
+- **Predicted time-to-alert** (promtool unit tests in [`tests/rules-test.yaml`](tests/rules-test.yaml), at a 1-minute rule interval; the game day measures the real one):
+  - The gateway failing every request: ticket the minute the first errors land, page a minute later.
+  - Every first token over 2.5 s after an hour of normal traffic: ticket after 2 min, page after 23 min. The good hour dilutes the 6-hour window.
+  - vLLM dead: the fallback alert after 10 min (its `for`).
+  - Quiet at 1% errors (a ticket only, no page) and at 0.5% fallbacks.
+- **Alert receiver** ([`alert-receiver/receiver.py`](alert-receiver/receiver.py)): Alertmanager's only receiver, one stdlib Python file. It records each alert and the time it arrived, and serves them at `GET /log`. Nothing is sent outside the cluster.
 - **Network:** nothing is public. Every Service is ClusterIP, reached by `kubectl port-forward`.
 - **In CI on every pull request** (the gateway job, with the collector's and Tempo's configs rendered from their charts):
   - [`tests/test_metrics.py`](tests/test_metrics.py): a trace reaches Tempo, the span metrics reach Prometheus with only the chosen labels, and the scale-from-zero query returns a number.

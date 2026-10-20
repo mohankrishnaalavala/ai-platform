@@ -1,0 +1,51 @@
+# P3's two SLOs (service level objectives) as code, for Sloth (CLI, CI only). Sloth turns them into the
+# multi-window burn-rate rules in platform.rules.yaml: tests/rules.sh regenerates that file, and CI fails if
+# the committed copy differs. The window is 28 days (--default-slo-period=28d in tests/rules.sh).
+version: "prometheus/v1"
+service: "ai-platform"
+labels:
+  layer: "03"
+slos:
+  # Teams' requests through the gateway, from the span metrics of LiteLLM's request (SERVER) span
+  # (tests/test_spans.py). A 429 (budget, rate limit) or 401 is the gateway working, not an error.
+  # Calls without a team (the master key: admin, tests) aren't counted.
+  - name: "gateway-availability"
+    objective: 99.5
+    description: "99.5% of teams' gateway requests return a non-5xx status."
+    sli:
+      events:
+        error_query: sum(rate(traces_span_metrics_calls_total{span_name="Received Proxy Server Request",metadata_user_api_key_team_alias!="",http_response_status_code=~"5.."}[{{.window}}]))
+        total_query: sum(rate(traces_span_metrics_calls_total{span_name="Received Proxy Server Request",metadata_user_api_key_team_alias!=""}[{{.window}}]))
+    alerting:
+      name: GatewayAvailabilityBudgetBurn
+      labels:
+        category: availability
+      annotations:
+        summary: "The gateway is returning 5xx errors fast enough to use up its 28-day error budget."
+      page_alert:
+        labels:
+          severity: page
+      ticket_alert:
+        labels:
+          severity: ticket
+  # vLLM's own time to first token (TTFT). 2.5 s is a bucket boundary in vLLM v0.30.0
+  # (vllm/v1/metrics/buckets.py), so the ratio is exact.
+  - name: "vllm-ttft"
+    objective: 95
+    description: "95% of vLLM's requests get their first token within 2.5 s."
+    sli:
+      events:
+        error_query: sum(rate(vllm:time_to_first_token_seconds_count[{{.window}}])) - sum(rate(vllm:time_to_first_token_seconds_bucket{le="2.5"}[{{.window}}]))
+        total_query: sum(rate(vllm:time_to_first_token_seconds_count[{{.window}}]))
+    alerting:
+      name: VllmTtftBudgetBurn
+      labels:
+        category: latency
+      annotations:
+        summary: "vLLM's first tokens are slower than 2.5 s often enough to use up its 28-day error budget."
+      page_alert:
+        labels:
+          severity: page
+      ticket_alert:
+        labels:
+          severity: ticket
