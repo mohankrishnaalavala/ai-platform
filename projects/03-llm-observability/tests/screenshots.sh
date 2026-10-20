@@ -17,11 +17,18 @@ port_forward monitoring/prometheus-grafana 13000:80
 GAMEDAY_MAX_S=900 python3 "$here/gameday/load.py" > "$out/screenshot-load.txt" 2>&1 & load=$!
 sleep "${WARMUP_S:-180}"
 chrome=$(command -v google-chrome || command -v chromium) || { echo "no Chrome on this machine"; exit 1; }
+# The port-forward ends if Grafana restarts, so a failed health check means the screenshot shows an error page.
+healthy() { curl -sf --max-time 10 http://127.0.0.1:13000/api/health > /dev/null; }
 for f in "$here"/../dashboards/*.json; do
   uid=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["uid"])' "$f")
+  healthy || { echo "Grafana isn't answering before $uid.png"; exit 1; }
+  # timeout: headless Chrome once kept running after it wrote the screenshot (session 2, 2026-10-20).
   # --no-sandbox: Ubuntu 24.04 runners block the user namespaces Chrome's sandbox needs; the page is our own.
-  "$chrome" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --window-size=1600,1200 \
+  timeout -k 5 120 "$chrome" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --window-size=1600,1200 \
     --virtual-time-budget=20000 --screenshot="$out/$uid.png" \
-    "http://127.0.0.1:13000/d/$uid?orgId=1&kiosk&from=now-15m&to=now" >> "$out/chrome.txt" 2>&1
+    "http://127.0.0.1:13000/d/$uid?orgId=1&kiosk&from=now-15m&to=now" >> "$out/chrome.txt" 2>&1 ||
+    echo "Chrome exited with $? for $uid.png"
+  [ -s "$out/$uid.png" ] || { echo "no $uid.png"; exit 1; }
+  healthy || { echo "Grafana stopped answering during $uid.png, so it shows an error page"; exit 1; }
   echo "screenshot: $uid.png ($(wc -c < "$out/$uid.png") bytes)"
 done

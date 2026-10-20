@@ -74,8 +74,14 @@ jobs:
       TEST_P: ${{ startsWith(inputs.mode, 'gateway-') && '02' || startsWith(inputs.mode, 'obs-') && '03' || '01' }}
       MOCK_PROVIDER: ${{ startsWith(inputs.mode, 'gateway-') && '1' || '' }}  # P2's test-only mock, for the PII test
     steps:
+      # `left` prints the seconds to the deadline, at least 1: `timeout 0` means no limit at all.
       - name: measurement deadline
-        run: echo "MEASURE_UNTIL=$(( $(date +%s) + MEASURE_MINUTES * 60 ))" >> "$GITHUB_ENV"
+        run: |
+          echo "MEASURE_UNTIL=$(( $(date +%s) + MEASURE_MINUTES * 60 ))" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/bin" && echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          # shellcheck disable=SC2016  # the script expands these when it runs, not now
+          printf '%s\n' '#!/bin/bash' 'l=$(( MEASURE_UNTIL - $(date +%s) )); echo $(( l > 0 ? l : 1 ))' > "$RUNNER_TEMP/bin/left"
+          chmod +x "$RUNNER_TEMP/bin/left"
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -131,7 +137,8 @@ jobs:
         run: CONFIG=${{ (inputs.mode == 'gateway-full' || inputs.mode == 'obs-full') && '$FP8' || '' }} make up LAYERS="$LAYERS"
 
       # Each measuring step runs even if an earlier one failed (the run still ends red), and is cut off
-      # at the deadline: `timeout` gets the seconds left (none left = the step fails at once).
+      # at the deadline: `timeout` gets the seconds left from `left` (P3's session 2 on 2026-10-20 got
+      # `timeout 0` on the deadline, so its game day ran on until the job was cancelled).
       - name: make test (P1 smoke tests and autoscaling path, every P2 check, or every P3 check)
         if: ${{ !cancelled() && steps.up.outcome == 'success' }}
         timeout-minutes: 30
@@ -142,26 +149,26 @@ jobs:
       # Printed for the blog's screenshots (no key is printed). Before the benchmark: it takes minutes.
       - name: "gateway-full: demo (a team, its budget, PII masked), printed for screenshots"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'gateway-full' }}
-        run: timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) bash projects/02-llm-gateway/tests/run.sh demo
+        run: timeout -k 30 "$(left)" bash projects/02-llm-gateway/tests/run.sh demo
 
       - name: "gateway-full: gateway overhead (the same load straight to vLLM and through the gateway, 3 rounds)"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'gateway-full' }}
-        run: CONFIG=$FP8 timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) projects/02-llm-gateway/bench/overhead.sh
+        run: CONFIG=$FP8 timeout -k 30 "$(left)" projects/02-llm-gateway/bench/overhead.sh
 
       # Last: it takes vLLM away (KEDA paused at 0 replicas).
       - name: "gateway-full: fallback after vLLM goes away"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'gateway-full' }}
-        run: timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) bash projects/02-llm-gateway/tests/run.sh vllm-down
+        run: timeout -k 30 "$(left)" bash projects/02-llm-gateway/tests/run.sh vllm-down
 
       - name: "gateway-full: demo, 20 calls with vLLM gone"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'gateway-full' }}
-        run: timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) bash projects/02-llm-gateway/tests/run.sh demo vllm-down
+        run: timeout -k 30 "$(left)" bash projects/02-llm-gateway/tests/run.sh demo vllm-down
 
       # The GPU's time in one short block: the check (at most 17 min, and cut at the deadline), then the pool
       # to 0 nodes however the check went. The job's limit (85 min) is past deadline + 10, so it can't land here.
       - name: "obs-shakedown: GPU check (a pause pod asks for one spot GPU; GKE's DCGM GPU metrics in Prometheus)"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'obs-shakedown' }}
-        run: timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) bash projects/03-llm-observability/tests/run.sh gpu-check
+        run: timeout -k 30 "$(left)" bash projects/03-llm-observability/tests/run.sh gpu-check
 
       - name: "obs-shakedown: GPU pool to 0 nodes"
         if: ${{ always() && steps.up.outcome == 'success' && inputs.mode == 'obs-shakedown' }}
@@ -174,21 +181,21 @@ jobs:
       # receiver exists.
       - name: "obs-shakedown: fallback alert end to end (time to alert, at most 15 min)"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'obs-shakedown' }}
-        run: timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) bash projects/03-llm-observability/tests/run.sh fallback-alert
+        run: timeout -k 30 "$(left)" bash projects/03-llm-observability/tests/run.sh fallback-alert
 
       # obs-full's results go to $RUNNER_TEMP/p3/<what>, uploaded together after scale from zero.
       - name: "obs-full: Grafana screenshots of the 3 dashboards under background load (decision 15)"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'obs-full' }}
-        run: OUT="$RUNNER_TEMP/p3/screenshots" timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) projects/03-llm-observability/tests/screenshots.sh
+        run: OUT="$RUNNER_TEMP/p3/screenshots" timeout -k 30 "$(left)" projects/03-llm-observability/tests/screenshots.sh
 
       - name: "obs-full: game day (flood, vLLM killed, hosted model blocked; time to alert)"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'obs-full' }}
-        run: CONFIG=$FP8 OUT="$RUNNER_TEMP/p3/gameday" timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) projects/03-llm-observability/tests/gameday/gameday.sh
+        run: CONFIG=$FP8 OUT="$RUNNER_TEMP/p3/gameday" timeout -k 30 "$(left)" projects/03-llm-observability/tests/gameday/gameday.sh
 
       # After the game day: it needs no other chat-default traffic (the game day's load has stopped).
       - name: "obs-full: scale from zero on the gateway's traffic"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'obs-full' }}
-        run: OUT="$RUNNER_TEMP/p3/scale-from-zero" timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) projects/03-llm-observability/tests/scale_from_zero.sh
+        run: OUT="$RUNNER_TEMP/p3/scale-from-zero" timeout -k 30 "$(left)" projects/03-llm-observability/tests/scale_from_zero.sh
 
       # Text files get the project ID, number and emails taken out first; check the screenshots by eye before a post.
       - name: "obs-full: upload P3's results"
@@ -208,33 +215,33 @@ jobs:
 
       - name: "shakedown: one short benchmark (BF16, chat, concurrency 8)"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'shakedown' }}
-        run: CONFIG=$BF16 SCENARIOS=chat CONCURRENCY=8 timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) make bench
+        run: CONFIG=$BF16 SCENARIOS=chat CONCURRENCY=8 timeout -k 30 "$(left)" make bench
 
       - name: "shakedown: how long the idle GPU node takes to go"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'shakedown' }}
-        run: CONFIG=$BF16 timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) projects/01-gpu-serving/bench/coldstart.sh removal
+        run: CONFIG=$BF16 timeout -k 30 "$(left)" projects/01-gpu-serving/bench/coldstart.sh removal
 
       - name: "full or bf16-bench: BF16 benchmarks"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && (inputs.mode == 'full' || inputs.mode == 'bf16-bench') }}
-        run: CONFIG=$BF16 timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) make bench
+        run: CONFIG=$BF16 timeout -k 30 "$(left)" make bench
 
       - name: "full: FP8 benchmarks"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'full' }}
         run: |
-          CONFIG=$FP8 timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) projects/01-gpu-serving/deploy.sh
-          CONFIG=$FP8 timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) make bench
+          CONFIG=$FP8 timeout -k 30 "$(left)" projects/01-gpu-serving/deploy.sh
+          CONFIG=$FP8 timeout -k 30 "$(left)" make bench
 
       - name: "full: scale-out on queue pressure (FP8)"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'full' }}
-        run: CONFIG=$FP8 timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) projects/01-gpu-serving/bench/scaleout.sh
+        run: CONFIG=$FP8 timeout -k 30 "$(left)" projects/01-gpu-serving/bench/scaleout.sh
 
       # Last: the longest steps, and baseline leaves the deployment on the baseline path.
       - name: "full: 3 optimized and 3 baseline cold starts (BF16)"
         if: ${{ !cancelled() && steps.up.outcome == 'success' && inputs.mode == 'full' }}
         run: |
-          CONFIG=$BF16 timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) projects/01-gpu-serving/deploy.sh
-          CONFIG=$BF16 timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) projects/01-gpu-serving/bench/coldstart.sh optimized 3
-          CONFIG=$BF16 timeout -k 30 $(( MEASURE_UNTIL - $(date +%s) )) projects/01-gpu-serving/bench/coldstart.sh baseline 3
+          CONFIG=$BF16 timeout -k 30 "$(left)" projects/01-gpu-serving/deploy.sh
+          CONFIG=$BF16 timeout -k 30 "$(left)" projects/01-gpu-serving/bench/coldstart.sh optimized 3
+          CONFIG=$BF16 timeout -k 30 "$(left)" projects/01-gpu-serving/bench/coldstart.sh baseline 3
 
       # Raw cluster state for debugging, with the project ID, project number and emails taken out
       # (artifacts are visible to anyone who can see the repo). Bounded, so it can't hold up teardown.
@@ -264,6 +271,10 @@ jobs:
             k logs -n monitoring "$w" --all-containers --tail=200 > "diag/monitoring-${w#*/}-log.txt" 2>&1 || true
           done
           k get prometheusrules,servicemonitors,podmonitors -A > diag/monitoring-objects.txt 2>&1 || true
+          # Every alert the receiver got, so a run cut off mid-game-day keeps its alert times (P3's session 2 didn't).
+          k exec -n monitoring deployment/alert-receiver -- python3 -c \
+            'import urllib.request; print(urllib.request.urlopen("http://127.0.0.1:8080/log").read().decode())' \
+            > diag/alerts.jsonl 2>&1 || true
           # P3's GPU check reads GKE's DCGM exporter: its pod spec (labels, ports, hostNetwork) and any
           # NetworkPolicy in its namespace, in case the scrape failed.
           k get pods -n gke-managed-system -o yaml > diag/gke-managed-system-pods.yaml 2>&1 || true
