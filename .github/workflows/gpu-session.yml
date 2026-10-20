@@ -136,7 +136,7 @@ jobs:
         if: ${{ !cancelled() && steps.up.outcome == 'success' }}
         timeout-minutes: 30
         env:
-          DASHBOARD_METRICS: ${{ inputs.mode == 'obs-full' && 'vllm:' || '' }}  # obs-full proves the vLLM metric names
+          DASHBOARD_METRICS: "${{ inputs.mode == 'obs-full' && 'vllm: DCGM_' || '' }}"  # obs-full proves the vLLM and GPU metric names
         run: make test P="$TEST_P"
 
       # Printed for the blog's screenshots (no key is printed). Before the benchmark: it takes minutes.
