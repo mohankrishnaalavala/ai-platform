@@ -76,7 +76,7 @@ jobs:
   # LiteLLM config and start script and the mock provider in place of vLLM and the hosted model.
   gateway:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25  # two Presidio waits of 8 min, then about 4 min of tests
     defaults:
       run:
         working-directory: projects/02-llm-gateway/tests
@@ -127,19 +127,38 @@ jobs:
           docker run --rm -i "$YQ" '.data["start.sh"]' < "$RUNNER_TEMP/cm.yaml" > "$config/start.sh"
           { echo "SECRETS_DIR=$secrets"; echo "CONFIG_DIR=$config"; echo "MASTER_KEY=$master"; } >> "$GITHUB_ENV"
 
-      # Presidio's anonymizer once hung at start (its worker never booted). In the cluster the startup
-      # probe restarts it; here an unhealthy Presidio container is restarted once, with a warning.
+      # P3's override: the collector also writes every span to a file (test_spans.py), as the runner's user.
+      # Every compose command below uses both files.
+      - name: the span file for P3
+        run: |
+          spans="$RUNNER_TEMP/spans"
+          mkdir "$spans"
+          { echo "SPANS_DIR=$spans"; echo "SPANS_FILE=$spans/spans.jsonl"; echo "SPANS_UID=$(id -u)"
+            echo "COMPOSE_FILE=compose.yaml:../../03-llm-observability/tests/compose.spans.yaml"; } >> "$GITHUB_ENV"
+
+      # Presidio's analyzer and anonymizer each hang at start now and then (the health check never answers;
+      # 2 of 3 runs on 2026-10-20). Both are usually healthy in about 70 s, so wait 8 min, print a hung
+      # container's last log lines (the cause is still unknown), restart it once and wait 8 min more. In the
+      # cluster the startup probe does the restart. The job's time limit fits both waits.
       - name: start the gateway
         run: |
-          docker compose up -d --wait --wait-timeout 900 && exit 0
+          docker compose up -d --wait --wait-timeout 480 && exit 0
           for s in presidio-analyzer presidio-anonymizer; do
             health=$(docker compose ps "$s" --format '{{.Health}}')
-            [ "$health" = healthy ] || { echo "::warning::$s was $health; restarting it once"; docker compose restart "$s"; }
+            [ "$health" = healthy ] && continue
+            echo "::warning::$s was $health; its last log lines, then one restart"
+            docker compose logs --no-color --timestamps --tail 40 "$s"
+            docker compose restart "$s"
           done
-          docker compose up -d --wait --wait-timeout 900
+          docker compose up -d --wait --wait-timeout 480
 
       - name: smoke, budget, rate limit, keys, PII on the hosted route
         run: python3 -m unittest discover -s . -v
+
+      # The span names and attributes P3's metrics, alerts and scale-from-zero trigger are built on. Its fallback
+      # request is the first after the mock vLLM stops, so it also checks that one comes within the 30 s timeout.
+      - name: "P3: the span contract (LiteLLM's trace fields; stops the mock vLLM for the next step)"
+        run: python3 -m unittest discover -s ../../03-llm-observability/tests -p test_spans.py -v
 
       - name: fallback, and PII on the fallback (the mock vLLM stopped)
         run: |

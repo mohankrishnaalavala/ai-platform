@@ -6,7 +6,7 @@ Every workflow pins actions by commit SHA. Workflows that touch GCP log in with 
 
 | File | Trigger | Built in |
 |---|---|---|
-| `ci.yml` | pull_request to main: Terraform fmt/validate, tflint, shellcheck, ruff, unit tests, actionlint, Trivy config scan. No cloud login | P0 |
+| `ci.yml` | pull_request to main: Terraform fmt/validate, tflint, shellcheck, ruff, unit tests, actionlint, Trivy config scan. Job `gateway`: the gateway in containers (LiteLLM, Postgres, Presidio, the OTel Collector, mocks for vLLM and the hosted model), every P2 test, and P3's span contract (`projects/03-llm-observability/tests/test_spans.py`: the trace fields P3's metrics are built on). No cloud login | P0 → P3 |
 | `mirror.yml` | workflow_dispatch (`config`, default the BF16 model config), as the `mirror` service account: copies the pinned vLLM image (amd64) from Docker Hub into Artifact Registry with `crane copy`, and the model weights from Hugging Face into the models bucket one file at a time. Re-runs skip files already copied | P1 |
 | `claude-review.yml` | pull_request | later |
 | `foundation.yml` | workflow_dispatch from main (plan + apply `infra/foundation/`) | P0 |
