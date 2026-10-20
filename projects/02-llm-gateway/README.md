@@ -27,11 +27,11 @@ Every number below comes from a file in [`results/`](results/).
 
 | Measure | Value | Source |
 |---|---|---|
-| Gateway added time to first token, p50 / p95, 10 concurrent | +123 / +756 ms. Session 4, round 3 of 3; the run is INVALID under its own rule (3 fallbacks in rounds 1–2); published by user decision | [session 4](results/session4-gateway-full-2026-10-19.md) |
-| Gateway added time to first token, p50 / p95, 50 concurrent | +6496 / +8802 ms. Same round, same disclosure | [session 4](results/session4-gateway-full-2026-10-19.md) |
+| Gateway added time to first token, p50 / p95, 10 concurrent | +123 / +756 ms. Session 4, round 3 of 3; the run is INVALID under its own rule (3 fallbacks in rounds 1–2); published by user decision; all 3 rounds in the results file | [session 4](results/session4-gateway-full-2026-10-19.md) |
+| Gateway added time to first token, p50 / p95, 50 concurrent | +6496 / +8802 ms. Same round, same disclosure; all 3 rounds in the results file | [session 4](results/session4-gateway-full-2026-10-19.md) |
 | Gateway added end-to-end time | [X]: the output token counts differ between the two halves | [session 4](results/session4-gateway-full-2026-10-19.md) |
 | Requests that succeeded while vLLM was down | 22 of 22 (100%). The first plain call took 31,108 ms (the 30 s timeout); the next 10 plain calls 706–1,059 ms; streaming calls 700–1,135 ms. vLLM itself answered in 250 ms | [session 4](results/session4-gateway-full-2026-10-19.md) |
-| Raw PII that reached the provider (20 fake-PII prompts, plain and streaming) | 0: card 0/16, email 0/20, phone 0/20; 0 on the fallback route too (card 0/8, email 0/10, phone 0/10) | [session 4](results/session4-gateway-full-2026-10-19.md), [CI](results/ci-gateway-2026-10-18.md) |
+| Raw PII that reached the provider (20 fake-PII prompts, plain and streaming) | 0: card 0/16, email 0/20, phone 0/20; 0 on the fallback route too (CI: card 0/8, email 0/10, phone 0/10) | [session 4](results/session4-gateway-full-2026-10-19.md), [CI](results/ci-gateway-2026-10-18.md) |
 | Raw PII in the gateway's logs, traces and spend logs | 0: card 0/8, email 0/10, phone 0/10 | [session 4](results/session4-gateway-full-2026-10-19.md) |
 | Time to onboard a new team (`make team`) | 4.8 s end to end; 3.6 s and 3.7 s in the demo; 3.9 s in session 1. The gateway calls take 0.5–0.6 s | [session 4](results/session4-gateway-full-2026-10-19.md), [session 1](results/session1-shakedown-2026-10-18.md) |
 | Budget | A $0.00001 team: [200, 200, 200, 429]. A $0.0001 team: [200, 200, 429], "Budget has been exceeded!" | [session 4](results/session4-gateway-full-2026-10-19.md) |
@@ -54,7 +54,7 @@ Source: [`results/overhead/20261019t2338z/`](results/overhead/20261019t2338z/), 
   - About +6.5 s to the median time to first token.
   - Output throughput is halved.
   - Tokens arrive in bursts.
-  - Some requests wait past the 10 s stream timeout for a first token and fall back. That's likely the source of the 3 fallbacks.
+  - Some requests wait past the 10 s stream timeout for a first token and fall back. That's likely the source of the 3 fallbacks. Round 3 waited over 10 s at p99 with no fallback, so this isn't settled.
   - The cause isn't proven. It's likely a CPU limit in the gateway path: LiteLLM's one process, Presidio analyzing every prompt, or the shared node.
 
 ### Fallback

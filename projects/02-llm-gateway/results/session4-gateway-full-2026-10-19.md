@@ -10,7 +10,7 @@
 **Outcome:**
 - **Valid:** every P2 check passed. The demo ran in full. vLLM answered first, then the fallback worked, and 20 more calls with vLLM gone all succeeded.
 - **INVALID:** the overhead benchmark (P2-08), under the rule set before the run. `overhead.sh` counted 3 requests that fell back to the hosted model during the gateway runs, and its rule makes any fallback INVALID. This time they are real fallbacks, answered by Gemini: 2 in round 1, 1 in round 2, none in round 3.
-- **Published by user decision:** round 3's overhead only. After the run (2026-10-19), the user chose to publish it. It's the one round with no fallback, so no Gemini answer is in its timings, which is what the rule protects. Rounds 1 and 2 stay reference only. The 10-concurrent rows of all rounds can't be used either, because which concurrency the 3 fallbacks happened at wasn't recorded.
+- **Published by user decision:** round 3's overhead only. After the run (2026-10-19), the user chose to publish it. It's the one round with no fallback, so no Gemini answer is in its timings, which is what the rule protects. Rounds 1 and 2 stay reference only. The 10-concurrent rows of rounds 1 and 2 can't be used either, because which concurrency the 3 fallbacks happened at wasn't recorded.
 
 Every line quoted below is saved in [`overhead/20261019t2338z/session-log-excerpt.txt`](overhead/20261019t2338z/session-log-excerpt.txt). Team IDs, the project ID and anything key-like are replaced there. GitHub keeps the full log for 90 days.
 
@@ -156,7 +156,7 @@ TTFT: time to first token. ITL: inter-token latency. TPOT: time per output token
   - TTFT p99 through the gateway was 13.6–17.4 s, against about 4 s straight to vLLM.
   - Output throughput fell to 334–343 tokens/s, against 654–658 straight.
   - ITL p50 is 0.008 ms: tokens arrive in bursts, not one by one.
-  - Requests that wait more than the 10 s `stream_timeout` for a first token fall back to Gemini. That's the likely source of the 3 fallbacks, but not proven.
+  - Requests that wait more than the 10 s `stream_timeout` for a first token fall back to Gemini. That's the likely source of the 3 fallbacks, but not proven. Round 3 waited over 10 s at p99 with no fallback, so this isn't settled.
 - **Likely cause: a CPU limit somewhere in the gateway path.** Not proven which part.
   - Right after each gateway run, `kubectl top` showed LiteLLM at 681–704m CPU (one Python process).
   - Right after the same runs, the Presidio analyzer showed 125–182m. It analyzes every prompt, and it showed 407m in session 3.
