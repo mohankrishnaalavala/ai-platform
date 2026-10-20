@@ -44,8 +44,9 @@ class CostPerTeamTest(unittest.TestCase):
         logs, seen = spend_logs(), traces()
         print(f"\nspend logs per team: {logs}\ncost per team from traces: {seen}")
         if not same(logs, seen):  # every spend-log row: is a team's row missing, or there without its team?
-            print(psql('select team_id is not null, metadata->>\'user_api_key_team_alias\', spend, call_type, status '
-                       'from "LiteLLM_SpendLogs" order by "startTime"'))
+            print("team_id | team alias | key alias | spend | status")
+            print(psql('select quote_literal(coalesce(team_id, \'null\')), metadata->>\'user_api_key_team_alias\', '
+                       'metadata->>\'user_api_key_alias\', spend, status from "LiteLLM_SpendLogs" order by "startTime"'))
         self.assertTrue(logs, "no team spent anything")
         self.assertTrue(same(logs, seen), "traces and spend logs disagree")
 
