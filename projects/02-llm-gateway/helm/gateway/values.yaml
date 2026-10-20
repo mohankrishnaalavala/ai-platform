@@ -72,6 +72,11 @@ config:
         model: vertex_ai/gemini-3.5-flash-lite
         vertex_project: os.environ/VERTEX_PROJECT
         vertex_location: global
+        # Without these LiteLLM waits 6000 s, so a hung Vertex AI would hold requests for 100 minutes
+        # instead of failing visibly (found while building P3's game day). A stream must start within
+        # 10 s, as on chat-default; a whole answer may take 60 s, so long Gemini answers aren't cut off.
+        timeout: 60
+        stream_timeout: 10
   # Mask personal data in every request, not only the hosted route: a request that falls back from
   # chat-default to chat-hosted skips a guardrail scoped to chat-hosted (results/spike-2026-10-18.md).
   # The types are listed on purpose: with an explicit list, LiteLLM refuses a request when Presidio

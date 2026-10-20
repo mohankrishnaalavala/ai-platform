@@ -17,3 +17,5 @@ config:
         model: openai/hosted
         api_base: http://mock-hosted:8000/v1
         api_key: unused
+        timeout: 60  # the same timeouts as values.yaml; CI checks they match
+        stream_timeout: 10
