@@ -1,0 +1,17 @@
+# Values for the Tempo chart (grafana-community, single binary; pinned in deploy.sh). Traces stay in
+# memory and on a scratch volume (emptyDir, at most 2 GiB) that goes with the pod: they last one session. The OTel Collector sends
+# the gateway's traces over OTLP (port 4318); the chart's Jaeger ports stay too (its templates need them),
+# inside the cluster only. Grafana reads Tempo on port 3200. owner and session labels come from deploy.sh.
+tempo:
+  reportingEnabled: false  # no usage reports to Grafana Labs
+  resources:
+    requests: {cpu: 200m, memory: 512Mi}
+    limits: {memory: 512Mi}
+  extraVolumeMounts:
+    - name: data
+      mountPath: /var/tempo  # traces and the write-ahead log
+extraVolumes:
+  - name: data
+    emptyDir: {sizeLimit: 2Gi}  # the chart adds no volume without persistence, and leaves the node disk uncapped
+extraLabels: {app: ai-platform, layer: "03"}
+podLabels: {app: ai-platform, layer: "03"}

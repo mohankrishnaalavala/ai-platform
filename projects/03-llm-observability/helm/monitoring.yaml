@@ -1,0 +1,133 @@
+# P3's values on top of P1's (projects/01-gpu-serving/helm/prometheus.yaml): the same kube-prometheus-stack
+# release, so P1's KEDA keeps its Prometheus, now with Grafana, Alertmanager and kube-state-metrics.
+# - No disks: everything lasts one session, like P1's Prometheus.
+# - The charts create no Secret: Grafana has no admin user (anonymous viewers only), and the operator builds
+#   Alertmanager's config from the AlertmanagerConfig below. (The operator and Helm keep their own.)
+# - No service account here can read Secrets: Grafana gets a Role for ConfigMaps in this namespace only,
+#   and kube-state-metrics doesn't collect Secrets.
+# - Reached only by kubectl port-forward: every Service stays ClusterIP.
+# - Requests and limits on every pod, since all of them share the one system node (starting points; the
+#   session measures real use).
+# commonLabels stay P1's (layer 01): it is one release. P3's own pods add layer 03. deploy.sh adds owner
+# and session.
+
+prometheusOperator:
+  resources:
+    requests: {cpu: 50m, memory: 64Mi}
+    limits: {memory: 128Mi}
+  prometheusConfigReloader:  # the side container in the Prometheus and Alertmanager pods
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {memory: 64Mi}
+
+prometheus:
+  prometheusSpec:
+    resources:
+      requests: {cpu: 250m, memory: 1Gi}
+      limits: {memory: 1Gi}
+
+alertmanager:
+  enabled: true
+  serviceMonitor:
+    selfMonitor: false
+  alertmanagerSpec:
+    podMetadata:
+      labels: {app: ai-platform, layer: "03"}
+    useExistingSecret: true  # the chart makes no config Secret ...
+    alertmanagerConfiguration:
+      name: platform  # ... the operator builds the config from this resource (extraManifests)
+    resources:
+      requests: {cpu: 50m, memory: 64Mi}
+      limits: {memory: 128Mi}
+
+grafana:
+  enabled: true
+  defaultDashboardsEnabled: false  # they need node-exporter and kubelet metrics, which are off
+  testFramework:
+    enabled: false
+  extraLabels: {app: ai-platform, layer: "03"}  # also on the pod
+  # The chart's own role lets Grafana read every Secret in the cluster; it gets the Role below instead.
+  rbac:
+    create: false
+  env:
+    GF_SECURITY_DISABLE_INITIAL_ADMIN_CREATION: "true"  # no admin user, so the chart renders no Secret
+  grafana.ini:
+    auth:
+      disable_login_form: true
+    auth.anonymous:
+      enabled: true
+      org_role: Viewer
+    analytics:
+      reporting_enabled: false
+      check_for_updates: false
+      check_for_plugin_updates: false
+  # Prometheus is added by the chart's datasource sidecar; Tempo (tempo.yaml) is the second source.
+  additionalDataSources:
+    - name: Tempo
+      type: tempo
+      uid: tempo
+      url: http://tempo.monitoring:3200
+      access: proxy
+      editable: false
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 256Mi}
+  # The sidecars copy dashboards and data sources from ConfigMaps. With no admin user they can't call
+  # Grafana's reload API, so data sources load before Grafana starts, and Grafana rereads dashboard files.
+  sidecar:
+    resources:
+      requests: {cpu: 50m, memory: 64Mi}
+      limits: {memory: 128Mi}
+    dashboards:
+      resource: configmap
+      skipReload: true
+      searchNamespace: monitoring  # kube-prometheus-stack sets ALL, which the Role below doesn't allow
+    datasources:
+      resource: configmap
+      skipReload: true
+      initDatasources: true
+
+kubeStateMetrics:
+  enabled: true
+kube-state-metrics:
+  customLabels: {app: ai-platform, layer: "03"}
+  collectorsExclude: [secrets]  # and so no permission to read them
+  resources:
+    requests: {cpu: 50m, memory: 64Mi}
+    limits: {memory: 128Mi}
+
+extraManifests:
+  # Grafana's sidecars may read ConfigMaps in this namespace, nothing else.
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: Role
+    metadata:
+      name: grafana-configmaps
+      labels: &p3 {app: ai-platform, layer: "03", owner: "{{ .Values.commonLabels.owner }}", session: "{{ .Values.commonLabels.session }}"}
+    rules:
+      - apiGroups: [""]
+        resources: [configmaps]
+        verbs: [get, list, watch]
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      name: grafana-configmaps
+      labels: *p3
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: Role
+      name: grafana-configmaps
+    subjects:
+      - kind: ServiceAccount
+        name: prometheus-grafana
+        namespace: "{{ .Release.Namespace }}"
+  # Alertmanager's whole config. Alerts go nowhere until P3-06 adds the webhook recorder as the receiver.
+  - apiVersion: monitoring.coreos.com/v1alpha1
+    kind: AlertmanagerConfig
+    metadata:
+      name: platform
+      labels: *p3
+    spec:
+      route:
+        receiver: "null"
+      receivers:
+        - name: "null"

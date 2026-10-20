@@ -45,6 +45,10 @@ prometheusOperator:
     selfMonitor: false
 
 prometheus:
+  serviceAccount:
+    # The chart's default makes a never-expiring token Secret for control-plane ServiceMonitors, which are
+    # all off above. Nothing uses it, so don't make it.
+    createTokenSecret: false
   serviceMonitor:
     selfMonitor: false
   prometheusSpec:
