@@ -17,7 +17,7 @@ trap 'kill ${pids[@]+"${pids[@]}"} 2>/dev/null || true' EXIT
 forward() { kubectl port-forward -n "$1" "svc/$2" "$3" >/dev/null & pids+=($!); }
 export GATEWAY_URL=http://127.0.0.1:14300 GRAFANA_URL=http://127.0.0.1:13000 PROMETHEUS_URL=http://127.0.0.1:19090 \
   TEMPO_URL=http://127.0.0.1:13200
-receiver=alert-receiver  # P3-06's webhook recorder: Service alert-receiver:8080 in monitoring, GET /log
+receiver=alert-receiver  # P3-06's webhook recorder: alert-receiver.monitoring:8080, GET /log (one JSON line per alert)
 
 if [ "${1:-}" = gpu-start ]; then
   project=$(gcloud config get project 2>/dev/null)

@@ -31,10 +31,16 @@ def new_team(tag):
 
 
 def alerts():
-    """Every alert in the receiver's log (one Alertmanager webhook body per line)."""
+    """Every alert in the receiver's log: one JSON line per alert, with received_at (unix s), status,
+    alertname, labels and startsAt (P3-06's alert receiver)."""
     with urllib.request.urlopen(RECEIVER + "/log", timeout=10) as r:
-        lines = r.read().decode().splitlines()
-    return [a for line in lines if line.strip() for a in json.loads(line).get("alerts", [])]
+        return [json.loads(line) for line in r.read().decode().splitlines() if line.strip()]
+
+
+def fallback_alert(log, since):
+    """The first firing fallback alert the receiver got at or after `since` (unix s)."""
+    return next((a for a in log if "fallback" in a.get("alertname", "").lower()
+                 and a.get("status") == "firing" and a.get("received_at", 0) >= since), None)
 
 
 @unittest.skipUnless(GRAFANA and PROMETHEUS and TEMPO and URL and MASTER, "needs a session (run.sh)")
@@ -84,20 +90,29 @@ class SessionTest(unittest.TestCase):
 class FallbackAlertTest(unittest.TestCase):
     def test_the_fallback_alert_fires(self):
         _, key = new_team("fallback-alert")
-        start, sent, fired = time.monotonic(), 0, None
-        while time.monotonic() - start < ALERT_WAIT_S:
+        start, sent, fired = time.time(), 0, None
+        while time.time() - start < ALERT_WAIT_S:
             chat(key, "chat-default", "Reply with the single word: ok")
             sent += 1
-            if sent % 5 == 0:  # look every ~10 s
-                fired = next((a for a in alerts() if "fallback" in a.get("labels", {}).get("alertname", "").lower()
-                              and a.get("status") == "firing"), None)
-                if fired:
-                    break
+            if sent % 5 == 0 and (fired := fallback_alert(alerts(), start)):  # look every ~10 s
+                break
             time.sleep(2)
-        took = time.monotonic() - start
-        print(f"\nfallback alert: {'fired' if fired else 'did not fire'} after {took:.0f} s ({sent} requests, "
-              f"one every 2 s); alertname {fired and fired['labels']['alertname']}, startsAt {fired and fired.get('startsAt')}")
+        took = (fired["received_at"] if fired else time.time()) - start
+        print(f"\nfallback alert: {'reached the receiver' if fired else 'did not fire'} {took:.0f} s after the first "
+              f"request ({sent} requests, one every 2 s); alertname {fired and fired['alertname']}, "
+              f"startsAt {fired and fired.get('startsAt')}")
         self.assertTrue(fired)
+
+
+class FallbackAlertMatchTest(unittest.TestCase):
+    """fallback_alert() against the receiver's agreed log format; runs anywhere."""
+    def test_only_a_firing_fallback_alert_after_the_start_counts(self):
+        log = [{"received_at": 100.0, "status": "firing", "alertname": "ChatDefaultFallbackHigh", "startsAt": "early"},
+               {"received_at": 201.0, "status": "resolved", "alertname": "ChatDefaultFallbackHigh", "startsAt": "a"},
+               {"received_at": 202.0, "status": "firing", "alertname": "GatewayAvailabilityBurn", "startsAt": "b"},
+               {"received_at": 203.0, "status": "firing", "alertname": "chatdefaultfallbackhigh", "startsAt": "c"}]
+        self.assertEqual(fallback_alert(log, 200.0)["startsAt"], "c")
+        self.assertIsNone(fallback_alert(log[:3], 200.0))
 
 
 if __name__ == "__main__":
