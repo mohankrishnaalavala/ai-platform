@@ -26,6 +26,7 @@ Record every pinned version here when you add it (Terraform providers, GKE versi
 | Tempo (Helm chart, single binary) | `tempo` 3.1.0 (2026-09-30; Tempo 3.1.0, AGPL-3.0; chart Apache-2.0) from `https://grafana-community.github.io/helm-charts` (the chart moved there from `grafana/helm-charts`) | `projects/03-llm-observability/deploy.sh`, `tests/charts.sh` | 2026-10-20 |
 | Tempo and Prometheus in CI (images) | `grafana/tempo:3.1.0@sha256:3076b8dc…`, `quay.io/prometheus/prometheus:v3.15.0-distroless@sha256:b2a413d5…` (the versions the charts run) | `projects/03-llm-observability/tests/compose.p3.yaml` | 2026-10-20 |
 | OpenTelemetry Collector contrib (image, for `validate`) | `otel/opentelemetry-collector-contrib:0.161.0@sha256:fd328de2…` (P2's pin; `span_metrics` connector alpha) | `projects/03-llm-observability/tests/charts.sh` | 2026-10-20 |
+| promtool (in the Prometheus image) | `prom/prometheus:v3.15.0@sha256:efd719c9…` (the version the cluster runs) | `projects/03-llm-observability/tests/charts.sh` | 2026-10-20 |
 | KEDA (Helm chart) | 2.21.0 (2026-09-23; supports Kubernetes 1.34–1.36) | `projects/01-gpu-serving/deploy.sh`, `tests/charts.sh` | 2026-10-16 |
 | CRDs-catalog (schemas for kubeconform) | commit `d373c2da…` (2026-09-29) | `projects/0{1,2,3}-*/tests/charts.sh` | 2026-10-16 |
 | `actions/upload-artifact` | v7.0.1 (`043fb46d…`, 2026-04-10; v7.0.2 was 9 days old) | `gpu-session.yml` | 2026-10-16 |

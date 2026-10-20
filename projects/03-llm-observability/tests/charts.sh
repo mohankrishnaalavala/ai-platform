@@ -10,6 +10,7 @@ cd "$(dirname "$0")/.."
 kubeconform=ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43f95aa6425306e1ab8d6fcad72acb9049158f38e574c085ea1ec0f64e
 yq=mikefarah/yq:4.54.1@sha256:4b3d9475d65571d28cbb19544d3820ec2945e4c8b2f18279394282b8dc3a592e
 otelcol=otel/opentelemetry-collector-contrib:0.161.0@sha256:fd328de2552466ad78385e1b1289c3f2402b1c45f265b252aab1955b42845ac1
+promtool=prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
 collector=(opentelemetry-collector --repo https://open-telemetry.github.io/opentelemetry-helm-charts --version 0.174.2
            -n gateway -f ../02-llm-gateway/helm/otel-collector.yaml -f helm/otel-collector.yaml)
 # Schemas for the custom resources (Prometheus, Alertmanager, AlertmanagerConfig, ServiceMonitor), pinned to a commit.
@@ -31,6 +32,16 @@ trap 'rm -rf "$out" "$cfg"' EXIT
 helm template otel-collector "${collector[@]}" --show-only templates/configmap.yaml \
   | docker run --rm -i "$yq" '.data.relay' > "$cfg/relay.yaml"
 docker run --rm --user "$(id -u)" -e MY_POD_IP=0.0.0.0 -v "$cfg:/cfg:ro" "$otelcol" validate --config=/cfg/relay.yaml
+
+# Every dashboard query must parse: wrap each as a recording rule and let promtool check them.
+python3 - dashboards > "$cfg/dashboard-rules.yaml" <<'EOF'
+import json, pathlib, sys
+exprs = [(p.stem, t["expr"]) for p in sorted(pathlib.Path(sys.argv[1]).glob("*.json"))
+         for panel in json.loads(p.read_text())["panels"] for t in panel["targets"]]
+rules = [{"record": f"dashboard:{stem.replace('-', '_')}_{i}", "expr": e} for i, (stem, e) in enumerate(exprs)]
+print(json.dumps({"groups": [{"name": "dashboards", "rules": rules}]}))  # JSON is YAML too
+EOF
+docker run --rm --user "$(id -u)" --entrypoint /bin/promtool -v "$cfg:/cfg:ro" "$promtool" check rules /cfg/dashboard-rules.yaml
 
 docker run --rm -i "$kubeconform" -strict -kubernetes-version 1.36.0 -schema-location default -schema-location "$crds" -summary - < "$out"
 if grep -nE 'type: (LoadBalancer|NodePort|ExternalName)|kind: (Ingress|PersistentVolumeClaim|Secret)$|hostNetwork: true|hostPort: [0-9]|hostPath:' "$out"; then

@@ -1,0 +1,196 @@
+{
+  "uid": "p3-gateway",
+  "title": "P3 · LLM gateway",
+  "description": "From the gateway's traces (the OTel Collector's span metrics). A request is a SERVER span; each try at a model is a litellm_request span.",
+  "tags": [
+    "ai-platform",
+    "p3"
+  ],
+  "editable": false,
+  "schemaVersion": 39,
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "refresh": "30s",
+  "timezone": "utc",
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Model tries by team and model",
+      "description": "Tries per second. A fallback counts twice: the failed chat-default try and the chat-hosted one.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (metadata_user_api_key_team_alias, litellm_model_group) (rate(traces_span_metrics_calls_total{span_name=\"litellm_request\"}[5m]))",
+          "legendFormat": "{{metadata_user_api_key_team_alias}} · {{litellm_model_group}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Errors (5xx share of requests)",
+      "description": "The availability SLI: 429 (budget, rate limit) and 401 don't count as errors.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(sum(rate(traces_span_metrics_calls_total{span_name=\"Received Proxy Server Request\",http_response_status_code=~\"5..\"}[5m])) or vector(0)) / sum(rate(traces_span_metrics_calls_total{span_name=\"Received Proxy Server Request\"}[5m]))",
+          "legendFormat": "5xx share"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Fallbacks (failed chat-default tries)",
+      "description": "Share of chat-default tries that failed and went to the hosted model. The fallback alert watches this.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(sum(rate(traces_span_metrics_calls_total{span_name=\"litellm_request\",litellm_model_group=\"chat-default\",status_code=\"STATUS_CODE_ERROR\"}[5m])) or vector(0)) / sum(rate(traces_span_metrics_calls_total{span_name=\"litellm_request\",litellm_model_group=\"chat-default\"}[5m]))",
+          "legendFormat": "fallback share"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Request duration (end to end)",
+      "description": "The whole request through the gateway; a streamed answer counts until its last token.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(traces_span_metrics_duration_seconds_bucket{span_name=\"Received Proxy Server Request\"}[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(traces_span_metrics_duration_seconds_bucket{span_name=\"Received Proxy Server Request\"}[5m])))",
+          "legendFormat": "p95"
+        }
+      ]
+    }
+  ]
+}
