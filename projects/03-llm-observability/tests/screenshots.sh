@@ -22,6 +22,6 @@ for f in "$here"/../dashboards/*.json; do
   # --no-sandbox: Ubuntu 24.04 runners block the user namespaces Chrome's sandbox needs; the page is our own.
   "$chrome" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --window-size=1600,1200 \
     --virtual-time-budget=20000 --screenshot="$out/$uid.png" \
-    "http://127.0.0.1:13000/d/$uid?orgId=1&kiosk&from=now-15m&to=now" 2>/dev/null
+    "http://127.0.0.1:13000/d/$uid?orgId=1&kiosk&from=now-15m&to=now" >> "$out/chrome.txt" 2>&1
   echo "screenshot: $uid.png ($(wc -c < "$out/$uid.png") bytes)"
 done
