@@ -31,6 +31,12 @@ helm upgrade --install prometheus oci://ghcr.io/prometheus-community/charts/kube
   --set-string alertmanager.alertmanagerSpec.podMetadata.labels.session="$session" \
   --set-string kube-state-metrics.customLabels.owner="$owner" --set-string kube-state-metrics.customLabels.session="$session" \
   --wait --timeout 10m
+# The dashboards, from Git: one ConfigMap per file, which Grafana's sidecar loads (label grafana_dashboard).
+for f in "$here"/dashboards/*.json; do
+  kubectl create configmap "dashboard-$(basename "$f" .json)" -n monitoring --from-file="$f" --dry-run=client -o yaml \
+    | kubectl label --local -f - grafana_dashboard=1 app=ai-platform layer=03 owner="$owner" session="$session" -o yaml \
+    | kubectl apply -f -
+done
 helm upgrade --install tempo tempo --repo https://grafana-community.github.io/helm-charts --version 3.1.0 \
   -n monitoring -f "$here/helm/tempo.yaml" \
   --set-string extraLabels.owner="$owner" --set-string extraLabels.session="$session" \
