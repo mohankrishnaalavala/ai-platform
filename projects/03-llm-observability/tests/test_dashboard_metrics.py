@@ -1,8 +1,8 @@
 """Every metric name the dashboards and the rule files (slos/*.rules.yaml) use, among those starting with
-DASHBOARD_METRICS (for example "vllm:" or "DCGM_"), has at least one series in Prometheus. CI has neither
-vLLM nor a GPU, so sessions prove these names: DCGM_ in session 1's GPU check, vllm: in session 2.
+DASHBOARD_METRICS (space-separated prefixes, for example "vllm: DCGM_"), has at least one series in Prometheus.
+CI has neither vLLM nor a GPU, so session 2 proves these names, with vLLM serving on a GPU node.
 Run against a port-forwarded Prometheus:
-  PROMETHEUS_URL=http://127.0.0.1:19090 DASHBOARD_METRICS=DCGM_ python3 -m unittest test_dashboard_metrics
+  PROMETHEUS_URL=http://127.0.0.1:19090 DASHBOARD_METRICS="vllm: DCGM_" python3 -m unittest test_dashboard_metrics
 Skipped unless PROMETHEUS_URL and DASHBOARD_METRICS are set.
 """
 import os
@@ -12,7 +12,7 @@ import unittest
 from test_dashboards import DASHBOARDS, load, targets
 from test_metrics import PROMETHEUS, query, until
 
-PREFIX = os.environ.get("DASHBOARD_METRICS", "")
+PREFIX = tuple(os.environ.get("DASHBOARD_METRICS", "").split())
 
 
 def metric_names(prefix):

@@ -88,7 +88,7 @@ if [ "${1:-}" = fallback-alert ]; then
   exit
 fi
 
-# DASHBOARD_METRICS (e.g. vllm: in session 2) also checks those dashboard and rule metrics have series.
+# DASHBOARD_METRICS (vllm: DCGM_ in session 2) also checks those dashboard and rule metrics have series.
 if python3 -m unittest -v test_session.SessionTest ${DASHBOARD_METRICS:+test_dashboard_metrics}; then
   echo "PASS: P3 session checks"
 else

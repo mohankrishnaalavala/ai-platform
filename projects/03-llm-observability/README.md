@@ -15,7 +15,7 @@ Traces, the right metrics, SLOs (service level objectives) with burn-rate alerts
     - Grafana has no admin user. Anyone who reaches it is an anonymous viewer.
     - Alertmanager's config comes from an `AlertmanagerConfig` resource. Every alert goes to the alert receiver (below).
   - **Nothing here can read Secrets:** Grafana may read ConfigMaps in its own namespace only, and kube-state-metrics doesn't collect Secrets.
-- **GPU metrics:** read from the NVIDIA DCGM exporter GKE already runs on GPU nodes, so P3 runs no exporter of its own. It's selected by pod name and an assumed port, because its labels aren't documented. Not proven yet: session 1 checks it.
+- **GPU metrics:** read from the NVIDIA DCGM exporter GKE already runs on GPU nodes, so P3 runs no exporter of its own. It's selected by pod name and port 9400, because its labels aren't documented. Session 1 proved the scrape: one `DCGM_FI_DEV_GPU_UTIL` series reached Prometheus ([`results/session1-obs-shakedown-2026-10-20.md`](results/session1-obs-shakedown-2026-10-20.md)).
 - **Traces:** Tempo, a single binary with no disk: a scratch volume of at most 2 GiB goes with the pod ([`helm/tempo.yaml`](helm/tempo.yaml)). Grafana reads it as a second data source.
 - **The collector:** P2's OpenTelemetry Collector, upgraded with P3's values ([`helm/otel-collector.yaml`](helm/otel-collector.yaml)).
   - It sends the gateway's traces on to Tempo.
@@ -37,7 +37,7 @@ Traces, the right metrics, SLOs (service level objectives) with burn-rate alerts
 - **Alert timing settings** (all part of time-to-alert): rules are evaluated every 30 s. Alertmanager groups by alert name and severity, so each alert has its own group, with `group_wait` 10 s, `group_interval` 1 min and `repeat_interval` 4 h. No alert fires all the time: there is no Watchdog, and the promtool tests check every alert is quiet with healthy traffic and with none.
 - **Dashboards** ([`dashboards/`](dashboards/)), JSON in Git that `deploy.sh` loads as ConfigMaps for Grafana:
   - **Model serving:** time to first token, inter-token latency, tokens per second, queue, KV cache, and GPU use and memory used.
-    - The vLLM metric names come from vLLM's metrics code for v0.30.0, and the GPU names from GKE's managed DCGM list. Not proven yet: session 1 checks the GPU names and session 2 the vLLM ones, with [`tests/test_dashboard_metrics.py`](tests/test_dashboard_metrics.py).
+    - The vLLM metric names come from vLLM's metrics code for v0.30.0, and the GPU names from GKE's managed DCGM list. Session 1 proved `DCGM_FI_DEV_GPU_UTIL`. Session 2 checks the rest of the GPU names and the vLLM ones, with [`tests/test_dashboard_metrics.py`](tests/test_dashboard_metrics.py).
   - **Gateway:** model tries by team and model, the 5xx share, the fallback share, and request duration.
   - **Cost:** dollars per team over the last 24 hours, spend per hour by model, and cost per 1M output tokens, self-hosted against hosted.
 - **Cost per team** (P3-05), from the traces, so it needs no database access:
