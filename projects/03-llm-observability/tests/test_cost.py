@@ -1,8 +1,12 @@
 """Cost per team (P3-05): the collector's sum connector adds up each model try's cost from the gateway's
-traces (llm_cost_by_team_total, helm/otel-collector.yaml). For every team, it must equal what LiteLLM's
-spend logs in Postgres say the team spent, the numbers team budgets use. In CI, chat-default costs
-$0.00000075 per output token and the mock always returns 10 output tokens; the mock hosted model has no
-price.
+traces (llm_cost_by_team_total, helm/otel-collector.yaml). For every team, it must equal the team's
+running spend in LiteLLM's team table in Postgres, the number team budgets are checked against. In CI,
+chat-default costs $0.00000075 per output token and the mock always returns 10 output tokens; the mock
+hosted model has no price.
+
+It compares with the team table, not the spend logs. In this CI stack LiteLLM writes no spend-log row for
+a team key's streamed call, though the team's spend counts it (CI runs on PR #52, 2026-10-20; a stack
+without Presidio logs it). So the spend logs are printed for reference only.
 Runs in ci.yml's gateway job after test_metrics.py. Skipped unless SPANS_FILE, TEMPO_URL and PROMETHEUS_URL
 are set.
 """
@@ -12,17 +16,15 @@ import unittest
 from test_metrics import PROMETHEUS, SPANS_FILE, TEMPO, query, until
 from test_spans import P2_TESTS
 
-SPEND = ('select t.team_alias, sum(s.spend) from "LiteLLM_SpendLogs" s join "LiteLLM_TeamTable" t '
-         'on s.team_id = t.team_id group by 1 having sum(s.spend) > 0')
+TEAM_SPEND = 'select team_alias, spend from "LiteLLM_TeamTable" where spend > 0'
+SPEND_LOGS = ('select t.team_alias, sum(s.spend) from "LiteLLM_SpendLogs" s join "LiteLLM_TeamTable" t '
+              'on s.team_id = t.team_id group by 1 having sum(s.spend) > 0')
 
 
 def psql(sql):
-    return subprocess.run(["docker", "compose", "exec", "-T", "postgres", "psql", "-U", "litellm", "-d", "litellm",
-                           "-Atc", sql], cwd=P2_TESTS, check=True, capture_output=True, text=True).stdout
-
-
-def spend_logs():
-    return {team: float(v) for team, v in (line.split("|") for line in psql(SPEND).splitlines() if line)}
+    out = subprocess.run(["docker", "compose", "exec", "-T", "postgres", "psql", "-U", "litellm", "-d", "litellm",
+                          "-Atc", sql], cwd=P2_TESTS, check=True, capture_output=True, text=True).stdout
+    return {team: float(v) for team, v in (line.split("|") for line in out.splitlines() if line)}
 
 
 def traces():
@@ -36,21 +38,16 @@ def same(a, b):
 
 @unittest.skipUnless(SPANS_FILE and TEMPO and PROMETHEUS, "needs the CI gateway stack (SPANS_FILE, TEMPO_URL, PROMETHEUS_URL)")
 class CostPerTeamTest(unittest.TestCase):
-    def test_cost_per_team_equals_the_spend_logs(self):
-        def agree():  # both sides lag: LiteLLM writes spend logs in batches, the collector sends sums in batches
-            logs = spend_logs()
-            return logs and same(logs, traces())
+    def test_cost_per_team_equals_the_teams_spend(self):
+        def agree():  # both sides lag: LiteLLM updates spend in batches, the collector sends sums in batches
+            spend = psql(TEAM_SPEND)
+            return spend and same(spend, traces())
         until(agree, seconds=90)
-        logs, seen = spend_logs(), traces()
-        print(f"\nspend logs per team: {logs}\ncost per team from traces: {seen}")
-        if not same(logs, seen):  # every spend-log row: is a team's row missing, or there without its team?
-            print("team_id | team alias | key alias | spend | status")
-            print(psql('select quote_literal(coalesce(team_id, \'null\')), metadata->>\'user_api_key_team_alias\', '
-                       'metadata->>\'user_api_key_alias\', spend, status from "LiteLLM_SpendLogs" order by "startTime"'))
-            # The team's running spend, which budgets read: does it count a call the spend logs lack?
-            print("team table spend:", psql('select team_alias, spend from "LiteLLM_TeamTable" order by 1'))
-        self.assertTrue(logs, "no team spent anything")
-        self.assertTrue(same(logs, seen), "traces and spend logs disagree")
+        spend, seen = psql(TEAM_SPEND), traces()
+        print(f"\nteam spend (budgets): {spend}\ncost per team from traces: {seen}\n"
+              f"spend logs per team (reference): {psql(SPEND_LOGS)}")
+        self.assertTrue(spend, "no team spent anything")
+        self.assertTrue(same(spend, seen), "traces and the teams' spend disagree")
 
 
 if __name__ == "__main__":

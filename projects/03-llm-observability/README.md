@@ -39,7 +39,8 @@ Traces, the right metrics, SLOs (service level objectives) with burn-rate alerts
 - **In CI on every pull request** (the gateway job, with the collector's and Tempo's configs rendered from their charts):
   - [`tests/test_metrics.py`](tests/test_metrics.py): a trace reaches Tempo, the span metrics reach Prometheus with only the chosen labels, and the scale-from-zero query returns a number.
   - [`tests/test_dashboards.py`](tests/test_dashboards.py): every gateway dashboard query returns data, and each of its selectors matches series on its own. Its file checks run in the lint job too, and `tests/charts.sh` has promtool parse every dashboard query.
-  - [`tests/test_cost.py`](tests/test_cost.py): for every team, the cost from the traces equals the team's spend in LiteLLM's spend logs. `tests/charts.sh` also tests the cost rules' math on made-up series (`promtool test rules`).
+  - [`tests/test_cost.py`](tests/test_cost.py): for every team, the cost from the traces equals the team's running spend in LiteLLM's team table, which budgets are checked against. `tests/charts.sh` also tests the cost rules' math on made-up series (`promtool test rules`).
+    - It compares with the team table, not the spend logs: in CI, LiteLLM writes no spend-log row for a team key's streamed call. The team's spend still counts it, so budgets aren't affected.
   - [`tests/test_spans.py`](tests/test_spans.py), the span contract: the span names and attributes LiteLLM v1.103.3 sends, which P3's metrics are built from.
   - **No model on the request span:** the request (SERVER) span has the route, the status code and the team.
   - **Attempt spans:** each attempt at a model has its own span, with the model group, the team, the cost on success and ERROR on failure.
