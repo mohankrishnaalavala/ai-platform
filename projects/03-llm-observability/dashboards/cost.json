@@ -1,0 +1,161 @@
+{
+  "uid": "p3-cost",
+  "title": "P3 · Cost",
+  "tags": [
+    "ai-platform",
+    "p3"
+  ],
+  "editable": false,
+  "description": "Cost per team, from each model try's cost on the gateway's traces (the price the spend logs use), and cost per 1M output tokens, self-hosted against hosted.",
+  "schemaVersion": 39,
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "refresh": "1m",
+  "timezone": "utc",
+  "panels": [
+    {
+      "id": 1,
+      "type": "bargauge",
+      "title": "Dollars per team, last 24 hours",
+      "description": "Self-hosted calls count at P1's measured price per output token; hosted ones at LiteLLM's price list (not checked against Google's page).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 4
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (metadata_user_api_key_team_alias) (increase(llm_cost_by_team_total[1d]))",
+          "legendFormat": "{{metadata_user_api_key_team_alias}}",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Spend per hour by model",
+      "description": "chat-default is our vLLM; chat-hosted is Gemini on Vertex AI, used directly or as the fallback.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 4
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (litellm_model_group) (rate(llm_cost_by_model_total[5m])) * 3600",
+          "legendFormat": "{{litellm_model_group}}",
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Cost per 1M output tokens",
+      "description": "Self-hosted: the GPU node's on-demand list price per hour (2026-10-17), even when the session runs spot, over the tokens vLLM produced; it falls as load rises. Its vLLM metric (vllm:generation_tokens_total) isn't proven yet (session 2). Hosted: LiteLLM's charge per output token. Recording rules in slos/cost.rules.yaml.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 4
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "p3:self_hosted_usd_per_1m_output_tokens",
+          "legendFormat": "self-hosted (GPU node / tokens produced)",
+          "instant": false
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "p3:hosted_usd_per_1m_output_tokens",
+          "legendFormat": "hosted (LiteLLM's price)",
+          "instant": false
+        }
+      ]
+    }
+  ]
+}

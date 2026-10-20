@@ -179,12 +179,12 @@ jobs:
         run: python3 -m unittest discover -s . -v
 
       # The span names and attributes P3's metrics, alerts and scale-from-zero trigger are built on, then the
-      # pipeline: a trace in Tempo, the span metrics in Prometheus, and data for every gateway dashboard
-      # query. The span test's fallback request is the first after the mock vLLM stops, so it also checks
-      # that one comes within the 30 s timeout.
-      - name: "P3: span contract, Tempo, span metrics, dashboard queries (stops the mock vLLM for the next step)"
+      # pipeline: a trace in Tempo, the span metrics in Prometheus, data for every gateway dashboard query,
+      # and cost per team from the traces equal to the spend logs. The span test's fallback request is the
+      # first after the mock vLLM stops, so it also checks that one comes within the 30 s timeout.
+      - name: "P3: span contract, Tempo, span metrics, dashboards, cost (stops the mock vLLM for the next step)"
         working-directory: projects/03-llm-observability/tests
-        run: python3 -m unittest -v test_spans test_metrics test_dashboards
+        run: python3 -m unittest -v test_spans test_metrics test_dashboards test_cost
 
       - name: fallback, and PII on the fallback (the mock vLLM stopped)
         run: |

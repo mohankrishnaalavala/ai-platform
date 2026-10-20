@@ -1,0 +1,43 @@
+# promtool unit tests for slos/cost.rules.yaml (tests/rules.sh runs them in CI). Made-up series, so the
+# expected numbers are worked out by hand.
+rule_files:
+  - ../slos/cost.rules.yaml
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      # vLLM produces 1,000 output tokens a second: 60,000 more every minute.
+      - series: 'vllm:generation_tokens_total'
+        values: '0+60000x10'
+      # chat-hosted: $0.0025 and 1,000 output tokens more every minute, so $2.50 per 1M.
+      - series: 'llm_cost_by_model_total{litellm_model_group="chat-hosted"}'
+        values: '0+0.0025x10'
+      - series: 'llm_output_tokens_by_model_total{litellm_model_group="chat-hosted"}'
+        values: '0+1000x10'
+    # promtool compares floats exactly, so each test checks the value within 1e-9 and expects 1 (true).
+    promql_expr_test:
+      # 0.853624271 / (1000 * 3600) * 1e6 = 0.2371178530555...
+      - expr: abs(p3:self_hosted_usd_per_1m_output_tokens - 0.2371178530555556) < bool 1e-9
+        eval_time: 10m
+        exp_samples:
+          - value: 1
+      - expr: abs(p3:hosted_usd_per_1m_output_tokens - 2.5) < bool 1e-9
+        eval_time: 10m
+        exp_samples:
+          - value: 1
+  # No output tokens (an idle or scaled-to-zero vLLM, no hosted calls): no value, not a division by zero.
+  - interval: 1m
+    input_series:
+      - series: 'vllm:generation_tokens_total'
+        values: '500x10'
+      - series: 'llm_cost_by_model_total{litellm_model_group="chat-hosted"}'
+        values: '0x10'
+      - series: 'llm_output_tokens_by_model_total{litellm_model_group="chat-hosted"}'
+        values: '0x10'
+    promql_expr_test:
+      - expr: p3:self_hosted_usd_per_1m_output_tokens
+        eval_time: 10m
+        exp_samples: []
+      - expr: p3:hosted_usd_per_1m_output_tokens
+        eval_time: 10m
+        exp_samples: []

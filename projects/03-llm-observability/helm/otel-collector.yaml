@@ -1,7 +1,8 @@
 # P3's values on top of P2's (projects/02-llm-gateway/helm/otel-collector.yaml): the same release. Traces
 # go on to Tempo, and the span_metrics connector (alpha in 0.161.0) turns them into request, error and
 # latency metrics, which Prometheus scrapes from port 8889 (ServiceMonitor below).
-# Extra labels: model group, team and status code only (tests/test_spans.py shows where each comes from).
+# The sum connector adds cost per team and per model. Extra labels: model group, team and status code
+# only (tests/test_spans.py shows where each comes from).
 # Anything per user or per prompt would make Prometheus huge. owner and session labels come from deploy.sh.
 ports:
   span-metrics:
@@ -37,11 +38,37 @@ config:
         - name: litellm.model_group
         - name: metadata.user_api_key_team_alias
         - name: http.response.status_code
+    # Cost per team (P3-05): each model try's cost (gen_ai.cost.total_cost, the price the spend logs use)
+    # and output tokens, summed from litellm_request spans. One attribute per metric: in 0.161.0 the sum
+    # connector adds a value once per attribute (connector/sumconnector/sum.go, increment), so two would
+    # double it. tests/test_cost.py checks the totals against the spend logs.
+    sum:
+      spans:
+        llm.cost.by_team:
+          source_attribute: gen_ai.cost.total_cost
+          conditions: ['span.name == "litellm_request"']
+          attributes: [{key: metadata.user_api_key_team_alias}]
+        llm.cost.by_model:
+          source_attribute: gen_ai.cost.total_cost
+          conditions: ['span.name == "litellm_request"']
+          attributes: [{key: litellm.model_group}]
+        llm.output_tokens.by_model:
+          source_attribute: gen_ai.usage.output_tokens
+          conditions: ['span.name == "litellm_request"']
+          attributes: [{key: litellm.model_group}]
+  processors:
+    # The sum connector sends per-batch deltas with no start time, which the Prometheus exporter can't
+    # add up (it keeps only the latest); this keeps running totals.
+    deltatocumulative: {}
   service:
     pipelines:
       traces:
-        exporters: [debug, otlp_http/tempo, span_metrics]
+        exporters: [debug, otlp_http/tempo, span_metrics, sum]
       metrics:
         receivers: [span_metrics]
         processors: [memory_limiter, batch]
+        exporters: [prometheus]
+      metrics/cost:
+        receivers: [sum]
+        processors: [memory_limiter, deltatocumulative, batch]
         exporters: [prometheus]

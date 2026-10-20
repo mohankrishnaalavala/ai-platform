@@ -4,7 +4,7 @@
 #   script and commit the result after changing a spec)
 # - every rule file passes promtool's checks
 # - promtool's unit tests (tests/rules-test.yaml) show each alert firing at the predicted minute, and
-#   staying quiet when it should
+#   staying quiet when it should; tests/cost-rules-test.yaml checks the cost rules' math
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -18,7 +18,7 @@ git diff --exit-code -- slos/platform.rules.yaml \
   || { echo "slos/platform.rules.yaml isn't what Sloth generates from slos/platform.yaml: run tests/rules.sh and commit"; exit 1; }
 promtool=(docker run --rm -v "$here:/w:ro" -w /w --entrypoint /bin/promtool "$prometheus")
 "${promtool[@]}" check rules slos/*.rules.yaml
-"${promtool[@]}" test rules tests/rules-test.yaml
+"${promtool[@]}" test rules tests/rules-test.yaml tests/cost-rules-test.yaml
 # As deploy.sh applies them: one PrometheusRule per file, checked against the operator's schema.
 kubeconform=ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43f95aa6425306e1ab8d6fcad72acb9049158f38e574c085ea1ec0f64e
 crds='https://raw.githubusercontent.com/datreeio/CRDs-catalog/d373c2da9702bc9509a004db83e57263fe3bdfc1/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'

@@ -1,0 +1,22 @@
+# P3-05: cost per 1M output tokens, as recording rules for the cost dashboard. deploy.sh applies this file as
+# one PrometheusRule (tests/prometheusrule.sh); tests/rules.sh checks it and runs tests/cost-rules-test.yaml.
+# Each rule returns nothing when there were no output tokens, rather than dividing by zero.
+groups:
+  - name: p3-cost
+    rules:
+      # Self-hosted: what the GPU node costs per hour, over the tokens vLLM produced in that hour.
+      # $0.853624271/h is the g2-standard-8 (1 L4) on-demand list price, read 2026-10-17
+      # (projects/01-gpu-serving/bench/prices.json), even when a session runs spot. The system node and NAT
+      # aren't counted. vllm:generation_tokens_total is from vLLM's metrics code for v0.30.0, not proven yet:
+      # session 2 checks it (tests/test_dashboard_metrics.py).
+      - record: p3:self_hosted_usd_per_1m_output_tokens
+        expr: |
+          0.853624271 / (sum(rate(vllm:generation_tokens_total[5m])) * 3600) * 1e6
+            and sum(rate(vllm:generation_tokens_total[5m])) > 0
+      # Hosted: what LiteLLM charged for chat-hosted (its price list, not checked against Google's page), over
+      # the output tokens it returned.
+      - record: p3:hosted_usd_per_1m_output_tokens
+        expr: |
+          sum(rate(llm_cost_by_model_total{litellm_model_group="chat-hosted"}[5m]))
+            / sum(rate(llm_output_tokens_by_model_total{litellm_model_group="chat-hosted"}[5m])) * 1e6
+            and sum(rate(llm_output_tokens_by_model_total{litellm_model_group="chat-hosted"}[5m])) > 0

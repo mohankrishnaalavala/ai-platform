@@ -71,6 +71,7 @@ Source: [`results/overhead/20261019t2338z/`](results/overhead/20261019t2338z/), 
 - **Load:** the 50-concurrent slowdown above. One gateway replica; rate limits live in its memory, so several replicas would need Redis.
 - **Fallback:** the first non-streaming request after vLLM dies waits 30 s.
 - **Data:** Postgres has no disk, so teams and spend last one session.
+- **Spend logs miss team-key streams:** in all 5 CI runs that compared them (PR #52, 2026-10-20), LiteLLM wrote no spend-log row for a team key's streamed call. The team's running spend, which budgets check, counted it, so budgets aren't affected; per-request history is. The cause isn't proven. P3's cost per team reads the traces and is checked against the team's spend.
 
 ## How to run it
 
