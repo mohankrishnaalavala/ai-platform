@@ -33,6 +33,12 @@ labels:
   owner: ""
   session: ""
 
+# KEDA: P1 keeps one replica and scales out on vLLM's queue. P3's scale-from-zero values
+# (projects/03-llm-observability/helm/vllm-scale-from-zero.yaml) set 0 and add a trigger.
+scaling:
+  minReplicas: 1
+  extraTriggers: []
+
 resources:
   requests:
     cpu: "2"
