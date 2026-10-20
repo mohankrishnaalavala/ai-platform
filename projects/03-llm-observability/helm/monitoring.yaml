@@ -89,10 +89,10 @@ grafana:
       access: proxy
       editable: false
   # At a 256 MiB limit, Grafana was OOMKilled drawing its first dashboard (session 2, 2026-10-20; the idle pod
-  # with its sidecars read 306 MiB).
+  # with its sidecars read 306 MiB). 1 GiB leaves room for a retry to draw all three; the node has memory to spare.
   resources:
     requests: {cpu: 100m, memory: 256Mi}
-    limits: {memory: 512Mi}
+    limits: {memory: 1Gi}
   # The sidecars copy dashboards and data sources from ConfigMaps. With no admin user they can't call
   # Grafana's reload API, so data sources load before Grafana starts, and Grafana rereads dashboard files.
   sidecar:
