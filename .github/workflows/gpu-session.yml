@@ -13,7 +13,7 @@
 #     cluster time, about $0.70; at most 85 + 45 min, about $1.23 with NAT data and the GKE fee, see PR #50)
 #   obs-full: P1 (FP8, on-demand GPU), P2 and P3: make test P=03 with the vLLM metric names, Grafana screenshots,
 #     the game day, then scale from zero; results uploaded, then the GPU pool to 0 (estimate: about 2.8 h of
-#     cluster time, about $3.20; at most 170 + 45 min, about $3.77 with NAT data and the GKE fee)
+#     cluster time, about $3.20; at most 180 + 45 min, about $3.98 with NAT data and the GKE fee)
 # Results go to the results bucket as each step finishes, so a run that ends early keeps them.
 # Teardown is its own job with its own time limit, so it runs in full even after the session job
 # fails, times out or is cancelled. cost-guard (nightly, clusters older than 8 h) is the backstop.
@@ -53,7 +53,7 @@ jobs:
   session:
     runs-on: ubuntu-24.04
     # GitHub stops any job at 6 hours. Teardown runs in its own job afterwards.
-    timeout-minutes: ${{ inputs.mode == 'full' && 350 || inputs.mode == 'gateway-shakedown' && 90 || inputs.mode == 'gateway-full' && 165 || inputs.mode == 'obs-shakedown' && 85 || inputs.mode == 'obs-full' && 170 || 150 }}
+    timeout-minutes: ${{ inputs.mode == 'full' && 350 || inputs.mode == 'gateway-shakedown' && 90 || inputs.mode == 'gateway-full' && 165 || inputs.mode == 'obs-shakedown' && 85 || inputs.mode == 'obs-full' && 180 || 150 }}
     outputs:
       started: ${{ steps.precheck.outputs.started }}
     env:
@@ -68,7 +68,7 @@ jobs:
       # obs-full is always on-demand (decision 3): a preemption mid-game-day would make its time to alert invalid.
       SPOT: ${{ inputs.mode == 'obs-full' && 'false' || inputs.spot }}
       # Every measurement ends by this many minutes after the job starts, leaving time for diagnostics.
-      MEASURE_MINUTES: ${{ inputs.mode == 'full' && 330 || inputs.mode == 'gateway-shakedown' && 75 || inputs.mode == 'gateway-full' && 145 || inputs.mode == 'obs-shakedown' && 70 || inputs.mode == 'obs-full' && 140 || 130 }}
+      MEASURE_MINUTES: ${{ inputs.mode == 'full' && 330 || inputs.mode == 'gateway-shakedown' && 75 || inputs.mode == 'gateway-full' && 145 || inputs.mode == 'obs-shakedown' && 70 || inputs.mode == 'obs-full' && 150 || 130 }}
       # P1 (vLLM), P2 (the gateway; with no GPU the GPU pool stays at 0 nodes), both, P2 and P3 (no vLLM), or all three.
       LAYERS: ${{ inputs.mode == 'gateway-shakedown' && '02' || inputs.mode == 'gateway-full' && '01 02' || inputs.mode == 'obs-shakedown' && '02 03' || inputs.mode == 'obs-full' && '01 02 03' || '01' }}
       TEST_P: ${{ startsWith(inputs.mode, 'gateway-') && '02' || startsWith(inputs.mode, 'obs-') && '03' || '01' }}
@@ -287,7 +287,7 @@ jobs:
 
       # Last, after the diagnostics read vLLM: the GPU node goes now, not when teardown deletes the cluster. vLLM
       # is held at 0 replicas first, so no pending pod makes the autoscaler add a GPU node back. The steps after
-      # the deadline end by minute 163 (140 + upload 5 + diagnostics 10 + artifact 3 + this 5), inside the 170 limit.
+      # the deadline end by minute 173 (150 + upload 5 + diagnostics 10 + artifact 3 + this 5), inside the 180 limit.
       - name: "obs-full: GPU pool to 0 nodes"
         if: ${{ always() && steps.up.outcome == 'success' && inputs.mode == 'obs-full' }}
         timeout-minutes: 5
