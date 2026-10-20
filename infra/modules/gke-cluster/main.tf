@@ -47,6 +47,10 @@ resource "google_container_cluster" "this" {
     workload_pool = "${var.project_id}.svc.id.goog"
   }
 
+  # GKE Dataplane V2 enforces Kubernetes NetworkPolicies (P3's game day blocks the gateway's calls to the
+  # hosted model with one). Free; set when the cluster is created (changing it replaces the cluster).
+  datapath_provider = "ADVANCED_DATAPATH"
+
   addons_config {
     gcs_fuse_csi_driver_config {
       enabled = true
