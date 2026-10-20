@@ -16,6 +16,8 @@ Runs in ci.yml's gateway job, between P2's tests and P2's fallback step. It stop
 (docker compose, from P2's tests folder) and leaves it stopped, as P2's fallback step wants. Restarting a
 mock between requests can leave LiteLLM sending to the old container's address, so it doesn't. Then it
 reads what the collector wrote to SPANS_FILE (compose.spans.yaml).
+Its fallback request is the first one after the stop, the one that waits out chat-default's timeout. So it
+also checks what P2's fallback test checked before this ran first: the answer comes within the timeout.
 Skipped unless GATEWAY_URL, MASTER_KEY and SPANS_FILE are set.
 """
 import json
@@ -28,6 +30,7 @@ import unittest
 P2_TESTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "02-llm-gateway", "tests")
 sys.path.insert(0, P2_TESTS)
 from client import MASTER, URL, chat, onboard_team
+from test_fallback import SLACK_S, TIMEOUT_S
 
 SPANS_FILE = os.environ.get("SPANS_FILE", "")
 SERVER, ATTEMPT = "Received Proxy Server Request", "litellm_request"
@@ -80,8 +83,11 @@ class SpanContractTest(unittest.TestCase):
                 break
             time.sleep(1)
         subprocess.run(["docker", "compose", "stop", "mock-vllm"], cwd=P2_TESTS, check=True, capture_output=True)
+        before = time.monotonic()
         cls.statuses["fallback"] = [ask("fallback")]
-        print(f"\nstatus codes per path: {cls.statuses}, sent in {time.monotonic() - start:.0f} s")
+        cls.fallback_s = time.monotonic() - before
+        print(f"\nstatus codes per path: {cls.statuses}, sent in {time.monotonic() - start:.0f} s; "
+              f"the first request after the stop fell back in {cls.fallback_s * 1000:.0f} ms")
         cls.spans = {}
         attempts = {"plain": 1, "stream": 1, "fallback": 2}  # attempt spans can come in a later batch
         for _ in range(30):  # LiteLLM sends spans in batches
@@ -137,6 +143,7 @@ class SpanContractTest(unittest.TestCase):
         self.assertEqual([(a["attrs"].get("litellm.model_group"), a["error"]) for a in tried],
                          [("chat-default", True), ("chat-hosted", False)])
         self.assertIn("gen_ai.cost.total_cost", tried[1]["attrs"])  # CI's mock hosted model has no price
+        self.assertLess(self.fallback_s, TIMEOUT_S + SLACK_S)
 
 
 if __name__ == "__main__":

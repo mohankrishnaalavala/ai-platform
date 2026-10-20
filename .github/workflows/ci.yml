@@ -150,7 +150,8 @@ jobs:
       - name: smoke, budget, rate limit, keys, PII on the hosted route
         run: python3 -m unittest discover -s . -v
 
-      # The span names and attributes P3's metrics, alerts and scale-from-zero trigger are built on.
+      # The span names and attributes P3's metrics, alerts and scale-from-zero trigger are built on. Its fallback
+      # request is the first after the mock vLLM stops, so it also checks that one comes within the 30 s timeout.
       - name: "P3: the span contract (LiteLLM's trace fields; stops the mock vLLM for the next step)"
         run: python3 -m unittest discover -s ../../03-llm-observability/tests -p test_spans.py -v
 
