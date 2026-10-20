@@ -27,11 +27,19 @@ Traces, the right metrics, SLOs (service level objectives) with burn-rate alerts
   - **Model serving:** time to first token, inter-token latency, tokens per second, queue, KV cache, and GPU use and memory used.
     - The vLLM metric names come from vLLM's metrics code for v0.30.0, and the GPU names from GKE's managed DCGM list. Not proven yet: session 1 checks the GPU names and session 2 the vLLM ones, with [`tests/test_dashboard_metrics.py`](tests/test_dashboard_metrics.py).
   - **Gateway:** model tries by team and model, the 5xx share, the fallback share, and request duration.
-  - Cost per team comes with P3-05.
+  - **Cost:** dollars per team over the last 24 hours, spend per hour by model, and cost per 1M output tokens, self-hosted against hosted.
+- **Cost per team** (P3-05), from the traces, so it needs no database access:
+  - **Source:** the collector's `sum` connector (alpha) adds up each model try's cost (`gen_ai.cost.total_cost`, the price the spend logs use) and output tokens, per team and per model.
+  - **One label per metric:** in 0.161.0 the connector counts a value once per label, so two labels would double it.
+  - **Running totals:** a delta-to-cumulative processor keeps them, because the Prometheus exporter can't add up the connector's deltas.
+  - **Recording rules** ([`rules/cost.yaml`](rules/cost.yaml)):
+    - self-hosted cost per 1M output tokens = the GPU node's on-demand list price ($0.853624271/h, read 2026-10-17) over the tokens vLLM produced
+    - hosted = LiteLLM's charge for chat-hosted over its output tokens. LiteLLM's price list isn't checked against Google's page.
 - **Network:** nothing is public. Every Service is ClusterIP, reached by `kubectl port-forward`.
 - **In CI on every pull request** (the gateway job, with the collector's and Tempo's configs rendered from their charts):
   - [`tests/test_metrics.py`](tests/test_metrics.py): a trace reaches Tempo, the span metrics reach Prometheus with only the chosen labels, and the scale-from-zero query returns a number.
   - [`tests/test_dashboards.py`](tests/test_dashboards.py): every gateway dashboard query returns data, and each of its selectors matches series on its own. Its file checks run in the lint job too, and `tests/charts.sh` has promtool parse every dashboard query.
+  - [`tests/test_cost.py`](tests/test_cost.py): for every team, the cost from the traces equals the team's spend in LiteLLM's spend logs. `tests/charts.sh` also tests the cost rules' math on made-up series (`promtool test rules`).
   - [`tests/test_spans.py`](tests/test_spans.py), the span contract: the span names and attributes LiteLLM v1.103.3 sends, which P3's metrics are built from.
   - **No model on the request span:** the request (SERVER) span has the route, the status code and the team.
   - **Attempt spans:** each attempt at a model has its own span, with the model group, the team, the cost on success and ERROR on failure.

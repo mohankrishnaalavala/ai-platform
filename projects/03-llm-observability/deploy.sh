@@ -37,6 +37,10 @@ for f in "$here"/dashboards/*.json; do
     | kubectl label --local -f - grafana_dashboard=1 app=ai-platform layer=03 owner="$owner" session="$session" -o yaml \
     | kubectl apply -f -
 done
+# Recording rules (cost per 1M tokens), picked up through the chart's rule selector (label release).
+for f in "$here"/rules/*.yaml; do
+  kubectl label --local -f "$f" owner="$owner" session="$session" -o yaml | kubectl apply -f -
+done
 helm upgrade --install tempo tempo --repo https://grafana-community.github.io/helm-charts --version 3.1.0 \
   -n monitoring -f "$here/helm/tempo.yaml" \
   --set-string extraLabels.owner="$owner" --set-string extraLabels.session="$session" \

@@ -12,4 +12,4 @@ config:
   service:
     pipelines:
       traces:
-        exporters: [debug, file, otlp_http/tempo, span_metrics]
+        exporters: [debug, file, otlp_http/tempo, span_metrics, sum]

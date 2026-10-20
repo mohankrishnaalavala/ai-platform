@@ -25,7 +25,14 @@ trap 'rm -rf "$out" "$cfg"' EXIT
     --set-string commonLabels.owner=o --set-string commonLabels.session=20261020t0000z; echo ---
   helm template tempo tempo --repo https://grafana-community.github.io/helm-charts --version 3.1.0 -n monitoring \
     -f helm/tempo.yaml; echo ---
-  helm template otel-collector "${collector[@]}"; } >> "$out"
+  helm template otel-collector "${collector[@]}"; echo ---
+  cat rules/cost.yaml; } >> "$out"
+
+# The recording rules: taken out of the PrometheusRule, checked, and their math tested on made-up series.
+docker run --rm -i "$yq" '.spec' < rules/cost.yaml > "$cfg/cost.rules.yaml"
+cp tests/cost.rules.test.yaml "$cfg/"
+docker run --rm --user "$(id -u)" --entrypoint /bin/promtool -v "$cfg:/cfg:ro" -w /cfg "$promtool" check rules cost.rules.yaml
+docker run --rm --user "$(id -u)" --entrypoint /bin/promtool -v "$cfg:/cfg:ro" -w /cfg "$promtool" test rules cost.rules.test.yaml
 
 # The collector's config, checked by the pinned collector itself (component names, pipelines). Its
 # listen addresses use the pod's IP from the environment.

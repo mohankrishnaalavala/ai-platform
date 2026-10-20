@@ -14,7 +14,7 @@ import unittest
 from test_metrics import PROMETHEUS, SPANS_FILE, TEMPO, query, until
 
 DASHBOARDS = pathlib.Path(__file__).resolve().parent.parent / "dashboards"
-UIDS = {"model-serving.json": "p3-model-serving", "gateway.json": "p3-gateway"}
+UIDS = {"model-serving.json": "p3-model-serving", "gateway.json": "p3-gateway", "cost.json": "p3-cost"}
 DATASOURCES = {"prometheus", "tempo"}
 FIVE_XX = 'http_response_status_code=~"5.."'
 

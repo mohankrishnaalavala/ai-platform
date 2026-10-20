@@ -1,0 +1,24 @@
+# Cost per 1M output tokens (P3-05), as recording rules for the cost dashboard. Prometheus loads it through
+# the chart's rule selector (label release: prometheus). deploy.sh applies it and adds owner and session.
+# tests/cost.rules.test.yaml checks the math on made-up series (promtool test rules, in tests/charts.sh).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: p3-cost
+  namespace: monitoring
+  labels: {app: ai-platform, layer: "03", release: prometheus}
+spec:
+  groups:
+    - name: p3-cost
+      rules:
+        # Self-hosted: what the GPU node costs per hour, over the tokens vLLM actually produced in that hour.
+        # $0.853624271/h is the g2-standard-8 (1 L4) on-demand list price, read 2026-10-17
+        # (projects/01-gpu-serving/bench/prices.json). The system node and NAT aren't counted.
+        - record: p3:self_hosted_usd_per_1m_output_tokens
+          expr: 0.853624271 / (sum(rate(vllm:generation_tokens_total[5m])) * 3600) * 1e6
+        # Hosted: what LiteLLM charged for chat-hosted (its price list, not checked against Google's page),
+        # over the output tokens it returned.
+        - record: p3:hosted_usd_per_1m_output_tokens
+          expr: >-
+            sum(rate(llm_cost_by_model_total{litellm_model_group="chat-hosted"}[5m]))
+            / sum(rate(llm_output_tokens_by_model_total{litellm_model_group="chat-hosted"}[5m])) * 1e6
