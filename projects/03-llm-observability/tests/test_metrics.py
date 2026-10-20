@@ -47,7 +47,7 @@ def until(check, seconds=60):
         try:
             if found := check():
                 return found
-        except (urllib.error.URLError, ValueError):
+        except (OSError, ValueError):  # OSError covers URLError and a reset while a port-forward starts
             pass
         time.sleep(3)
     return found
