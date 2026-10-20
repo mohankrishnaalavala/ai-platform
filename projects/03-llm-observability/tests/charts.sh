@@ -56,6 +56,11 @@ fi
 if grep -n -A1 'name: NAMESPACE$' "$out" | grep -n 'value: "\?ALL'; then
   echo "a Grafana sidecar watches all namespaces, which its Role doesn't allow"; exit 1
 fi
+# An init container that watches never exits, so its pod never starts (Grafana, session 1).
+init_methods=$(docker run --rm -i "$yq" '.spec.template.spec.initContainers[]? | .env[]? | select(.name == "METHOD") | .value' < "$out")
+if grep -qx WATCH <<< "$init_methods"; then
+  echo "an init container's sidecar runs in WATCH mode and would never exit"; exit 1
+fi
 if grep -nE 'sk-[A-Za-z0-9]{8,}|password: ' "$out"; then
   echo "a rendered manifest holds what looks like a secret value"; exit 1
 fi
