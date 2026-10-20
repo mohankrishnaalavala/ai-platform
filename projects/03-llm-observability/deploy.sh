@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Deploy P3 into the running session cluster: P1's kube-prometheus-stack release upgraded with P3's
-# values (Grafana, Alertmanager, kube-state-metrics), then Tempo for traces. Works with or without P1:
-# with `make up LAYERS="02 03"` it installs that release itself, with P1's values underneath.
+# values (Grafana, Alertmanager, kube-state-metrics), Tempo for traces, then P2's OTel Collector upgraded
+# with P3's values (traces on to Tempo, span metrics for Prometheus). Needs P2 first. Works with or
+# without P1: with `make up LAYERS="02 03"` it installs the Prometheus release itself, with P1's values.
 # Usage (from the repo root): ZONE=us-central1-c projects/03-llm-observability/deploy.sh
 set -euo pipefail
 # Same settings as the Makefile: never the machine's default project or kubeconfig.
@@ -16,6 +17,8 @@ session=$(gcloud container clusters describe ai-platform --location="${ZONE:?set
 [ "$(kubectl config current-context)" = "gke_${project}_${ZONE}_ai-platform" ] \
   || { echo "kubectl doesn't point at this session's cluster (run make up first)"; exit 1; }
 
+# The collector it upgrades is P2's.
+kubectl get namespace gateway >/dev/null 2>&1 || { echo "deploy P2 first (make up LAYERS=\"02 03\")"; exit 1; }
 # P1's namespaces (monitoring among them): without P1 the others stay empty.
 kubectl apply -f "$p1/helm/namespaces.yaml"
 kubectl label namespace monitoring owner="$owner" session="$session" --overwrite
@@ -31,5 +34,11 @@ helm upgrade --install prometheus oci://ghcr.io/prometheus-community/charts/kube
 helm upgrade --install tempo tempo --repo https://grafana-community.github.io/helm-charts --version 3.1.0 \
   -n monitoring -f "$here/helm/tempo.yaml" \
   --set-string extraLabels.owner="$owner" --set-string extraLabels.session="$session" \
+  --set-string podLabels.owner="$owner" --set-string podLabels.session="$session" \
+  --wait --timeout 5m
+# P2's collector: the same release and labels as P2's deploy.sh, with P3's values on top.
+helm upgrade --install otel-collector opentelemetry-collector --repo https://open-telemetry.github.io/opentelemetry-helm-charts \
+  --version 0.174.2 -n gateway -f "$here/../02-llm-gateway/helm/otel-collector.yaml" -f "$here/helm/otel-collector.yaml" \
+  --set-string additionalLabels.owner="$owner" --set-string additionalLabels.session="$session" \
   --set-string podLabels.owner="$owner" --set-string podLabels.session="$session" \
   --wait --timeout 5m

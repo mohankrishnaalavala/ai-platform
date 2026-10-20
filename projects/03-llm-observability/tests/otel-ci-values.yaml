@@ -1,0 +1,15 @@
+# CI only. ci.yml's gateway job renders the collector's config from the chart with P2's values, P3's
+# (helm/otel-collector.yaml) and these, so CI runs the cluster's pipeline. These add two things:
+# - every span printed in full, for P2's check that no span carries prompt text
+# - every span also written to a file, for test_spans.py
+# Keep the traces exporters in step with helm/otel-collector.yaml.
+config:
+  exporters:
+    debug:
+      verbosity: detailed
+    file:
+      path: /spans/spans.jsonl
+  service:
+    pipelines:
+      traces:
+        exporters: [debug, file, otlp_http/tempo, span_metrics]

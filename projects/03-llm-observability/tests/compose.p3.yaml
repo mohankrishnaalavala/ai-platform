@@ -1,0 +1,29 @@
+# P3's override of P2's CI stack (projects/02-llm-gateway/tests/compose.yaml). ci.yml's gateway job sets
+# COMPOSE_FILE to both files, and renders the collector's and Tempo's configs from their Helm charts first,
+# so CI runs the cluster's pipeline:
+# - the collector sends traces to Tempo, turns them into span metrics on :8889, and also writes every span
+#   to $SPANS_DIR/spans.jsonl (CI only; test_spans.py)
+# - Tempo and Prometheus run as in the cluster, and the same names resolve (tempo.monitoring)
+# Paths are relative to P2's tests folder, the first file's folder.
+services:
+  otel-collector:
+    user: "${SPANS_UID:?}"  # the runner's user, so the test can read the file the collector creates
+    environment: {MY_POD_IP: 0.0.0.0}  # the chart's config listens on the pod's IP
+    volumes:
+      - "${OTEL_CONFIG:?}:/etc/otel.yaml:ro"
+      - "${SPANS_DIR:?}:/spans"
+    depends_on: [tempo]
+  tempo:
+    image: grafana/tempo:3.1.0@sha256:3076b8dcdfb32fd6bc5ccef85e7b7313e6199b9cb84366257fc17ecb696db5fd
+    command: ["-config.file=/conf/tempo.yaml"]
+    volumes: ["${TEMPO_CONFIG_DIR:?}:/conf:ro"]
+    tmpfs: ["/var/tempo:mode=1777"]
+    networks:
+      default:
+        aliases: [tempo.monitoring]
+    ports: ["127.0.0.1:3200:3200"]  # test_metrics.py looks a trace up
+  prometheus:
+    image: quay.io/prometheus/prometheus:v3.15.0-distroless@sha256:b2a413d5a03ea6a76782a508d1c7947440bba3b973931a25676e278431891b01
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes: ["../../03-llm-observability/tests/prometheus-ci.yml:/etc/prometheus/prometheus.yml:ro"]
+    ports: ["127.0.0.1:9090:9090"]  # test_metrics.py queries the span metrics

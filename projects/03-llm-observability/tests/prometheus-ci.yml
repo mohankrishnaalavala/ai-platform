@@ -1,0 +1,7 @@
+# CI only: scrape the collector's span metrics. In the cluster the collector chart's ServiceMonitor does it.
+global:
+  scrape_interval: 5s
+scrape_configs:
+  - job_name: span-metrics
+    static_configs:
+      - targets: [otel-collector:8889]

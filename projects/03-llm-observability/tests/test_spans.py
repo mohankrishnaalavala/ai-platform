@@ -15,7 +15,7 @@ What LiteLLM sends for one request to /v1/chat/completions:
 Runs in ci.yml's gateway job, between P2's tests and P2's fallback step. It stops the mock vLLM itself
 (docker compose, from P2's tests folder) and leaves it stopped, as P2's fallback step wants. Restarting a
 mock between requests can leave LiteLLM sending to the old container's address, so it doesn't. Then it
-reads what the collector wrote to SPANS_FILE (compose.spans.yaml).
+reads what the collector wrote to SPANS_FILE (compose.p3.yaml).
 Its fallback request is the first one after the stop, the one that waits out chat-default's timeout. So it
 also checks what P2's fallback test checked before this ran first: the answer comes within the timeout.
 Skipped unless GATEWAY_URL, MASTER_KEY and SPANS_FILE are set.
