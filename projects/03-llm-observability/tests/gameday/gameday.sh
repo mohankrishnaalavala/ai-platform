@@ -8,9 +8,12 @@
 #   3-hosted-blocked   with vLLM still down, a NetworkPolicy blocks the gateway's calls outside the cluster,
 #                      so the fallback fails too (chat-hosted's timeout: 10 s streaming, 60 s plain) and the
 #                      availability SLO burns
-# Then vLLM is restored and its recovery timed: experiment 1's side note (one restart on the same node).
-# The flood runs first, the order the session plans. Before each experiment, Alertmanager must have no
-# active alert, so every alert is a new notification. A low load (load.py) runs through the gateway the whole time.
+# Experiment 1's side note: before it, one SIGKILL with KEDA in charge, timed until a new vLLM pod on the
+# same node is Ready (no alert expected: fallback covers it). After experiment 3, vLLM is restored and timed
+# too; by then the GPU node is gone (held at 0 for 15+ min), so that time includes a cold node start.
+# The flood runs first, the order the session plans. Before each experiment, the alert it waits for must be
+# neither pending nor firing (10 min at most); other alerts may still be active, and settings.json records
+# which fired at each start. A low load (load.py) runs through the gateway the whole time.
 # Each run records the timings that add to time to alert (settings.json).
 # Usage (from the repo root): ZONE=... CONFIG=<served config> [OUT=dir] gameday.sh
 # Knobs: FLOOD_RATE (requests/s; 1.0 is about 1.6x what vLLM served in P1's FP8 rag runs), FLOOD_MIN (30),
@@ -23,12 +26,14 @@ out=${OUT:-$(mktemp -d)}
 mkdir -p "$out"
 : "${CONFIG:?set CONFIG to the model config vLLM serves}"
 rate=${FLOOD_RATE:-1.0} flood_min=${FLOOD_MIN:-30} hold_min=${HOLD_MIN:-15} block_min=${BLOCK_MIN:-10}
+expect_latency=${EXPECT_LATENCY:-VllmTtftBudgetBurn} expect_fallback=${EXPECT_FALLBACK:-ChatDefaultFallbackHigh}
+expect_availability=${EXPECT_AVAILABILITY:-GatewayAvailabilityBudgetBurn}
 recorder=${RECORDER:-monitoring/alert-receiver:8080}
 # shellcheck source=/dev/null  # ../lib.sh
 source "$here/../lib.sh"
 session=$(gcloud container clusters describe ai-platform --location="$ZONE" --format='value(resourceLabels.session)')
 owner=$(gcloud projects describe "$PROJECT" --format='value(labels.owner)')
-port_forward monitoring/alertmanager-operated 19093:9093
+port_forward monitoring/prometheus-operated 19090:9090
 port_forward "${recorder%:*}" "19094:${recorder##*:}"
 
 load='' bench=''
@@ -53,12 +58,16 @@ event() {  # event NAME EXPECTS [UNIX_TIME]
   printf '{"experiment": "%s", "started_at": %s, "expects": "%s"}\n' "$1" "${3:-$(date +%s)}" "$2" >> "$out/events.jsonl"
   say "start $1 (waits for an alert matching /$2/)"
 }
-quiet() {  # until Alertmanager has no active alert, so the next one is a new notification
-  for _ in $(seq 120); do
-    [ "$(curl -sf 'http://127.0.0.1:19093/api/v2/alerts?active=true&silenced=false&inhibited=false')" = "[]" ] && return
+quiet() {  # quiet EXPERIMENT ALERTNAME: until that alert is neither pending nor firing (10 min at most), so it
+  # fires anew; other alerts may stay active. Then note in settings.json which alerts fire as EXPERIMENT starts.
+  local alerts='{}'
+  for _ in $(seq 60); do
+    alerts=$(curl -sf 'http://127.0.0.1:19090/api/v1/query?query=ALERTS' || echo '{}')
+    python3 "$here/time_to_alert.py" clear "$2" <<< "$alerts" && break
     sleep 10
   done
-  say "alerts still active after 20 min; going on (this experiment's time to alert may be [X])"
+  python3 "$here/time_to_alert.py" clear "$2" <<< "$alerts" || say "$2 still active after 10 min; going on (its time to alert may be [X])"
+  python3 "$here/time_to_alert.py" record "$out/settings.json" "$1" <<< "$alerts"
 }
 vllm_ready() {  # a Ready vLLM pod (rollout status returns at once while KEDA holds it at 0)
   for _ in $(seq 240); do
@@ -96,7 +105,7 @@ sleep 120
 
 # 2-flood: the bench Job sends rag prompts (4,000 tokens in, 256 out) at FLOOD_RATE a second, open-loop,
 # for FLOOD_MIN; the experiment starts when its container does (the image may take a while to pull).
-quiet
+quiet 2-flood "$expect_latency"
 n=$(python3 -c "print(round($rate * 60 * $flood_min))")
 SCENARIOS=rag CONCURRENCY=$n REQUEST_RATE=$rate NUM_PROMPTS=$n RESULTS_PREFIX="p3/gameday/$session/flood" \
   bash "$p1/bench/bench.sh" > "$out/flood.txt" 2>&1 & bench=$!
@@ -107,29 +116,41 @@ for _ in $(seq 180); do
   sleep 5
 done
 [ -n "$started" ] || { echo "the flood's bench Job never started"; exit 1; }
-event 2-flood "${EXPECT_LATENCY:-VllmTtftBudgetBurn}" "$(python3 -c "import datetime as d; print(int(d.datetime.fromisoformat('${started/Z/+00:00}').timestamp()))")"
+event 2-flood "$expect_latency" "$(python3 -c "import datetime as d; print(int(d.datetime.fromisoformat('${started/Z/+00:00}').timestamp()))")"
 for _ in $(seq $((flood_min * 6))); do kill -0 "$bench" 2>/dev/null || break; sleep 10; done
 stop_flood
 say "flood over (stopped after ${flood_min} min; its own results aren't kept, the SLI comes from Prometheus)"
 
+# Side note: one SIGKILL, KEDA still in charge: how long until a new pod on the same node is Ready.
+vllm_ready
+kill_vllm() { kubectl delete pod -n vllm -l app.kubernetes.io/name=vllm --grace-period=0 --force >/dev/null 2>&1 || true; }
+killed=$(date +%s)
+kill_vllm
+sleep 15  # until the killed pod is gone, so the Ready pod found next is the new one
+vllm_ready
+echo "one SIGKILL: vLLM Ready again after $(( $(date +%s) - killed )) s (a new pod on the same node)" | tee "$out/recovery-one-kill.txt"
+
 # 1-vllm-killed: the pod killed at once (SIGKILL), then KEDA paused at 0 so nothing brings it back.
-quiet
-event 1-vllm-killed "${EXPECT_FALLBACK:-ChatDefaultFallbackHigh}"
-kubectl delete pod -n vllm -l app.kubernetes.io/name=vllm --grace-period=0 --force >/dev/null 2>&1 || true
+quiet 1-vllm-killed "$expect_fallback"
+event 1-vllm-killed "$expect_fallback"
+kill_vllm
 kubectl annotate scaledobject vllm -n vllm autoscaling.keda.sh/paused-replicas=0 --overwrite >/dev/null
 sleep $((hold_min * 60))
 
-# 3-hosted-blocked: vLLM still down, and now the hosted model is out of reach too.
-event 3-hosted-blocked "${EXPECT_AVAILABILITY:-GatewayAvailabilityBudgetBurn}"
+# 3-hosted-blocked: vLLM still down, and now the hosted model is out of reach too. The fallback alert is
+# expected to keep firing through it.
+quiet 3-hosted-blocked "$expect_availability"
+event 3-hosted-blocked "$expect_availability"
 kubectl label --local -f "$here/block-hosted.yaml" owner="$owner" session="$session" -o yaml | kubectl apply -f - >/dev/null
 sleep $((block_min * 60))
 
-# Restore, and time vLLM's return (a new pod on the same node, the image and weights already there).
+# Restore, and time vLLM's return: after 15+ min at 0 the autoscaler has removed the GPU node, so this
+# includes a cold node start (P1's optimized cold start: median 402 s).
 kubectl delete networkpolicy block-hosted-model -n gateway >/dev/null
 restore=$(date +%s)
 kubectl annotate scaledobject vllm -n vllm autoscaling.keda.sh/paused-replicas- >/dev/null
 vllm_ready
-echo "vLLM ready again $(( $(date +%s) - restore )) s after KEDA was unpaused (one restart on the same node)" | tee "$out/recovery.txt"
+echo "restore: vLLM Ready again $(( $(date +%s) - restore )) s after KEDA was unpaused (includes a cold GPU node start)" | tee "$out/recovery.txt"
 
 kill "$load" 2>/dev/null || true; load=
 curl -sf http://127.0.0.1:19094/log > "$out/alerts.jsonl"

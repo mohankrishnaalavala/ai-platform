@@ -5,6 +5,9 @@ ALERTS: the alert receiver's GET /log, JSON lines {"received_at": <unix s>, "sta
 "alertname": ..., "labels": {...}, "startsAt": ...}.
 For each experiment, the first firing alert received at or after its start whose name matches what it expects.
 Alert names differ per experiment, so a match may come after the next experiment started. No match: [X].
+Before each experiment, gameday.sh also runs (stdin: Prometheus's answer to the query ALERTS):
+  python3 time_to_alert.py clear NAME                    exit 0 once alert NAME is neither pending nor firing
+  python3 time_to_alert.py record SETTINGS EXPERIMENT    note in SETTINGS which alerts fire as EXPERIMENT starts
 """
 import json
 import re
@@ -28,6 +31,20 @@ def time_to_alert(events, alerts):
     return rows
 
 
+def alert_names(answer, state=None):
+    """Alert names in Prometheus's answer to the query ALERTS, optionally only those in one state."""
+    result = (answer.get("data") or {}).get("result", [])
+    return sorted({r["metric"]["alertname"] for r in result if state in (None, r["metric"].get("alertstate"))})
+
+
+def record(settings_path, experiment, answer):
+    with open(settings_path) as f:
+        settings = json.load(f)
+    settings.setdefault("firing_at_start", {})[experiment] = alert_names(answer, "firing")
+    with open(settings_path, "w") as f:
+        json.dump(settings, f, indent=1)
+
+
 def table(rows):
     out = ["| Experiment | Started | First matching alert | Received | Time to alert |", "|---|---|---|---|---|"]
     for name, started, alert, received, minutes in rows:
@@ -42,4 +59,9 @@ def read_lines(path):
 
 
 if __name__ == "__main__":
-    print(table(time_to_alert(read_lines(sys.argv[1]), read_lines(sys.argv[2]))))
+    if sys.argv[1] == "clear":
+        sys.exit(sys.argv[2] in alert_names(json.loads(sys.stdin.read() or "{}")))
+    elif sys.argv[1] == "record":
+        record(sys.argv[2], sys.argv[3], json.loads(sys.stdin.read() or "{}"))
+    else:
+        print(table(time_to_alert(read_lines(sys.argv[1]), read_lines(sys.argv[2]))))

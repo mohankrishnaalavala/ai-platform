@@ -1,8 +1,14 @@
-"""Unit tests for the time-to-alert calculator, on made-up receiver lines (P3's real alert names)."""
+"""Unit tests for the time-to-alert calculator and the wait before each experiment (P3's real alert names)."""
+import json
+import os
+import subprocess
+import sys
+import tempfile
 import unittest
 
-from time_to_alert import table, time_to_alert
+from time_to_alert import alert_names, record, table, time_to_alert
 
+HERE = os.path.dirname(os.path.abspath(__file__))
 EVENTS = [
     {"experiment": "2-flood", "started_at": 1000, "expects": "VllmTtftBudgetBurn"},
     {"experiment": "1-vllm-killed", "started_at": 5000, "expects": "ChatDefaultFallbackHigh"},
@@ -12,6 +18,12 @@ EVENTS = [
 
 def alert(at, name, status="firing"):
     return {"received_at": at, "status": status, "alertname": name, "labels": {}, "startsAt": ""}
+
+
+def answer(*alerts):
+    """Prometheus's answer to the query ALERTS, from (alertname, alertstate) pairs."""
+    return {"status": "success", "data": {"result": [
+        {"metric": {"__name__": "ALERTS", "alertname": n, "alertstate": st}, "value": [0, "1"]} for n, st in alerts]}}
 
 
 class TimeToAlertTest(unittest.TestCase):
@@ -38,6 +50,37 @@ class TimeToAlertTest(unittest.TestCase):
     def test_a_late_match_after_the_next_start_still_counts(self):
         rows = time_to_alert(EVENTS[:2], [alert(5300.0, "VllmTtftBudgetBurn")])
         self.assertEqual(rows[0][4], 71.7)
+
+
+class WaitBeforeEachExperimentTest(unittest.TestCase):
+    """gameday.sh waits only for the next experiment's own alert, pending or firing, not for every alert."""
+
+    def clear(self, name, ans):
+        return subprocess.run([sys.executable, os.path.join(HERE, "time_to_alert.py"), "clear", name],
+                              input=json.dumps(ans), text=True, check=False).returncode == 0
+
+    def test_waits_while_its_own_alert_is_pending_or_firing(self):
+        self.assertFalse(self.clear("ChatDefaultFallbackHigh", answer(("ChatDefaultFallbackHigh", "pending"))))
+        self.assertFalse(self.clear("ChatDefaultFallbackHigh", answer(("ChatDefaultFallbackHigh", "firing"))))
+
+    def test_other_alerts_dont_hold_it_up(self):
+        # Experiment 3 starts while vLLM is still down: the fallback alert keeps firing, as expected.
+        self.assertTrue(self.clear("GatewayAvailabilityBudgetBurn",
+                                   answer(("ChatDefaultFallbackHigh", "firing"), ("VllmTtftBudgetBurn", "pending"))))
+        self.assertTrue(self.clear("VllmTtftBudgetBurn", {}))  # no answer from Prometheus: nothing to wait for
+
+    def test_records_what_fires_as_each_experiment_starts(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "settings.json")
+            with open(path, "w") as f:
+                json.dump({"scrape_interval": "15s"}, f)
+            ans = answer(("ChatDefaultFallbackHigh", "firing"), ("VllmTtftBudgetBurn", "pending"))
+            record(path, "3-hosted-blocked", ans)
+            with open(path) as f:
+                settings = json.load(f)
+        self.assertEqual(settings["firing_at_start"], {"3-hosted-blocked": ["ChatDefaultFallbackHigh"]})
+        self.assertEqual(settings["scrape_interval"], "15s")
+        self.assertEqual(alert_names(ans), ["ChatDefaultFallbackHigh", "VllmTtftBudgetBurn"])
 
 
 if __name__ == "__main__":
