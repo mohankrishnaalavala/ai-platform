@@ -36,6 +36,10 @@ module "cluster" {
   node_service_account = local.foundation.gke_nodes_email
   node_labels          = local.labels
   autoscaling_profile  = var.autoscaling_profile
+  # P3's monitoring stack would take the CPU requests from 64% (P2 session 3) to about 83% (estimate) of an
+  # e2-standard-4. With the GPU node (8 vCPU) this uses all 16 vCPU of the project's CPU quota, so a node
+  # upgrade's extra (surge) node can't start during a session.
+  system_machine_type = "e2-standard-8"
 }
 
 module "gpu_pool" {

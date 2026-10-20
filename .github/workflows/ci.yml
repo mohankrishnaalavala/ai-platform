@@ -76,7 +76,7 @@ jobs:
   # LiteLLM config and start script and the mock provider in place of vLLM and the hosted model.
   gateway:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25  # two Presidio waits of 8 min, then about 4 min of tests
+    timeout-minutes: 25  # two Presidio waits of 8 min, plus the rest (a green run takes about 4 min in all)
     defaults:
       run:
         working-directory: projects/02-llm-gateway/tests
@@ -136,10 +136,10 @@ jobs:
           { echo "SPANS_DIR=$spans"; echo "SPANS_FILE=$spans/spans.jsonl"; echo "SPANS_UID=$(id -u)"
             echo "COMPOSE_FILE=compose.yaml:../../03-llm-observability/tests/compose.spans.yaml"; } >> "$GITHUB_ENV"
 
-      # Presidio's analyzer and anonymizer each hang at start now and then (the health check never answers;
-      # 2 of 3 runs on 2026-10-20). Both are usually healthy in about 70 s, so wait 8 min, print a hung
-      # container's last log lines (the cause is still unknown), restart it once and wait 8 min more. In the
-      # cluster the startup probe does the restart. The job's time limit fits both waits.
+      # Presidio (the tool that finds personal data) sometimes hangs at start: its health check never answers.
+      # Its analyzer hung in 2 of 3 CI runs on 2026-10-20. Healthy starts took 51 to 300 s in the 23 CI runs before,
+      # so wait 8 min, print a hung container's last log lines (the cause is still unknown), restart it once
+      # and wait 8 min more. In the cluster the startup probe does the restart.
       - name: start the gateway
         run: |
           docker compose up -d --wait --wait-timeout 480 && exit 0

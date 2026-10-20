@@ -6,7 +6,7 @@ Built in [P0](../projects/00-foundation/).
 |---|---|---|
 | `bootstrap/` | One-time | Script, run once: enable APIs, create the versioned Terraform state bucket, the terraform service account, Workload Identity Federation for GitHub, and the custom role the deployer uses for the session's Cloud NAT |
 | `foundation/` | Persistent ($[X]/month idle, not measured yet) | VPC (Virtual Private Cloud) network with Private Google Access, deployer, mirror and node service accounts, Workload Identity grants for the P1 pods, Artifact Registry, Cloud Storage (GCS) buckets (models, results, audit), budget + alerts |
-| `session/` | Per session (`make up` / `make down`) | GKE (Google Kubernetes Engine) Standard zonal cluster with private nodes (no public IPs), system pool, spot NVIDIA L4 GPU (graphics processing unit) pool (min 0, max 2), a `gpu-baseline` pool without image streaming (min 0, max 1, for the baseline cold start), Cloud NAT (network address translation), add-ons |
+| `session/` | Per session (`make up` / `make down`) | GKE (Google Kubernetes Engine) Standard zonal cluster with private nodes (no public IPs) and Dataplane V2 (enforces NetworkPolicies; from P3), system pool (one `e2-standard-8` from P3; with the GPU node that is the project's whole 16-vCPU quota, so no extra node can start mid-session, not even an upgrade's surge node), spot NVIDIA L4 GPU (graphics processing unit) pool (min 0, max 2), a `gpu-baseline` pool without image streaming (min 0, max 1, for the baseline cold start), Cloud NAT (network address translation), add-ons |
 | `modules/` | — | `network`, `github-wif`, `budget`, `buckets`, `gke-cluster` and `gpu-node-pool` (P0-05) |
 
 Rules:
