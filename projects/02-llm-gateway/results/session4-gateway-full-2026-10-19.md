@@ -9,7 +9,8 @@
 
 **Outcome:**
 - **Valid:** every P2 check passed. The demo ran in full. vLLM answered first, then the fallback worked, and 20 more calls with vLLM gone all succeeded.
-- **INVALID:** the overhead benchmark (P2-08). `overhead.sh` counted 3 requests that fell back to the hosted model during the gateway runs, and its rule makes any fallback INVALID. This time they are real fallbacks, answered by Gemini. P2-08 stays open.
+- **INVALID:** the overhead benchmark (P2-08), under the rule set before the run. `overhead.sh` counted 3 requests that fell back to the hosted model during the gateway runs, and its rule makes any fallback INVALID. This time they are real fallbacks, answered by Gemini: 2 in round 1, 1 in round 2, none in round 3.
+- **Published by user decision:** round 3's overhead only. After the run (2026-10-19), the user chose to publish it. It's the one round with no fallback, so no Gemini answer is in its timings, which is what the rule protects. Rounds 1 and 2 stay reference only. The 10-concurrent rows of all rounds can't be used either, because which concurrency the 3 fallbacks happened at wasn't recorded.
 
 Every line quoted below is saved in [`overhead/20261019t2338z/session-log-excerpt.txt`](overhead/20261019t2338z/session-log-excerpt.txt). Team IDs, the project ID and anything key-like are replaced there. GitHub keeps the full log for 90 days.
 
@@ -84,7 +85,21 @@ streaming: 10/10 answered; time min / median / max 700 / 744 / 1135 ms; answered
   - This answers P2-03's question: after the first call, requests didn't wait on the dead backend again. Why isn't shown. It could be LiteLLM's cooldown of the failed deployment, or the Service now refusing connections at once. The run doesn't separate the two.
 - **The model that answered** comes from the `x-litellm-model-name` header. The answer body names only the alias.
 
-## Overhead benchmark (P2-08): INVALID
+## Overhead benchmark (P2-08): INVALID under its rule; round 3 published by user decision
+
+**Published overhead: session 4, round 3 of 3.** The run is INVALID under its own rule (3 fallbacks in rounds 1–2). The user chose on 2026-10-19, after the run, to publish round 3, the round with no fallback. Gateway minus straight to vLLM:
+
+| Concurrency | Measure | Straight to vLLM (ms) | Through the gateway (ms) | Added by the gateway (ms) |
+|---|---|---|---|---|
+| 10 | TTFT p50 | 731 | 854 | +123 |
+| 10 | TTFT p95 | 923 | 1679 | +756 |
+| 50 | TTFT p50 | 1114 | 7610 | +6496 |
+| 50 | TTFT p95 | 2380 | 11183 | +8802 |
+
+- **Source:** `overhead.py results/overhead/20261019t2338z/r3`.
+- **End-to-end overhead is `[X]`:** the gateway half counted fewer output tokens (12,378 against 12,800 at 10, and 61,160 against 64,000 at 50), so end-to-end times aren't comparable.
+- **One round:** these are one round's numbers, not a median. The other rounds and the medians are below, so the selection is visible.
+
 Raw files: [`overhead/20261019t2338z/`](overhead/20261019t2338z/), one folder per round (`r1`, `r2`, `r3`), each with `direct/<time>/` and `gateway/<time>/` (`summary.md`, the `vllm bench serve` JSON, the Job log).
 
 **Method:**
@@ -105,8 +120,8 @@ INVALID: 3 requests fell back to the hosted model during the gateway runs
 - **The benchmark counted them as successes:** "500 / 0" below, because the client got an answer.
 - **Which concurrency they happened at wasn't recorded.**
 
-### Reference only: not publishable
-These numbers come from an INVALID run. Don't quote them as the gateway's overhead. They're here because they show what to fix.
+### All three rounds (rounds 1 and 2: reference only, not publishable)
+Rounds 1 and 2 had fallbacks, so don't quote them as the gateway's overhead. They're shown so a reader can see what was selected, and because they show what to fix.
 
 | Round | Half | Concurrency | Requests ok / failed | TTFT p50 / p95 / p99 (ms) | End to end p50 / p95 (ms) | ITL p50 (ms) | TPOT p50 (ms) | Output tokens/s | Output tokens |
 |---|---|---|---|---|---|---|---|---|---|
@@ -125,18 +140,18 @@ These numbers come from an INVALID run. Don't quote them as the gateway's overhe
 
 TTFT: time to first token. ITL: inter-token latency. TPOT: time per output token.
 
-`overhead.py` on these rounds gives these differences (gateway minus direct). End-to-end differences are `[X]` in every round, because the output token counts differ:
+`overhead.py` on these rounds gives these differences (gateway minus direct). The published value is round 3's (the last of the three per-round figures); the median of all 3 rounds is shown for comparison only. End-to-end differences are `[X]` in every round, because the output token counts differ:
 
-| Concurrency | Measure | Per round (ms) | Median (ms) |
+| Concurrency | Measure | Rounds 1, 2, 3 (ms) | Median of 3 (ms), not published |
 |---|---|---|---|
 | 10 | TTFT p50 | −12, +76, +123 | +76 |
 | 10 | TTFT p95 | +1122, +898, +756 | +898 |
 | 50 | TTFT p50 | +6589, +6332, +6496 | +6496 |
 | 50 | TTFT p95 | +8576, +9967, +8802 | +8802 |
 
-**What the reference numbers show:**
+**What the three rounds show:**
 - **At 10 concurrent the stream works.** ITL p50 through the gateway is 36.4 ms, the same as straight to vLLM. So the buffering found in session 3 is gone at this load.
-- **At 50 concurrent the gateway falls far behind.**
+- **At 50 concurrent the gateway falls far behind** (a finding in every round, round 3 included).
   - TTFT p50 rose by about 6.5 s in every round.
   - TTFT p99 through the gateway was 13.6–17.4 s, against about 4 s straight to vLLM.
   - Output throughput fell to 334–343 tokens/s, against 654–658 straight.
