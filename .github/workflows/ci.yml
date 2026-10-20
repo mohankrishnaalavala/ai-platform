@@ -84,6 +84,8 @@ jobs:
       YQ: mikefarah/yq:4.54.1@sha256:4b3d9475d65571d28cbb19544d3820ec2945e4c8b2f18279394282b8dc3a592e
       GATEWAY_URL: http://127.0.0.1:4000
       MOCK_HOSTED_URL: http://127.0.0.1:8102  # what reached the "hosted provider" (test_pii.py)
+      TEMPO_URL: http://127.0.0.1:3200  # P3's test_metrics.py
+      PROMETHEUS_URL: http://127.0.0.1:9090
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -127,14 +129,26 @@ jobs:
           docker run --rm -i "$YQ" '.data["start.sh"]' < "$RUNNER_TEMP/cm.yaml" > "$config/start.sh"
           { echo "SECRETS_DIR=$secrets"; echo "CONFIG_DIR=$config"; echo "MASTER_KEY=$master"; } >> "$GITHUB_ENV"
 
-      # P3's override: the collector also writes every span to a file (test_spans.py), as the runner's user.
-      # Every compose command below uses both files.
-      - name: the span file for P3
+      # P3's override (compose.p3.yaml): the collector's and Tempo's configs come from their charts with P2's
+      # and P3's values, so CI runs the cluster's pipeline. CI's own values add full span printing and a span
+      # file. Every compose command below uses both compose files.
+      - name: "P3: collector and Tempo configs from their charts, and the span file"
         run: |
-          spans="$RUNNER_TEMP/spans"
-          mkdir "$spans"
+          p3=../../03-llm-observability
+          spans="$RUNNER_TEMP/spans" otel="$RUNNER_TEMP/otel" tempo="$RUNNER_TEMP/tempo"
+          mkdir "$spans" "$otel" "$tempo"
+          helm template otel-collector opentelemetry-collector --repo https://open-telemetry.github.io/opentelemetry-helm-charts \
+            --version 0.174.2 -n gateway -f ../helm/otel-collector.yaml -f "$p3/helm/otel-collector.yaml" \
+            -f "$p3/tests/otel-ci-values.yaml" --show-only templates/configmap.yaml \
+            | docker run --rm -i "$YQ" '.data.relay' > "$otel/relay.yaml"
+          helm template tempo tempo --repo https://grafana-community.github.io/helm-charts --version 3.1.0 -n monitoring \
+            -f "$p3/helm/tempo.yaml" --show-only templates/configmap-tempo.yaml > "$RUNNER_TEMP/tempo-cm.yaml"
+          for f in tempo.yaml overrides.yaml; do
+            docker run --rm -i "$YQ" ".data[\"$f\"]" < "$RUNNER_TEMP/tempo-cm.yaml" > "$tempo/$f"
+          done
           { echo "SPANS_DIR=$spans"; echo "SPANS_FILE=$spans/spans.jsonl"; echo "SPANS_UID=$(id -u)"
-            echo "COMPOSE_FILE=compose.yaml:../../03-llm-observability/tests/compose.spans.yaml"; } >> "$GITHUB_ENV"
+            echo "OTEL_CONFIG=$otel/relay.yaml"; echo "TEMPO_CONFIG_DIR=$tempo"
+            echo "COMPOSE_FILE=compose.yaml:$p3/tests/compose.p3.yaml"; } >> "$GITHUB_ENV"
 
       # Presidio (the tool that finds personal data) hung at start in 4 of 7 runs on 2026-10-20. The hung
       # anonymizer's log shows gunicorn 25.1.0 up with its control socket open but no worker booted, which
@@ -157,10 +171,12 @@ jobs:
       - name: smoke, budget, rate limit, keys, PII on the hosted route
         run: python3 -m unittest discover -s . -v
 
-      # The span names and attributes P3's metrics, alerts and scale-from-zero trigger are built on. Its fallback
-      # request is the first after the mock vLLM stops, so it also checks that one comes within the 30 s timeout.
-      - name: "P3: the span contract (LiteLLM's trace fields; stops the mock vLLM for the next step)"
-        run: python3 -m unittest discover -s ../../03-llm-observability/tests -p test_spans.py -v
+      # The span names and attributes P3's metrics, alerts and scale-from-zero trigger are built on, then the
+      # pipeline: a trace in Tempo, the span metrics in Prometheus. The span test's fallback request is the
+      # first after the mock vLLM stops, so it also checks that one comes within the 30 s timeout.
+      - name: "P3: span contract, traces in Tempo, span metrics in Prometheus (stops the mock vLLM for the next step)"
+        working-directory: projects/03-llm-observability/tests
+        run: python3 -m unittest -v test_spans test_metrics
 
       - name: fallback, and PII on the fallback (the mock vLLM stopped)
         run: |

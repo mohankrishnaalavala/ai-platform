@@ -16,8 +16,15 @@ Traces, the right metrics, SLOs (service level objectives) with burn-rate alerts
     - Alertmanager's config comes from an `AlertmanagerConfig` resource. Alerts go nowhere yet; P3-06 adds the receiver.
   - **Nothing here can read Secrets:** Grafana may read ConfigMaps in its own namespace only, and kube-state-metrics doesn't collect Secrets.
 - **Traces:** Tempo, a single binary with no disk: a scratch volume of at most 2 GiB goes with the pod ([`helm/tempo.yaml`](helm/tempo.yaml)). Grafana reads it as a second data source.
+- **The collector:** P2's OpenTelemetry Collector, upgraded with P3's values ([`helm/otel-collector.yaml`](helm/otel-collector.yaml)).
+  - It sends the gateway's traces on to Tempo.
+  - Its span metrics connector turns traces into request, error and latency metrics, which Prometheus scrapes.
+  - Labels: model group, team and status code only. The latency buckets include 2.5 s (the latency SLO's threshold) and chat-default's 10 s and 30 s timeouts.
+  - Metrics refresh every 15 s, not the default 60 s, since that delay adds to every alert.
 - **Network:** nothing is public. Every Service is ClusterIP, reached by `kubectl port-forward`.
-- **The span contract** ([`tests/test_spans.py`](tests/test_spans.py), in CI on every pull request): the span names and attributes LiteLLM v1.103.3 sends, which P3's metrics are built from.
+- **In CI on every pull request** (the gateway job, with the collector's and Tempo's configs rendered from their charts):
+  - [`tests/test_metrics.py`](tests/test_metrics.py): a trace reaches Tempo, the span metrics reach Prometheus with only the chosen labels, and the scale-from-zero query returns a number.
+  - [`tests/test_spans.py`](tests/test_spans.py), the span contract: the span names and attributes LiteLLM v1.103.3 sends, which P3's metrics are built from.
   - **No model on the request span:** the request (SERVER) span has the route, the status code and the team.
   - **Attempt spans:** each attempt at a model has its own span, with the model group, the team, the cost on success and ERROR on failure.
   - **No fallback flag:** a fallback is a failed `chat-default` attempt followed by a successful `chat-hosted` one.

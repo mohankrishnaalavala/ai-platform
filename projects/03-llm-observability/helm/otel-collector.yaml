@@ -1,0 +1,44 @@
+# P3's values on top of P2's (projects/02-llm-gateway/helm/otel-collector.yaml): the same release. Traces
+# go on to Tempo, and the span_metrics connector (alpha in 0.161.0) turns them into request, error and
+# latency metrics, which Prometheus scrapes from port 8889 (ServiceMonitor below).
+# Extra labels: model group, team and status code only (tests/test_spans.py shows where each comes from).
+# Anything per user or per prompt would make Prometheus huge. owner and session labels come from deploy.sh.
+ports:
+  span-metrics:
+    enabled: true
+    containerPort: 8889
+    servicePort: 8889
+    protocol: TCP
+serviceMonitor:
+  enabled: true
+  metricsEndpoints:
+    - port: span-metrics
+      interval: 15s
+  # No extraLabels: the chart already puts P2's labels (app, layer, owner, session) on it.
+config:
+  exporters:
+    otlp_http/tempo:
+      endpoint: http://tempo.monitoring:4318
+    prometheus:
+      endpoint: ${env:MY_POD_IP}:8889
+  connectors:
+    span_metrics:
+      metrics_flush_interval: 15s  # the default 60 s would add up to a minute to every alert
+      histogram:
+        unit: s
+        explicit:
+          # 2.5 s is the latency SLO's threshold and 10 s and 30 s are chat-default's timeouts: the SLO
+          # math is exact only at a bucket boundary.
+          buckets: [100ms, 250ms, 500ms, 1s, 2.5s, 5s, 10s, 30s, 60s]
+      dimensions:
+        - name: litellm.model_group
+        - name: metadata.user_api_key_team_alias
+        - name: http.response.status_code
+  service:
+    pipelines:
+      traces:
+        exporters: [debug, otlp_http/tempo, span_metrics]
+      metrics:
+        receivers: [span_metrics]
+        processors: [memory_limiter, batch]
+        exporters: [prometheus]
