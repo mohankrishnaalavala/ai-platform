@@ -27,6 +27,11 @@ spec:
           image: {{ $p.image }}
           ports:
             - {name: http, containerPort: 3000}
+          # gunicorn 25.1.0 (in the anonymizer's CI log) can deadlock a new worker at boot: its control-socket
+          # thread holds a lock across fork (gunicorn issues 3509 and 3529, fixed later by PR 3520). The hung
+          # anonymizer's log matched: master up, control socket open, no "Booting worker". Likely the analyzer too.
+          env:
+            - {name: GUNICORN_CMD_ARGS, value: --no-control-socket}
           # Restarted if it doesn't come up in time (the analyzer loads a language model first) or hangs
           # later: the gateway refuses requests while Presidio is down, so a hung pod must not stay.
           startupProbe:
