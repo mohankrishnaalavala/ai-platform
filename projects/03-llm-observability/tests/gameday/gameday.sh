@@ -21,7 +21,7 @@ out=${OUT:-$(mktemp -d)}
 mkdir -p "$out"
 : "${CONFIG:?set CONFIG to the model config vLLM serves}"
 rate=${FLOOD_RATE:-1.0} flood_min=${FLOOD_MIN:-10} hold_min=${HOLD_MIN:-15} block_min=${BLOCK_MIN:-10}
-recorder=${RECORDER:-monitoring/alert-recorder:8080}
+recorder=${RECORDER:-monitoring/alert-receiver:8080}
 # shellcheck source=/dev/null  # ../lib.sh
 source "$here/../lib.sh"
 session=$(gcloud container clusters describe ai-platform --location="$ZONE" --format='value(resourceLabels.session)')
