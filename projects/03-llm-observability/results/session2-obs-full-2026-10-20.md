@@ -16,7 +16,7 @@
 3. `tests/gameday/gameday.sh`
 4. `tests/scale_from_zero.sh`
 
-Each step was cut off at a 150-minute deadline. The log lines below are copied from the run's log, which GitHub keeps for 90 days. The other files come from the run's upload to the results bucket and its diagnostics artifact.
+Each step was cut off at the job's measurement deadline, 150 minutes after the job started (19:48:09Z). The log lines below are copied from the run's log, which GitHub keeps for 90 days. The other files come from the run's upload to the results bucket and its diagnostics artifact.
 
 ## Results
 
@@ -59,7 +59,7 @@ This proves the rest of the dashboards' metric names. Every `vllm:` and `DCGM_` 
   | 20:00–20:09 | 19 | 19 | 19 |
   | 20:10–20:18 | 17 | 17 | 17 |
 
-  All 252 returned 200. From 20:00 on, every `chat-default` attempt hit its 30 s timeout, and the gateway answered from the hosted model.
+  All 252 returned 200. From 20:00 on, every request took about 30.6 s and fell back to the hosted model, which fits `chat-default`'s 30 s timeout.
 - vLLM's own log (the last 300 lines, 20:14Z to 20:18Z): `Running: 44 reqs, Waiting: 514 reqs, GPU KV cache usage: 98.6%` at 20:14:53Z, rising to `Running: 45 reqs, Waiting: 565 reqs, GPU KV cache usage: 99.9%` at 20:17:53Z. Prometheus kept scraping `/metrics` (200 OK).
 
 **Scale from zero: didn't run.**
