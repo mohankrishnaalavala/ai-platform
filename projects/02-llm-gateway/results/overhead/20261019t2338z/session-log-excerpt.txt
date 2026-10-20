@@ -1,0 +1,150 @@
+# Session 4 (GitHub Actions run 39342772607): selected log lines, quoted as logged.
+# The project ID and number, team IDs (bare UUIDs) and anything key-like are replaced. Times are UTC.
+
+[session: make test (P1 smoke tests and autoscaling path, or every P2 check)]  (make up ran 23:38:59 to 00:15:43)
+00:15:47  deployment "presidio-analyzer" successfully rolled out
+00:16:16  budget $1e-05: status codes [200, 200, 200, 429]
+00:16:16  direct (plain and streaming): raw values that got through, per type: card 0/16, email 0/20, phone 0/20
+00:16:16  rpm 2: status codes [200, 200, 429, 429]
+00:16:16  PASS: gateway tests (smoke, budget, rate limit, keys, PII direct)
+00:16:21  team shakedown-001616 (<team id>): budget $1, 10 requests a minute; onboarded in 0.5 s
+00:16:21  PASS: make team (end to end 4.8 s)
+00:16:43  dump: 947 lines, 35 spend-log rows
+00:16:43  logs, traces and spend logs: raw values that got through, per type: card 0/8, email 0/10, phone 0/10
+00:16:43  PASS: no raw PII in logs, traces or spend logs
+00:16:45  deployment.apps/presidio-analyzer scaled
+00:17:18  fail closed (pii-fail-closed-plain): status 500, requests at the provider 0
+00:17:18  fail closed (pii-fail-closed-stream): status 500, requests at the provider 0
+00:17:18  PASS: fail closed (PII analyzer scaled to 0)
+00:17:19  deployment.apps/presidio-analyzer scaled
+00:17:19  Waiting for deployment "presidio-analyzer" rollout to finish: 0 of 1 updated replicas are available...
+00:17:30  deployment "presidio-analyzer" successfully rolled out
+00:17:30  all P2 checks passed
+
+[session: gateway-full: demo (a team, its budget, PII masked), printed for screenshots]
+00:17:36  == 1. A new team gets a key, a budget and a rate limit with one command
+00:17:36  $ make team NAME=payments BUDGET_USD=20 RPM=60
+00:17:39  team payments (<team id>): budget $20, 60 requests a minute; onboarded in 0.5 s
+00:17:39  (the key stays in memory, not shown; 3.6 s end to end)
+00:17:39  
+00:17:39  == 2. The team calls one model name; our own GPU (vLLM) answers
+00:17:39  $ ask chat-default "In one sentence, what does an LLM gateway do?"
+00:17:41  HTTP 200 in 1258 ms, answered by openai/Qwen/Qwen2.5-7B-Instruct, attempted fallbacks 0
+00:17:41  An LLM gateway acts as an intermediary layer that securely routes and manages access to large language models, ensuring efficient and controlled interactions with these models.
+00:17:41  
+00:17:41  == 3. Budgets are hard limits: a team with $0.0001
+00:17:41  $ make team NAME=intern BUDGET_USD=0.0001 RPM=60
+00:17:44  team intern (<team id>): budget $0.0001, 60 requests a minute; onboarded in 0.5 s
+00:17:44  (the key stays in memory, not shown; 3.7 s end to end)
+00:17:48  HTTP 200 in 3659 ms, answered by openai/Qwen/Qwen2.5-7B-Instruct, attempted fallbacks 0
+00:17:53  HTTP 200 in 3625 ms, answered by openai/Qwen/Qwen2.5-7B-Instruct, attempted fallbacks 0
+00:17:55  HTTP 429 in 151 ms, answered by -, attempted fallbacks absent
+00:17:55  status codes [200, 200, 429]
+00:17:55  HTTP 429: Budget has been exceeded! Team=<team id> Current cost: 0.00015000000000000001, Max budget: 0.0001
+00:17:55  
+00:17:55  == 4. Personal data is masked before a prompt leaves: Gemini on Vertex AI gets placeholders
+00:17:55  $ ask chat-hosted "Repeat exactly: Please email the invoice to jane.doe@example.com by Friday. Call me back on (212) 555-0143 after 3pm."
+00:17:56  HTTP 200 in 963 ms, answered by vertex_ai/gemini-3.5-flash-lite, attempted fallbacks 0
+00:17:56  Please email the invoice to <EMAIL_ADDRESS> by Friday. Call me back on <PHONE_NUMBER> after 3pm.
+00:17:56  
+00:17:56  == 5. Proof: the test provider records exactly what it received
+00:17:56  $ ask chat-hosted-mock "[demo] The customer's card number is 4111 1111 1111 1111, expiring 09/28. Please email the invoice to jane.doe@example.com by Friday."
+00:17:56  HTTP 200 in 165 ms, answered by openai/hosted-mock, attempted fallbacks 0
+00:17:56  reply from hosted-mock
+00:17:56  the provider received: [{"role": "user", "content": "[demo] The customer's card number is <CREDIT_CARD>, expiring 09/28. Please email the invoice to <EMAIL_ADDRESS> by Friday."}]
+
+[session: gateway-full: gateway overhead (the same load straight to vLLM and through the gateway, 3 rounds)]
+00:18:08  preflight: status 200, attempted fallbacks 0
+00:18:08  == round 1: straight to vLLM
+00:24:59  - Session: 20261019t2338z, date: 20261020-002217
+00:25:13  == round 1: through the gateway (chat-default)
+00:32:10  - Session: 20261019t2338z, date: 20261020-002814
+00:32:25  requests that fell back to the hosted model during round 1's gateway run: 2
+00:32:26                model              | custom_llm_provider | status  |  call_type  | count 
+00:32:26  ---------------------------------+---------------------+---------+-------------+-------
+00:32:26   vertex_ai/gemini-3.5-flash-lite | vertex_ai           | success | acompletion |     2
+00:32:27  NAME                                   CPU(cores)   MEMORY(bytes)   
+00:32:27  litellm-554b988796-qw8pd               681m         709Mi           
+00:32:27  mock-provider-7d7b59b4d9-42ttz         1m           18Mi            
+00:32:27  otel-collector-646cc8db7b-dfwpx        3m           103Mi           
+00:32:27  postgres-7cffc8c8f5-kz4vj              22m          98Mi            
+00:32:27  presidio-analyzer-7d78b4c9c5-j9rkl     141m         754Mi           
+00:32:27  presidio-anonymizer-6c7658698d-2f9mb   5m           44Mi            
+00:32:27  == round 2: through the gateway (chat-default)
+00:42:43  - Session: 20261019t2338z, date: 20261020-003850
+00:43:00  requests that fell back to the hosted model during round 2's gateway run: 1
+00:43:01                model              | custom_llm_provider | status  |  call_type  | count 
+00:43:01  ---------------------------------+---------------------+---------+-------------+-------
+00:43:01   vertex_ai/gemini-3.5-flash-lite | vertex_ai           | success | acompletion |     1
+00:43:02  NAME                                   CPU(cores)   MEMORY(bytes)   
+00:43:02  litellm-554b988796-qw8pd               704m         719Mi           
+00:43:02  mock-provider-7d7b59b4d9-42ttz         1m           18Mi            
+00:43:02  otel-collector-646cc8db7b-dfwpx        2m           103Mi           
+00:43:02  postgres-7cffc8c8f5-kz4vj              27m          100Mi           
+00:43:02  presidio-analyzer-7d78b4c9c5-j9rkl     182m         755Mi           
+00:43:02  presidio-anonymizer-6c7658698d-2f9mb   7m           44Mi            
+00:43:02  == round 2: straight to vLLM
+00:52:37  - Session: 20261019t2338z, date: 20261020-005015
+00:52:44  == round 3: straight to vLLM
+01:01:21  - Session: 20261019t2338z, date: 20261020-005904
+01:01:29  == round 3: through the gateway (chat-default)
+01:12:08  - Session: 20261019t2338z, date: 20261020-010812
+01:12:26  requests that fell back to the hosted model during round 3's gateway run: 0
+01:12:27   model | custom_llm_provider | status | call_type | count 
+01:12:27  -------+---------------------+--------+-----------+-------
+01:12:27  (0 rows)
+01:12:27  NAME                                   CPU(cores)   MEMORY(bytes)   
+01:12:27  litellm-554b988796-qw8pd               701m         716Mi           
+01:12:27  mock-provider-7d7b59b4d9-42ttz         1m           17Mi            
+01:12:27  otel-collector-646cc8db7b-dfwpx        3m           78Mi            
+01:12:27  postgres-7cffc8c8f5-kz4vj              24m          97Mi            
+01:12:27  presidio-analyzer-7d78b4c9c5-j9rkl     125m         755Mi           
+01:12:27  presidio-anonymizer-6c7658698d-2f9mb   6m           44Mi            
+01:12:29  Allocated resources:
+01:12:29    Resource           Requests          Limits
+01:12:29    cpu                2546m (64%)       16043m (409%)
+01:12:29    memory             6123817856 (44%)  16102865408 (116%)
+01:12:29  INVALID: 3 requests fell back to the hosted model during the gateway runs
+
+[session: gateway-full: fallback after vLLM goes away]
+01:12:37  vLLM up: status 200, 250 ms, attempted fallbacks 0
+01:12:37  PASS: chat-default answered by vLLM itself
+01:12:37  scaledobject.keda.sh/vllm annotated
+01:12:46  pod/vllm-69bd6f458c-2tj8p condition met
+01:13:18  fallback (plain): status 200, 31108 ms, attempted fallbacks 1
+01:13:18  fallback (stream): status 200, 974 ms, attempted fallbacks 1
+01:13:18  PASS: fallback to the hosted model after vLLM went away
+
+[session: gateway-full: demo, 20 calls with vLLM gone]
+01:13:24  == 6. vLLM is gone (KEDA paused at 0 replicas); the same model name, 10 plain and 10 streaming calls
+01:13:25  plain 1: HTTP 200 in 967 ms, answered by vertex_ai/gemini-3.5-flash-lite, attempted fallbacks 1
+01:13:26  plain 2: HTTP 200 in 734 ms, answered by vertex_ai/gemini-3.5-flash-lite, attempted fallbacks 1
+01:13:26  plain 3: HTTP 200 in 821 ms, answered by vertex_ai/gemini-3.5-flash-lite, attempted fallbacks 1
+01:13:27  plain 4: HTTP 200 in 1059 ms, answered by vertex_ai/gemini-3.5-flash-lite, attempted fallbacks 1
+01:13:28  plain 5: HTTP 200 in 1020 ms, answered by vertex_ai/gemini-3.5-flash-lite, attempted fallbacks 1
+01:13:29  plain 6: HTTP 200 in 724 ms, answered by vertex_ai/gemini-3.5-flash-lite, attempted fallbacks 1
+01:13:30  plain 7: HTTP 200 in 978 ms, answered by vertex_ai/gemini-3.5-flash-lite, attempted fallbacks 1
+01:13:31  plain 8: HTTP 200 in 706 ms, answered by vertex_ai/gemini-3.5-flash-lite, attempted fallbacks 1
+01:13:32  plain 9: HTTP 200 in 888 ms, answered by vertex_ai/gemini-3.5-flash-lite, attempted fallbacks 1
+01:13:33  plain 10: HTTP 200 in 740 ms, answered by vertex_ai/gemini-3.5-flash-lite, attempted fallbacks 1
+01:13:33  streaming 1: HTTP 200 in 877 ms, answered by vertex_ai/gemini-3.5-flash-lite, attempted fallbacks 1
+01:13:34  streaming 2: HTTP 200 in 892 ms, answered by vertex_ai/gemini-3.5-flash-lite, attempted fallbacks 1
+01:13:35  streaming 3: HTTP 200 in 715 ms, answered by vertex_ai/gemini-3.5-flash-lite, attempted fallbacks 1
+01:13:36  streaming 4: HTTP 200 in 1135 ms, answered by vertex_ai/gemini-3.5-flash-lite, attempted fallbacks 1
+01:13:37  streaming 5: HTTP 200 in 764 ms, answered by vertex_ai/gemini-3.5-flash-lite, attempted fallbacks 1
+01:13:38  streaming 6: HTTP 200 in 732 ms, answered by vertex_ai/gemini-3.5-flash-lite, attempted fallbacks 1
+01:13:38  streaming 7: HTTP 200 in 756 ms, answered by vertex_ai/gemini-3.5-flash-lite, attempted fallbacks 1
+01:13:39  streaming 8: HTTP 200 in 729 ms, answered by vertex_ai/gemini-3.5-flash-lite, attempted fallbacks 1
+01:13:40  streaming 9: HTTP 200 in 714 ms, answered by vertex_ai/gemini-3.5-flash-lite, attempted fallbacks 1
+01:13:41  streaming 10: HTTP 200 in 700 ms, answered by vertex_ai/gemini-3.5-flash-lite, attempted fallbacks 1
+01:13:41  plain: 10/10 answered; time min / median / max 706 / 854 / 1059 ms; answered by ['vertex_ai/gemini-3.5-flash-lite']
+01:13:41  streaming: 10/10 answered; time min / median / max 700 / 744 / 1135 ms; answered by ['vertex_ai/gemini-3.5-flash-lite']
+
+[teardown: make status]
+01:25:27  container clusters:        none
+01:25:29  compute instances:         none
+01:25:30  compute disks:             none
+01:25:31  compute forwarding-rules:  none
+01:25:32  compute addresses:         none
+01:25:33  compute routers:           none
+01:25:33  nothing billable is running
