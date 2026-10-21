@@ -67,7 +67,10 @@ class SessionTest(unittest.TestCase):
     def test_rules_are_loaded(self):
         if not (P3 / "slos").is_dir():
             self.skipTest("no slos/ yet (the SLO pull request adds them)")
-        self.assertTrue(get(PROMETHEUS + "/api/v1/rules")["data"]["groups"])
+        # The operator and Prometheus's config reloader take a while after deploy.sh applies them: the obs-scale
+        # run (2026-10-21) checked 39 s after `make up` and Prometheus loaded them 23 s later.
+        self.assertTrue(until(lambda: get(PROMETHEUS + "/api/v1/rules")["data"]["groups"], 120),
+                        "no rule groups in Prometheus")
 
     def test_gateway_calls_reach_tempo_and_span_metrics(self):
         team, key = new_team("session")
