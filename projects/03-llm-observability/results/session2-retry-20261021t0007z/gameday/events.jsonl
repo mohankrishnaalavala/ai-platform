@@ -1,0 +1,3 @@
+{"experiment": "2-flood", "started_at": 1792544461, "expects": "VllmTtftBudgetBurn"}
+{"experiment": "1-vllm-killed", "started_at": 1792546840, "expects": "ChatDefaultFallbackHigh"}
+{"experiment": "3-hosted-blocked", "started_at": 1792547743, "expects": "GatewayAvailabilityBudgetBurn"}

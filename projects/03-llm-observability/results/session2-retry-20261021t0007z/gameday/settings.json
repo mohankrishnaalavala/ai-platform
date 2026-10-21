@@ -1,0 +1,22 @@
+{
+ "scrape_interval": "15s",
+ "rule_interval": "30s",
+ "group_wait": "10s",
+ "group_interval": "1m",
+ "span_metrics_flush": "15s (helm/otel-collector.yaml)",
+ "for": {
+  "ChatDefaultFallbackHigh": "10m",
+  "GatewayAvailabilityBudgetBurn": "0s",
+  "VllmTtftBudgetBurn": "0s"
+ },
+ "firing_at_start": {
+  "2-flood": [],
+  "1-vllm-killed": [
+   "VllmTtftBudgetBurn"
+  ],
+  "3-hosted-blocked": [
+   "ChatDefaultFallbackHigh",
+   "VllmTtftBudgetBurn"
+  ]
+ }
+}

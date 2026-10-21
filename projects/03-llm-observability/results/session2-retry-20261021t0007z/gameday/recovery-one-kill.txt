@@ -1,0 +1,1 @@
+one SIGKILL: a new vLLM pod Ready 251 s after the kill (same node, KEDA in charge)
