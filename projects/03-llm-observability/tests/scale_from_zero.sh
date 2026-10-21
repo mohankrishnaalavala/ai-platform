@@ -27,6 +27,10 @@ wait_for() {
 # KEDA's cooldown (5 min) after the last chat-default request, then the idle GPU node goes.
 wait_for 1200 "no vLLM pod" kubectl get pods -n vllm -l app.kubernetes.io/name=vllm -o name
 wait_for 1800 "no GPU node" kubectl get nodes -l cloud.google.com/gke-nodepool=gpu -o name
+# A fresh port-forward: the one lib.sh opened died when the GPU node went (session 2's retry, 2026-10-21), likely
+# with the tunnel pod (konnectivity-agent) GKE removed alongside it.
+stop_port_forwards
+port_forward gateway/gateway 14300:4000
 
 python3 "$here/scale_from_zero.py" | tee "$out/scale-from-zero.txt"
 echo "probe log: $out/scale-from-zero.txt"
