@@ -52,3 +52,8 @@ time=2026-10-21T03:56:44.930Z	rules=8.680829ms
 2026-10-21T04:12:25Z 04:12:25Z no GPU node
 2026-10-21T04:12:25Z ConnectionRefusedError: [Errno 111] Connection refused
 2026-10-21T04:12:25Z     key = new_key("scale-from-zero")
+
+## Diagnostics: monitoring-objects.txt, the PrometheusRule objects
+monitoring   prometheusrule.monitoring.coreos.com/cost       17m
+monitoring   prometheusrule.monitoring.coreos.com/fallback   17m
+monitoring   prometheusrule.monitoring.coreos.com/platform   17m

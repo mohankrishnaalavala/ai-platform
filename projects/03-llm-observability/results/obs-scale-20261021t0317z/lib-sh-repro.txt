@@ -1,0 +1,12 @@
+# Local reproduction (2026-10-21, a laptop, no cluster) of the reopen race in tests/lib.sh.
+# Stand-ins: 'kubectl port-forward' is a Python HTTP server that keeps the port 1.5 s after SIGTERM; 'gcloud' prints fixed values.
+# The script: source lib.sh (opens port 14300), stop_port_forwards, port_forward again, sleep 3, curl 127.0.0.1:14300.
+
+## lib.sh before the fix (main at 027f810)
+bind failed: [Errno 48] Address already in use
+FAIL: nothing on 14300 after the reopen
+exit status 1
+
+## lib.sh after the fix (stop_port_forwards waits)
+PASS: the reopened port-forward answers
+exit status 0
