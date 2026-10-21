@@ -1,0 +1,172 @@
+# promtool's output, unchanged except leading blank lines removed. Command (from this folder):
+#   promtool test rules exp3-test.yaml   (image prom/prometheus:v3.15.0)
+# Exit status 1: each test expects no alert, so promtool lists every minute an alert fired.
+# Test 1 (closed-loop) is the first group, 1h11m to 1h17m; test 2 (open-loop) starts at 1h6m.
+
+  FAILED:
+    alertname: GatewayAvailabilityBudgetBurn, time: 1h11m, 
+        exp:[], 
+        got:[
+            0:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="ticket", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="ticket", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(ticket) ai-platform gateway-availability SLO error budget burn rate is too fast."}
+            ]
+    alertname: GatewayAvailabilityBudgetBurn, time: 1h12m, 
+        exp:[], 
+        got:[
+            0:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="ticket", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="ticket", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(ticket) ai-platform gateway-availability SLO error budget burn rate is too fast."}
+            ]
+    alertname: GatewayAvailabilityBudgetBurn, time: 1h13m, 
+        exp:[], 
+        got:[
+            0:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="ticket", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="ticket", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(ticket) ai-platform gateway-availability SLO error budget burn rate is too fast."}
+            ]
+    alertname: GatewayAvailabilityBudgetBurn, time: 1h14m, 
+        exp:[], 
+        got:[
+            0:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="ticket", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="ticket", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(ticket) ai-platform gateway-availability SLO error budget burn rate is too fast."}
+            ]
+    alertname: GatewayAvailabilityBudgetBurn, time: 1h15m, 
+        exp:[], 
+        got:[
+            0:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="ticket", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="ticket", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(ticket) ai-platform gateway-availability SLO error budget burn rate is too fast."}
+            ]
+    alertname: GatewayAvailabilityBudgetBurn, time: 1h16m, 
+        exp:[], 
+        got:[
+            0:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="ticket", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="ticket", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(ticket) ai-platform gateway-availability SLO error budget burn rate is too fast."}
+            ]
+    alertname: GatewayAvailabilityBudgetBurn, time: 1h17m, 
+        exp:[], 
+        got:[
+            0:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="ticket", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="ticket", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(ticket) ai-platform gateway-availability SLO error budget burn rate is too fast."}
+            ]
+    alertname: GatewayAvailabilityBudgetBurn, time: 1h6m, 
+        exp:[], 
+        got:[
+            0:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="ticket", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="ticket", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(ticket) ai-platform gateway-availability SLO error budget burn rate is too fast."}
+            ]
+    alertname: GatewayAvailabilityBudgetBurn, time: 1h7m, 
+        exp:[], 
+        got:[
+            0:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="page", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="page", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(page) ai-platform gateway-availability SLO error budget burn rate is too fast."},
+            1:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="ticket", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="ticket", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(ticket) ai-platform gateway-availability SLO error budget burn rate is too fast."}
+            ]
+    alertname: GatewayAvailabilityBudgetBurn, time: 1h8m, 
+        exp:[], 
+        got:[
+            0:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="page", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="page", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(page) ai-platform gateway-availability SLO error budget burn rate is too fast."},
+            1:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="ticket", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="ticket", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(ticket) ai-platform gateway-availability SLO error budget burn rate is too fast."}
+            ]
+    alertname: GatewayAvailabilityBudgetBurn, time: 1h9m, 
+        exp:[], 
+        got:[
+            0:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="page", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="page", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(page) ai-platform gateway-availability SLO error budget burn rate is too fast."},
+            1:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="ticket", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="ticket", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(ticket) ai-platform gateway-availability SLO error budget burn rate is too fast."}
+            ]
+    alertname: GatewayAvailabilityBudgetBurn, time: 1h10m, 
+        exp:[], 
+        got:[
+            0:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="page", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="page", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(page) ai-platform gateway-availability SLO error budget burn rate is too fast."},
+            1:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="ticket", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="ticket", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(ticket) ai-platform gateway-availability SLO error budget burn rate is too fast."}
+            ]
+    alertname: GatewayAvailabilityBudgetBurn, time: 1h11m, 
+        exp:[], 
+        got:[
+            0:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="page", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="page", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(page) ai-platform gateway-availability SLO error budget burn rate is too fast."},
+            1:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="ticket", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="ticket", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(ticket) ai-platform gateway-availability SLO error budget burn rate is too fast."}
+            ]
+    alertname: GatewayAvailabilityBudgetBurn, time: 1h12m, 
+        exp:[], 
+        got:[
+            0:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="page", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="page", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(page) ai-platform gateway-availability SLO error budget burn rate is too fast."},
+            1:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="ticket", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="ticket", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(ticket) ai-platform gateway-availability SLO error budget burn rate is too fast."}
+            ]
+    alertname: GatewayAvailabilityBudgetBurn, time: 1h13m, 
+        exp:[], 
+        got:[
+            0:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="page", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="page", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(page) ai-platform gateway-availability SLO error budget burn rate is too fast."},
+            1:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="ticket", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="ticket", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(ticket) ai-platform gateway-availability SLO error budget burn rate is too fast."}
+            ]
+    alertname: GatewayAvailabilityBudgetBurn, time: 1h14m, 
+        exp:[], 
+        got:[
+            0:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="page", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="page", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(page) ai-platform gateway-availability SLO error budget burn rate is too fast."},
+            1:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="ticket", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="ticket", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(ticket) ai-platform gateway-availability SLO error budget burn rate is too fast."}
+            ]
+    alertname: GatewayAvailabilityBudgetBurn, time: 1h15m, 
+        exp:[], 
+        got:[
+            0:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="page", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="page", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(page) ai-platform gateway-availability SLO error budget burn rate is too fast."},
+            1:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="ticket", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="ticket", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(ticket) ai-platform gateway-availability SLO error budget burn rate is too fast."}
+            ]
+    alertname: GatewayAvailabilityBudgetBurn, time: 1h16m, 
+        exp:[], 
+        got:[
+            0:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="page", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="page", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(page) ai-platform gateway-availability SLO error budget burn rate is too fast."},
+            1:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="ticket", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="ticket", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(ticket) ai-platform gateway-availability SLO error budget burn rate is too fast."}
+            ]
+    alertname: GatewayAvailabilityBudgetBurn, time: 1h17m, 
+        exp:[], 
+        got:[
+            0:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="page", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="page", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(page) ai-platform gateway-availability SLO error budget burn rate is too fast."},
+            1:
+              Labels:{alertname="GatewayAvailabilityBudgetBurn", category="availability", layer="03", severity="ticket", sloth_id="ai-platform-gateway-availability", sloth_service="ai-platform", sloth_severity="ticket", sloth_slo="gateway-availability"}
+              Annotations:{summary="The gateway is returning 5xx errors fast enough to use up its 28-day error budget.", title="(ticket) ai-platform gateway-availability SLO error budget burn rate is too fast."}
+            ]
