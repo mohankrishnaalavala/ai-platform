@@ -10,7 +10,12 @@ PROJECT=$(gcloud config get project 2>/dev/null)
   || { echo "kubectl doesn't point at this session's cluster (run make up first)"; exit 1; }
 
 pfs=()
-stop_port_forwards() { [ ${#pfs[@]} -eq 0 ] || kill "${pfs[@]}" 2>/dev/null || true; }
+# Waits for them to exit: a port-forward reopened while the old one still held the port failed to bind, and the
+# old one answered the new one's check, then went (P3's obs-scale run, 2026-10-21).
+stop_port_forwards() {
+  [ ${#pfs[@]} -eq 0 ] || { kill "${pfs[@]}" 2>/dev/null; wait "${pfs[@]}" 2>/dev/null; } || true
+  pfs=()
+}
 # port_forward NAMESPACE/SERVICE LOCAL:REMOTE: in the background, until it answers on LOCAL.
 port_forward() {
   kubectl port-forward -n "${1%/*}" "svc/${1#*/}" "$2" >/dev/null & pfs+=($!)
