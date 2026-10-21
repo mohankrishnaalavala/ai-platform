@@ -1,0 +1,60 @@
+# Lines copied from run 39519329832's log (session job), its step list, and its diagnostics artifact. Nothing else changed.
+
+## Session job steps (gh run view --json jobs): conclusion, step, start-end UTC
+success	Set up job	00:07:09-00:07:12
+success	measurement deadline	00:07:12-00:07:12
+success	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	00:07:12-00:07:13
+success	Run google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093	00:07:13-00:07:14
+success	Run google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db	00:07:14-00:07:46
+success	Run hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e	00:07:46-00:07:47
+success	install helm	00:07:47-00:07:48
+success	gcloud configuration	00:07:48-00:07:50
+success	stop if a cluster exists	00:07:50-00:07:52
+success	make up	00:07:52-00:51:29
+success	make test (P1 smoke tests and autoscaling path, every P2 check, or every P3 check)	00:51:29-00:52:53
+success	obs-full: Grafana screenshots of the 3 dashboards under background load (decision 15)	00:52:53-00:58:26
+success	obs-full: game day (flood, vLLM killed, hosted model blocked; time to alert)	00:58:26-02:13:45
+failure	obs-full: scale from zero on the gateway's traffic	02:13:45-02:23:19
+success	obs-full: upload P3's results	02:23:19-02:23:26
+	diagnostics	02:23:26-00:00:00
+
+## make test
+2026-10-21T00:51:36Z test_alert_receiver_answers (test_session.SessionTest.test_alert_receiver_answers) ... ok
+2026-10-21T00:51:37Z test_dashboards_from_git_are_loaded (test_session.SessionTest.test_dashboards_from_git_are_loaded) ... ok
+2026-10-21T00:52:51Z test_gateway_calls_reach_tempo_and_span_metrics (test_session.SessionTest.test_gateway_calls_reach_tempo_and_span_metrics) ... ok
+2026-10-21T00:52:51Z test_grafana_answers (test_session.SessionTest.test_grafana_answers) ... ok
+2026-10-21T00:52:51Z test_rules_are_loaded (test_session.SessionTest.test_rules_are_loaded) ... ok
+2026-10-21T00:52:52Z test_scrape_targets_are_up (test_session.SessionTest.test_scrape_targets_are_up) ... ok
+2026-10-21T00:52:53Z test_every_metric_has_a_series (test_dashboard_metrics.DashboardMetricsTest.test_every_metric_has_a_series) ... ok
+2026-10-21T00:52:53Z Ran 7 tests in 76.938s
+2026-10-21T00:52:53Z OK
+2026-10-21T00:52:53Z gateway calls as p3-session-43897042: [200, 200, 200]
+
+## screenshots.sh
+2026-10-21T00:56:21Z screenshot: p3-cost.png (70292 bytes)
+2026-10-21T00:58:21Z Chrome exited with 124 for p3-gateway.png
+2026-10-21T00:58:22Z screenshot: p3-gateway.png (71198 bytes)
+2026-10-21T00:58:26Z screenshot: p3-model-serving.png (84719 bytes)
+
+## gameday.sh
+2026-10-21T00:58:44Z }00:58:44Z background load started; 2 min for the gateway's series to settle
+2026-10-21T01:01:03Z 01:01:03Z start 2-flood (waits for an alert matching /VllmTtftBudgetBurn/)
+2026-10-21T01:31:11Z 01:31:11Z flood over (stopped after 30 min; its own results aren't kept, the SLI comes from Prometheus)
+2026-10-21T01:35:24Z one SIGKILL: a new vLLM pod Ready 251 s after the kill (same node, KEDA in charge)
+2026-10-21T01:40:40Z 01:40:40Z start 1-vllm-killed (waits for an alert matching /ChatDefaultFallbackHigh/)
+2026-10-21T01:55:43Z 01:55:43Z start 3-hosted-blocked (waits for an alert matching /GatewayAvailabilityBudgetBurn/)
+2026-10-21T02:13:43Z restore: vLLM Ready again 476 s after KEDA was unpaused (no GPU node was left, so this includes a cold node start)
+2026-10-21T02:13:43Z 02:13:43Z game day done; files in /home/runner/work/_temp/p3/gameday (scale_from_zero.sh comes next)
+
+## scale_from_zero.sh
+2026-10-21T02:20:51Z 02:20:51Z no vLLM pod
+2026-10-21T02:22:49Z 02:22:49Z no GPU node
+2026-10-21T02:23:19Z E1021 02:23:19.460578   10388 portforward.go:476] "Error creating error stream" err="Timeout occurred" localPort=14300 remotePort=4000
+2026-10-21T02:23:19Z Traceback (most recent call last):
+2026-10-21T02:23:19Z     key = new_key("scale-from-zero")
+2026-10-21T02:23:19Z ConnectionResetError: [Errno 104] Connection reset by peer
+
+## Diagnostics: kubectl top (Grafana) and konnectivity-agent events (ages are relative to about 02:24Z)
+monitoring        prometheus-grafana-7b4d594779-pxtf5                        23m          520Mi           
+kube-system 16m Normal ScalingReplicaSet deployment/konnectivity-agent Scaled up replica set konnectivity-agent-6bcbcbf65f from 1 to 2
+kube-system 87s Normal ScalingReplicaSet deployment/konnectivity-agent Scaled down replica set konnectivity-agent-6bcbcbf65f from 2 to 1

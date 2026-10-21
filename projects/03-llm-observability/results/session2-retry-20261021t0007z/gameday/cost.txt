@@ -1,0 +1,4 @@
+p3:self_hosted_usd_per_1m_output_tokens {"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"p3:self_hosted_usd_per_1m_output_tokens"},"value":[1792546264.087,"1.6147810781561132"]}]}}
+p3:hosted_usd_per_1m_output_tokens {"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"p3:hosted_usd_per_1m_output_tokens"},"value":[1792546264.240,"4.600000000000003"]}]}}
+sum(rate(vllm:generation_tokens_total[5m])) {"status":"success","data":{"resultType":"vector","result":[{"metric":{},"value":[1792546264.393,"155.09122807017542"]}]}}
+sum(rate(llm_output_tokens_by_model_total{litellm_model_group="chat-hosted"}[5m])) {"status":"success","data":{"resultType":"vector","result":[{"metric":{},"value":[1792546264.544,"0.5017543859649122"]}]}}

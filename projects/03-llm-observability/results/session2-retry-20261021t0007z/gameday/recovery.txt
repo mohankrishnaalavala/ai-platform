@@ -1,0 +1,1 @@
+restore: vLLM Ready again 476 s after KEDA was unpaused (no GPU node was left, so this includes a cold node start)
