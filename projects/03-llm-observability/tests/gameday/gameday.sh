@@ -131,6 +131,11 @@ done
 [ -n "$started" ] || { echo "the flood's bench Job never started"; exit 1; }
 event 2-flood "$expect_latency" "$(python3 -c "import datetime as d; print(int(d.datetime.fromisoformat('${started/Z/+00:00}').timestamp()))")"
 for _ in $(seq $((flood_min * 6))); do kill -0 "$bench" 2>/dev/null || break; sleep 10; done
+# P3-05: the cost rules at the flood's end, with vLLM saturated (5-minute rates), and the token rate under them.
+for q in p3:self_hosted_usd_per_1m_output_tokens p3:hosted_usd_per_1m_output_tokens \
+  'sum(rate(vllm:generation_tokens_total[5m]))' 'sum(rate(llm_output_tokens_by_model_total{litellm_model_group="chat-hosted"}[5m]))'; do
+  echo "$q $(curl -sf --get http://127.0.0.1:19090/api/v1/query --data-urlencode "query=$q" || echo 'no answer')"
+done > "$out/cost.txt"
 stop_flood
 say "flood over (stopped after ${flood_min} min; its own results aren't kept, the SLI comes from Prometheus)"
 
