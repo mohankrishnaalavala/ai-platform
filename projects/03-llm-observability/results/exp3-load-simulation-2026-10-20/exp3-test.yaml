@@ -1,0 +1,49 @@
+rule_files: [../../slos/platform.rules.yaml]
+evaluation_interval: 1m
+group_eval_order:
+  - sloth-slo-sli-recordings-ai-platform-gateway-availability
+  - sloth-slo-meta-recordings-ai-platform-gateway-availability
+  - sloth-slo-alerts-ai-platform-gateway-availability
+tests:
+  # closed-loop, 1 error/min
+  - interval: 1m
+    input_series:
+      - series: 'traces_span_metrics_calls_total{span_name="Received Proxy Server Request",metadata_user_api_key_team_alias="gameday-load",http_response_status_code="200"}'
+        values: '0 30 60 90 120 150 180 180 180 210 240 257 274 291 308 325 342 359 376 393 410 412 414 416 418 420 422 424 426 428 430 432 434 436 438 440 442 444 446 448 450 480 510 540 570 600 630 660 690 720 750 780 810 840 870 900 930 960 990 1020 1050 1080 1110 1140 1170 1200 1200 1200 1200 1200 1200 1200 1200 1200 1200 1200 1200 1200'
+      - series: 'traces_span_metrics_calls_total{span_name="Received Proxy Server Request",metadata_user_api_key_team_alias="gameday-load",http_response_status_code="500"}'
+        values: '0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 2 3 4 5 6 7 8 9 10 11 12'
+    alert_rule_test:
+      - {eval_time: 65m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 66m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 67m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 68m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 69m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 70m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 71m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 72m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 73m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 74m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 75m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 76m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 77m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+  # open-loop, 30 errors/min
+  - interval: 1m
+    input_series:
+      - series: 'traces_span_metrics_calls_total{span_name="Received Proxy Server Request",metadata_user_api_key_team_alias="gameday-load",http_response_status_code="200"}'
+        values: '0 30 60 90 120 150 180 180 180 210 240 257 274 291 308 325 342 359 376 393 410 412 414 416 418 420 422 424 426 428 430 432 434 436 438 440 442 444 446 448 450 480 510 540 570 600 630 660 690 720 750 780 810 840 870 900 930 960 990 1020 1050 1080 1110 1140 1170 1200 1200 1200 1200 1200 1200 1200 1200 1200 1200 1200 1200 1200'
+      - series: 'traces_span_metrics_calls_total{span_name="Received Proxy Server Request",metadata_user_api_key_team_alias="gameday-load",http_response_status_code="500"}'
+        values: '0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 30 60 90 120 150 180 210 240 270 300 330 360'
+    alert_rule_test:
+      - {eval_time: 65m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 66m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 67m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 68m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 69m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 70m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 71m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 72m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 73m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 74m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 75m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 76m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 77m, alertname: GatewayAvailabilityBudgetBurn, exp_alerts: []}
