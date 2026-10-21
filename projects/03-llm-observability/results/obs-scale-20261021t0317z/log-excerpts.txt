@@ -1,0 +1,59 @@
+# Lines copied from run 39537738393's log (session job), its step list, and its diagnostics artifact. Nothing else changed.
+
+## Session job steps (gh run view --json jobs): conclusion, step, start-end UTC
+success	Set up job	03:17:21-03:17:22
+success	measurement deadline	03:17:22-03:17:22
+success	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	03:17:22-03:17:23
+success	Run google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093	03:17:23-03:17:24
+success	Run google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db	03:17:24-03:17:52
+success	Run hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e	03:17:52-03:17:53
+success	install helm	03:17:53-03:17:53
+success	gcloud configuration	03:17:53-03:17:56
+success	stop if a cluster exists	03:17:56-03:17:57
+success	make up	03:17:57-03:55:42
+failure	make test (P1 smoke tests and autoscaling path, every P2 check, or every P3 check)	03:55:42-03:56:21
+success	obs-full, obs-scale: Grafana screenshots of the 3 dashboards under background load (decision 15)	03:56:21-04:03:29
+failure	obs-full, obs-scale: scale from zero on the gateway's traffic	04:03:29-04:12:25
+success	obs-full, obs-scale: upload P3's results	04:12:25-04:12:28
+success	diagnostics	04:12:28-04:13:33
+success	Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a	04:13:33-04:13:34
+success	obs-full, obs-scale: GPU pool to 0 nodes	04:13:34-04:13:44
+success	Post Run google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093	04:13:44-04:13:44
+success	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	04:13:44-04:13:44
+success	Complete job	04:13:44-04:13:44
+
+## make test
+2026-10-21T03:55:47Z test_alert_receiver_answers (test_session.SessionTest.test_alert_receiver_answers) ... ok
+2026-10-21T03:55:47Z test_dashboards_from_git_are_loaded (test_session.SessionTest.test_dashboards_from_git_are_loaded) ... ok
+2026-10-21T03:56:21Z test_gateway_calls_reach_tempo_and_span_metrics (test_session.SessionTest.test_gateway_calls_reach_tempo_and_span_metrics) ... ok
+2026-10-21T03:56:21Z test_grafana_answers (test_session.SessionTest.test_grafana_answers) ... ok
+2026-10-21T03:56:21Z test_rules_are_loaded (test_session.SessionTest.test_rules_are_loaded) ... FAIL
+2026-10-21T03:56:21Z test_scrape_targets_are_up (test_session.SessionTest.test_scrape_targets_are_up) ... ok
+2026-10-21T03:56:21Z gateway calls as p3-session-54947862: [200, 200, 200]
+2026-10-21T03:56:21Z AssertionError: [] is not true
+2026-10-21T03:56:21Z Ran 6 tests in 34.191s
+2026-10-21T03:56:21Z FAILED (failures=1)
+
+## Prometheus (diagnostics): configuration reloads and the time each spent on rules; the last spent far longer (8.68 ms against about 0.15 ms)
+time=2026-10-21T03:54:17.486Z	rules=141.583µs
+time=2026-10-21T03:54:22.278Z	rules=126.584µs
+time=2026-10-21T03:55:36.900Z	rules=162.722µs
+time=2026-10-21T03:56:44.930Z	rules=8.680829ms
+
+## screenshots.sh
+2026-10-21T03:59:29Z screenshot: p3-cost.png (69861 bytes)
+2026-10-21T04:01:29Z Chrome exited with 124 for p3-gateway.png
+2026-10-21T04:01:29Z screenshot: p3-gateway.png (67869 bytes)
+2026-10-21T04:03:29Z Chrome exited with 124 for p3-model-serving.png
+2026-10-21T04:03:29Z screenshot: p3-model-serving.png (77333 bytes)
+
+## scale_from_zero.sh
+2026-10-21T04:10:42Z 04:10:42Z no vLLM pod
+2026-10-21T04:12:25Z 04:12:25Z no GPU node
+2026-10-21T04:12:25Z ConnectionRefusedError: [Errno 111] Connection refused
+2026-10-21T04:12:25Z     key = new_key("scale-from-zero")
+
+## Diagnostics: monitoring-objects.txt, the PrometheusRule objects
+monitoring   prometheusrule.monitoring.coreos.com/cost       17m
+monitoring   prometheusrule.monitoring.coreos.com/fallback   17m
+monitoring   prometheusrule.monitoring.coreos.com/platform   17m
