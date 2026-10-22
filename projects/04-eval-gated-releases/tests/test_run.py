@@ -120,6 +120,11 @@ class Runner(unittest.TestCase):
                           "--out", tmp])
         self.assertIn("empty values", str(stop.exception))
         self.assertEqual(self.server.calls, calls)
+        with mock.patch.dict(os.environ, env), self.assertRaises(SystemExit) as stop:  # a judge with no model
+            run.main(["--target", "chat-default", "--config", str(FIXTURES / "config.yaml"),
+                      "--dataset", str(FIXTURES / "dataset"), "--judge", "no-such-alias"])
+        self.assertIn("no model for the gateway alias 'no-such-alias'", str(stop.exception))
+        self.assertEqual(self.server.calls, calls)
 
 
 class Parts(unittest.TestCase):
@@ -186,8 +191,12 @@ class Parts(unittest.TestCase):
             with mock.patch.object(run, "GATEWAY_VALUES", [values]):
                 self.assertEqual(run.alias_model("judge"), "vertex_ai/gemini-3.5-flash")
                 self.assertEqual(run.alias_model("chat-default"), "openai/qwen")
-                self.assertIsNone(run.alias_model("chat"))  # not a prefix of chat-default
-                self.assertIsNone(run.alias_model("chat-hosted"))
+                for missing in ("chat", "chat-hosted"):  # "chat" is not a prefix match for chat-default
+                    with self.assertRaisesRegex(ValueError, f"no model for the gateway alias '{missing}'"):
+                        run.alias_model(missing)  # never None, which would hash as "None"
+                    with self.assertRaises(ValueError):
+                        run.hash_parts("projects/04-eval-gated-releases/tests/fixtures/config.yaml",
+                                       "projects/04-eval-gated-releases/tests/fixtures/dataset", missing)
             with mock.patch.object(run, "GATEWAY_VALUES", [overlay, values]):
                 self.assertEqual(run.alias_model("judge"), "openai/judge-2")  # the first file that has it wins
                 self.assertEqual(run.alias_model("chat-default"), "openai/qwen")

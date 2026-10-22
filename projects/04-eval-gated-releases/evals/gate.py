@@ -91,7 +91,7 @@ def newest(target, config):
     """The newest results file for target and config at its config hash in this commit, or None."""
     try:
         folder = run.ROOT / RESULTS / run.config_hash(run.hash_parts(config, DATASET, JUDGE))
-    except FileNotFoundError:  # the config, or golden set v1, isn't in this commit
+    except (FileNotFoundError, ValueError):  # no config, golden set v1 or judge model in this commit
         return None
     return next(iter(results_in(folder, target, config)), None)
 
@@ -112,7 +112,7 @@ def baseline_for(target, config, config_sha, exclude, accept):
     which files may serve: those in the base commit, or for a gate change, any run older than the candidate."""
     try:
         parts = dict(run.hash_parts(config, DATASET, JUDGE), config=config_sha)
-    except FileNotFoundError:
+    except (FileNotFoundError, ValueError):
         return None
     for path in results_in(run.ROOT / RESULTS / run.config_hash(parts), target, config, exclude):
         r = load(path)
@@ -129,7 +129,7 @@ def verify(path, thresholds, enforce, baseline):
     failures = coverage(r)
     try:
         fresh = run.config_hash(run.hash_parts(r["config"], r["dataset"], r["judge"])) == r["config_hash"]
-    except FileNotFoundError:
+    except (FileNotFoundError, ValueError):  # a missing file or judge model: not fresh
         fresh = False
     if not fresh:
         failures.append(f"stale: config hash {r['config_hash']} doesn't match the files in this commit")
@@ -225,6 +225,9 @@ def main(argv=None):
     listed = git("ls-tree", "-r", "--name-only", a.base, "--", RESULTS).decode().split()
     changed, touched = (git("diff", "--name-only", "--no-renames", *flag, f"{a.base}...HEAD").decode().split()
                         for flag in ([], ["--diff-filter=DM"]))
+    # What was evaluated, for the log: evals.yml fails the job unless the root is the PR's tree.
+    print(f"gate-root: {run.ROOT}")
+    print("".join(f"gate-changed: {p}\n" for p in changed) or "gate-changed: (none)\n", end="")
     failed, text = gate(changed, touched, served((run.ROOT / SERVES).read_text()), base_served=base_served,
                         sha_at_base=sha_at_base,
                         base_results={p: json.loads(at_base(p)) for p in listed if p.endswith(".json")},
