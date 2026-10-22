@@ -18,6 +18,7 @@
     "reasons": [
       "break-glass",
       "freeze"
-    ]
+    ],
+    "approver_team": "break-glass"
   }
 }

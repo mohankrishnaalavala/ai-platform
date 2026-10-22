@@ -16,6 +16,7 @@ call(tool, env, args) := {
 	"namespace": {"name": env, "env": env},
 	"time": weekday,
 	"team": "payments",
+	"current": {"replicas": 1},
 	"dry_run": clean_dry_run,
 }
 
@@ -25,6 +26,11 @@ scale(env, current, replicas) := object.union(
 )
 
 apply(env, manifest) := call("apply_manifest", env, {"namespace": env, "manifest": manifest})
+
+# An apply_manifest of a Deployment that has `current` replicas now (0: it doesn't exist yet).
+apply_over(env, current, manifest) := object.union(apply(env, manifest), {"current": {"replicas": current}})
+
+container(security_context) := {"name": "web", "image": "x", "securityContext": security_context}
 
 at(facts, t) := object.union(facts, {"time": t})
 
@@ -90,6 +96,16 @@ test_row2_dev_and_staging_scale_up_to_100_percent_allowed if {
 test_row2_over_100_percent_needs_approval if {
 	expect(scale("dev", 2, 5), "needs_approval", "150%")
 	expect(scale("staging", 0, 2), "needs_approval", "200%")
+}
+
+test_row2_deployment_manifest_over_100_percent_needs_approval if {
+	expect(apply_over("staging", 2, deployment({"replicas": 5})), "needs_approval", "150%")
+	expect(apply_over("dev", 2, deployment({"replicas": 4})), "allow", "dev write") # +100%, the edge
+	expect(apply_over("dev", 0, deployment({})), "allow", "dev write") # a new Deployment with 1 replica
+	expect(apply_over("dev", 0, json.remove(deployment({}), ["spec/replicas"])), "allow", "dev write") # defaults to 1
+	expect(apply_over("dev", 0, deployment({"replicas": 3})), "needs_approval", "300%")
+	expect(apply_over("dev", 2, deployment({"replicas": -1})), "deny", "whole number")
+	expect(object.remove(apply("dev", deployment({})), ["current"]), "deny", "current replica count")
 }
 
 test_row2_other_dev_and_staging_writes_allowed if {
@@ -167,7 +183,7 @@ test_row5_invalid_freeze_data_fails_closed if {
 	contains(concat(" ", r.reasons), "invalid")
 }
 
-# ---------------------------------------------------------------- row 6: privileged, hostNetwork, hostPath -> deny
+# ---------------------------------------------------------------- row 6: host access and privilege -> deny
 
 test_row6_privileged_container_denied if {
 	m := deployment(pod_spec({"containers": [{"name": "web", "image": "x", "securityContext": {"privileged": true}}]}))
@@ -188,9 +204,25 @@ test_row6_host_path_denied if {
 	expect(apply("dev", m), "deny", "hostPath")
 }
 
-test_row6_privileged_false_allowed if {
-	m := deployment(pod_spec({"containers": [{"name": "web", "image": "x", "securityContext": {"privileged": false}}]}))
-	expect(apply("dev", m), "allow", "dev write")
+test_row6_host_pid_and_host_ipc_denied if {
+	expect(apply("dev", deployment(pod_spec({"hostPID": true}))), "deny", "hostPID: true")
+	expect(apply("staging", deployment(pod_spec({"hostIPC": true}))), "deny", "hostIPC: true")
+}
+
+test_row6_added_capabilities_denied if {
+	expect(apply("dev", deployment(pod_spec({"containers": [container({"capabilities": {"add": ["NET_ADMIN"]}})]}))), "deny", "adds Linux capabilities")
+	expect(apply("dev", deployment(pod_spec({"initContainers": [container({"capabilities": {"add": ["SYS_ADMIN"]}})]}))), "deny", "SYS_ADMIN")
+	expect(apply("dev", deployment(pod_spec({"containers": [container({"capabilities": {"add": "SYS_ADMIN"}})]}))), "deny", "adds Linux capabilities") # malformed
+}
+
+test_row6_privilege_escalation_denied if {
+	expect(apply("dev", deployment(pod_spec({"containers": [container({"allowPrivilegeEscalation": true})]}))), "deny", "allowPrivilegeEscalation: true")
+	expect(apply("dev", deployment(pod_spec({"initContainers": [container({"allowPrivilegeEscalation": true})]}))), "deny", "allowPrivilegeEscalation: true")
+}
+
+test_row6_safe_settings_allowed if {
+	safe := {"privileged": false, "allowPrivilegeEscalation": false, "capabilities": {"add": [], "drop": ["ALL"]}}
+	expect(apply("dev", deployment(pod_spec({"hostPID": false, "containers": [container(safe)]}))), "allow", "dev write")
 }
 
 # ---------------------------------------------------------------- row 7: failed dry run or PDB violation -> deny
@@ -219,13 +251,12 @@ test_row8_unknown_argument_denied if {
 }
 
 test_row8_missing_env_label_denied if {
-	f := scale("dev", 2, 3)
-	expect(put(f, "namespace", {"name": "sandbox"}), "deny", "no env label")
-	expect(put(call("get_status", "dev", {"namespace": "sandbox"}), "namespace", {"name": "sandbox"}), "deny", "no env label")
+	expect(put(scale("sandbox", 2, 3), "namespace", {"name": "sandbox"}), "deny", "no env label")
+	expect(put(call("get_status", "sandbox", {"namespace": "sandbox"}), "namespace", {"name": "sandbox"}), "deny", "no env label")
 }
 
 test_row8_unknown_env_value_denied if {
-	expect(object.union(scale("dev", 2, 3), {"namespace": {"name": "qa", "env": "qa"}}), "deny", "doesn't know")
+	expect(scale("qa", 2, 3), "deny", "doesn't know")
 }
 
 test_row8_unknown_tool_denied if {
@@ -239,6 +270,9 @@ test_row8_missing_or_malformed_arguments_denied if {
 	expect(scale("dev", 2, "3"), "deny", "whole number")
 	expect(scale("dev", 2, 1.5), "deny", "whole number")
 	expect(object.remove(scale("dev", 2, 3), ["current"]), "deny", "current replica count")
+	expect(scale("dev", -1, 3), "deny", "current replica count")
+	expect(scale("dev", "2", 3), "deny", "current replica count")
+	expect(scale("dev", 1.5, 3), "deny", "current replica count")
 }
 
 test_row8_missing_time_or_team_denied if {
@@ -259,6 +293,12 @@ test_blast_radius_over_the_limit_denied if {
 test_only_configmap_and_deployment_kinds if {
 	expect(apply("dev", {"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRoleBinding", "metadata": {"name": "x"}}), "deny", "kind ClusterRoleBinding")
 	expect(apply("dev", [configmap, configmap]), "deny", "not one Kubernetes object")
+}
+
+test_looked_up_namespace_must_be_the_called_one if {
+	expect(put(scale("dev", 2, 3), "namespace", {"name": "prod", "env": "prod"}), "deny", "looked up namespace prod, but the call names dev")
+	expect(put(scale("dev", 2, 3), "namespace", {"env": "dev"}), "deny", "looked up namespace")
+	expect(call("undo_action", "dev", {"action_id": "a-1"}), "allow", "dev write") # no namespace argument to compare
 }
 
 test_manifest_must_stay_in_the_called_namespace if {

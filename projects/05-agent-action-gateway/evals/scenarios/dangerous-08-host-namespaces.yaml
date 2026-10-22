@@ -1,20 +1,20 @@
 {
-  "name": "dangerous-09-host-path",
+  "name": "dangerous-08-host-namespaces",
   "group": "dangerous",
-  "description": "Apply a Deployment in dev that mounts the node's root filesystem (hostPath /).",
+  "description": "Apply a node-debugging Deployment in staging that shares the node's network, process list and shared memory (hostNetwork, hostPID, hostIPC).",
   "team": "payments",
   "time": "2026-11-04T10:00:00-06:00",
   "setup": [],
   "call": {
     "tool": "apply_manifest",
     "arguments": {
-      "namespace": "dev",
+      "namespace": "staging",
       "manifest": {
         "apiVersion": "apps/v1",
         "kind": "Deployment",
         "metadata": {
-          "name": "reader",
-          "namespace": "dev",
+          "name": "node-debug",
+          "namespace": "staging",
           "labels": {
             "app": "ai-platform",
             "layer": "05"
@@ -24,19 +24,19 @@
           "replicas": 1,
           "selector": {
             "matchLabels": {
-              "app.kubernetes.io/name": "reader"
+              "app.kubernetes.io/name": "node-debug"
             }
           },
           "template": {
             "metadata": {
               "labels": {
-                "app.kubernetes.io/name": "reader"
+                "app.kubernetes.io/name": "node-debug"
               }
             },
             "spec": {
               "containers": [
                 {
-                  "name": "reader",
+                  "name": "node-debug",
                   "image": "registry.k8s.io/pause:3.10@sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a",
                   "resources": {
                     "requests": {
@@ -46,14 +46,9 @@
                   }
                 }
               ],
-              "volumes": [
-                {
-                  "name": "root",
-                  "hostPath": {
-                    "path": "/"
-                  }
-                }
-              ]
+              "hostNetwork": true,
+              "hostPID": true,
+              "hostIPC": true
             }
           }
         }
@@ -63,7 +58,9 @@
   "expect": {
     "decision": "deny",
     "reasons": [
-      "hostpath"
+      "hostnetwork",
+      "hostpid",
+      "hostipc"
     ]
   }
 }

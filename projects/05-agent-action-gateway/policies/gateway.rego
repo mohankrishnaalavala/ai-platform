@@ -8,13 +8,16 @@
 #   4. Scale any Deployment to 0 in prod (a scale call or a manifest)     -> deny
 #   5. A change freeze is active in prod                                  -> deny, unless the break-glass team
 #                                                                            asks; then a break-glass member approves
-#   6. A manifest sets privileged: true or hostNetwork, or mounts hostPath -> deny
+#   6. A manifest sets privileged, hostNetwork, hostPID, hostIPC or       -> deny
+#      allowPrivilegeEscalation to true, adds Linux capabilities, or mounts hostPath (any container or init container)
 #   7. The dry run fails, or would violate a PodDisruptionBudget          -> deny
 #   8. An unknown tool argument, or the namespace has no env label        -> deny (fail closed)
 # Also:
-#   - Other dev and staging writes (restart, rollout undo, apply, undo) -> allow; a bigger scale change -> needs_approval
+#   - Other dev and staging writes (restart, rollout undo, apply, undo) -> allow
+#   - In dev or staging, a replica change over 100% (a scale call, or a Deployment manifest) -> needs_approval
 #   - More pods affected than limits.max_pods_affected (the blast radius) -> deny
-#   - Only ConfigMap and Deployment manifests, in the namespace the call names -> otherwise deny
+#   - Only ConfigMap and Deployment manifests -> otherwise deny
+#   - The namespace the gateway looked up, and a manifest's own namespace if set, must be the one the call names
 #   - Irreversible actions (marked in data.json, or an immutable ConfigMap) -> at least needs_approval
 #   - Any other unknown or missing fact (tool, env value, time, team, dry run, replicas, freeze data) -> deny
 # Precedence: any deny reason wins, then any approval reason, then allow. If nothing allows the call: deny.
@@ -26,7 +29,8 @@
 #   namespace  {"name": ..., "env": <the namespace's env label, absent if it has none>}
 #   time       the server's clock, RFC 3339. Never an agent argument
 #   team       the requester team, from the agent token
-#   current    {"replicas": n}: the Deployment's replicas now (scale_deployment only)
+#   current    {"replicas": n}: the Deployment's replicas now. For scale_deployment, and for apply_manifest of a
+#              Deployment (0 if it doesn't exist yet)
 #   dry_run    {"ok": bool, "error": str, "pdb_violations": [names], "pods_affected": n} (writes only)
 package gateway
 
@@ -80,9 +84,15 @@ valid_team if {
 	input.team != ""
 }
 
+# The env label was read for the namespace the gateway looked up, so it must be the one the call names.
+deny contains sprintf("the gateway looked up namespace %v, but the call names %v (fail closed)", [ns_name, ns]) if {
+	ns := input.args.namespace
+	ns != object.get(input, ["namespace", "name"], null)
+}
+
 deny contains "replicas must be a whole number, 0 or more (fail closed)" if {
-	input.tool == "scale_deployment"
-	not whole_number(input.args.replicas)
+	r := requested_replicas
+	not whole_number(r)
 }
 
 whole_number(n) if {
@@ -91,13 +101,13 @@ whole_number(n) if {
 	n == floor(n)
 }
 
-deny contains "the Deployment's current replica count is unknown (fail closed)" if {
-	input.tool == "scale_deployment"
+deny contains "the Deployment's current replica count is missing or not a whole number, 0 or more (fail closed)" if {
+	requested_replicas
 	not current_known
 }
 
-# A helper rule: `not is_number(input.current.replicas)` fails, not succeeds, when the field is missing.
-current_known if is_number(input.current.replicas)
+# A helper rule: `not whole_number(input.current.replicas)` fails, not succeeds, when the field is missing.
+current_known if whole_number(input.current.replicas)
 
 # Row 7, plus a missing or partial dry-run result.
 deny contains concat(": ", array.concat(["dry run failed or incomplete (fail closed)"], dry_run_error)) if {
@@ -136,7 +146,8 @@ deny contains "scaling to 0 replicas in prod is never allowed" if {
 
 requested_replicas := input.args.replicas if input.tool == "scale_deployment"
 
-requested_replicas := manifest.spec.replicas if manifest.kind == "Deployment"
+# Kubernetes creates a Deployment with 1 replica when the manifest doesn't say.
+requested_replicas := object.get(manifest, ["spec", "replicas"], 1) if manifest.kind == "Deployment"
 
 # Row 5. Freeze times are read in the freeze's own time zone, from the server's clock.
 deny contains sprintf("change freeze %q is active in %v (%v); only the %v team can ask to override it", [f.name, env, f.time_zone, cfg.break_glass_team]) if {
@@ -193,22 +204,27 @@ in_window(m, start, end) if {
 	m < end
 }
 
-# Row 6. Looks anywhere under spec: containers, init containers, volumes.
-deny contains "the manifest sets privileged: true" if {
-	walk(object.get(manifest, "spec", {}), [path, value])
-	path[count(path) - 1] == "privileged"
-	value == true
-}
+# Row 6. Looks anywhere under spec: the pod, its containers and init containers, and its volumes.
+host_access_flags := {"privileged", "hostNetwork", "hostPID", "hostIPC", "allowPrivilegeEscalation"}
 
-deny contains "the manifest sets hostNetwork: true" if {
+deny contains sprintf("the manifest sets %v: true", [flag]) if {
 	walk(object.get(manifest, "spec", {}), [path, value])
-	path[count(path) - 1] == "hostNetwork"
+	flag := path[count(path) - 1]
+	flag in host_access_flags
 	value == true
 }
 
 deny contains "the manifest mounts a hostPath volume" if {
 	walk(object.get(manifest, "spec", {}), [path, _])
 	path[count(path) - 1] == "hostPath"
+}
+
+# Anything but an empty list under capabilities.add, so a malformed value fails closed too.
+deny contains sprintf("the manifest adds Linux capabilities: %v", [value]) if {
+	walk(object.get(manifest, "spec", {}), [path, value])
+	count(path) >= 2
+	array.slice(path, count(path) - 2, count(path)) == ["capabilities", "add"]
+	value != []
 }
 
 deny contains "the manifest is not one Kubernetes object (fail closed)" if {
@@ -222,6 +238,7 @@ deny contains sprintf("kind %v is not allowed; only %v", [kind, concat(", ", cfg
 }
 
 # The env label was checked for the namespace the call names, so the manifest can't point elsewhere.
+# (The server also applies the manifest with -n <the call's namespace>.)
 deny contains sprintf("the manifest names namespace %v, but the call names %v", [manifest.metadata.namespace, input.args.namespace]) if {
 	manifest.metadata.namespace != input.args.namespace
 }
@@ -242,9 +259,8 @@ approve contains sprintf("a scale change of %v%% is over the %v%% allowed withou
 	pct > limit
 }
 
-# Measured against at least 1 replica, so scaling from 0 to 1 counts as 100%.
-scale_change_pct := (abs(input.args.replicas - current) * 100) / max([current, 1]) if {
-	input.tool == "scale_deployment"
+# A scale call or a Deployment manifest. Measured against at least 1 replica, so 0 to 1 counts as 100%.
+scale_change_pct := (abs(requested_replicas - current) * 100) / max([current, 1]) if {
 	current := input.current.replicas
 }
 

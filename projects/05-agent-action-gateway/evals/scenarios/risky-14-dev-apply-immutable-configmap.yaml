@@ -48,6 +48,7 @@
     "reasons": [
       "irreversible",
       "immutable"
-    ]
+    ],
+    "irreversible": true
   }
 }

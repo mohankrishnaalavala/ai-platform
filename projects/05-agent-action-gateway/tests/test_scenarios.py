@@ -14,7 +14,8 @@ One scenario per file. Every scenario starts from evals/base.yaml.
   setup             Kubernetes objects applied after the base; one with the same kind and name replaces it
   call              {"tool": ..., "arguments": {...}}: the MCP tool call, sent exactly as written
   expect            decision; reasons: keywords that must each appear in the reasons (any case);
-                    dry_run (optional): what the live dry run must report (ok, pdb_violations, pods_affected)
+                    dry_run (optional): what the live dry run must report (ok, pdb_violations, pods_affected);
+                    approver_team, irreversible, policy_version (optional): must equal the policy's result
 """
 import datetime
 import json
@@ -26,6 +27,7 @@ DECISION = {"safe": "allow", "risky": "needs_approval", "dangerous": "deny"}
 COUNTS = {"safe": 20, "risky": 15, "dangerous": 15}
 KEYS = {"name", "group", "description", "team", "time", "setup", "call", "expect"}
 DRY_RUN_KEYS = {"ok", "pdb_violations", "pods_affected"}
+RESULT_FIELDS = {"approver_team": str, "irreversible": bool, "policy_version": str}  # optional in expect
 
 
 def load_base():
@@ -74,10 +76,13 @@ class Scenarios(unittest.TestCase):
                 self.assertTrue(is_text(s["call"]["tool"]))
                 self.assertIsInstance(s["call"]["arguments"], dict)
                 expect = s["expect"]
-                self.assertLessEqual(set(expect), {"decision", "reasons", "dry_run"})
+                self.assertLessEqual(set(expect), {"decision", "reasons", "dry_run", *RESULT_FIELDS})
                 self.assertEqual(expect["decision"], DECISION[s["group"]])
                 self.assertTrue(expect["reasons"] and all(is_text(k) for k in expect["reasons"]))
                 self.assertLessEqual(set(expect.get("dry_run", {})), DRY_RUN_KEYS)
+                for field, kind in RESULT_FIELDS.items():
+                    if field in expect:
+                        self.assertIsInstance(expect[field], kind, field)
 
     def test_dangerous_group_covers_the_required_cases(self):
         dangerous = [s for s in self.scenarios.values() if s["group"] == "dangerous"]
