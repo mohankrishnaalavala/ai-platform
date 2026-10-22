@@ -1,0 +1,21 @@
+# Qwen3-8B served by vLLM on one NVIDIA L4: P4's newer open model, evaluated offline. Not served by
+# default (P1's deploy.sh serves qwen2.5-7b-bf16.yaml). This file is also a Helm values file for the
+# vLLM chart. Its config hash (scripts/config_hash.py) names every results folder.
+name: qwen3-8b
+model:
+  hfId: Qwen/Qwen3-8B  # Apache 2.0, not gated
+  revision: b968826d9c46dd6066d109eabc6255188de91218
+  bucketPath: Qwen3-8B/b968826d9c46dd6066d109eabc6255188de91218  # in the models bucket
+image:
+  repository: vllm/vllm-openai  # Docker Hub; mirror.yml copies it to Artifact Registry as images/vllm-openai
+  tag: v0.30.0
+  digest: sha256:5f5e535216848d0c52159c8c13a0af04be5f6fe1a84e79914300610796f76d40  # linux/amd64 manifest: GKE nodes are amd64, so only it is copied
+vllm:
+  maxModelLen: 8192  # the same as Qwen2.5-7B, so every eval case fits the same way
+  gpuMemoryUtilization: 0.90
+  quantization: null  # null: BF16 weights as published; fp8: vLLM compresses them to FP8 while loading
+  # Qwen3 "thinks" (writes out its reasoning first) by default. Off for every request, whatever the
+  # client; a request's own chat_template_kwargs still wins.
+  defaultChatTemplateKwargs:
+    enable_thinking: false
+gpu: nvidia-l4
