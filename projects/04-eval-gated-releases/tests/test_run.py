@@ -181,11 +181,17 @@ class Parts(unittest.TestCase):
             values.write_text("config:\n  model_list:\n    - model_name: chat-default  # vLLM\n      litellm_params:\n"
                               "        model: openai/qwen\n    - model_name: judge\n      litellm_params:\n"
                               "        temperature: 0\n        model: vertex_ai/gemini-3.5-flash\n")
-            with mock.patch.object(run, "GATEWAY_VALUES", values):
+            overlay = Path(tmp) / "overlay.yaml"
+            overlay.write_text("extraModels:\n  - model_name: judge\n    litellm_params:\n      model: openai/judge-2\n")
+            with mock.patch.object(run, "GATEWAY_VALUES", [values]):
                 self.assertEqual(run.alias_model("judge"), "vertex_ai/gemini-3.5-flash")
                 self.assertEqual(run.alias_model("chat-default"), "openai/qwen")
                 self.assertIsNone(run.alias_model("chat"))  # not a prefix of chat-default
                 self.assertIsNone(run.alias_model("chat-hosted"))
+            with mock.patch.object(run, "GATEWAY_VALUES", [overlay, values]):
+                self.assertEqual(run.alias_model("judge"), "openai/judge-2")  # the first file that has it wins
+                self.assertEqual(run.alias_model("chat-default"), "openai/qwen")
+        self.assertEqual(run.alias_model("judge"), "vertex_ai/gemini-3.5-flash")  # the real overlay, today
 
     def test_an_unknown_gate_raises_and_only_the_canary_gate_is_skipped(self):
         r = {"cases": [{"category": "qa", "round": 1, "passed": True, "score": None}], "hash_parts": {}}

@@ -9,7 +9,8 @@ Usage, in the session cluster window, through a port-forward to the gateway:
 --config is the target's config file: the vLLM config behind chat-default, or the gateway values for a hosted alias.
 
 Config hash: the first 16 hex characters of a sha256 over five parts: the sha256 of the target's config file,
-judge.md, scorers.py and the dataset's files, and the judge alias's model in P2's gateway values. Changing any of
+judge.md, scorers.py and the dataset's files, and the judge alias's model in the gateway values (P4's overlay
+helm/gateway-canary.yaml, then P2's values). Changing any of
 them makes old results stale, and evals.yml (gate.py) fails a pull request whose results don't match its files.
 
 INVALID: a run is INVALID when any call to the target or the judge gave no HTTP 200 answer or was answered by a
@@ -48,7 +49,8 @@ ROOT = EVALS.parents[2]
 THRESHOLDS = EVALS / "thresholds.yaml"
 PRICES = EVALS / "prices.json"
 GPU_PRICES = ROOT / "projects/01-gpu-serving/bench/prices.json"
-GATEWAY_VALUES = ROOT / "projects/02-llm-gateway/helm/gateway/values.yaml"
+GATEWAY_VALUES = [ROOT / "projects/04-eval-gated-releases/helm/gateway-canary.yaml",  # P4's overlay: the judge
+                  ROOT / "projects/02-llm-gateway/helm/gateway/values.yaml"]
 TIMEOUT_S = 180  # longer than the gateway's own timeouts (30 s for chat-default, 60 s for chat-hosted)
 FALLBACK_RULE = ("answered by a fallback when LiteLLM's x-litellm-attempted-fallbacks response header is not 0; "
                  "a missing header counts as a fallback")
@@ -66,11 +68,15 @@ def sha(data):
 
 
 def alias_model(alias):
-    """The model behind a gateway alias in P2's values (the first `model:` after its `model_name`), or None.
-    shortcut: a regex on that file's layout, not a YAML parser; use one if the layout changes."""
-    found = re.search(rf"^\s*- model_name: {re.escape(alias)}(?![\w-]).*\n(?:.*\n)*?\s*model:\s*(\S+)",
-                      GATEWAY_VALUES.read_text(), re.MULTILINE)
-    return found.group(1) if found else None
+    """The model behind a gateway alias (the first `model:` after its `model_name`) in the first values file of
+    GATEWAY_VALUES that has it, or None.
+    shortcut: a regex on those files' layout, not a YAML parser; use one if the layout changes."""
+    for values in GATEWAY_VALUES:
+        found = re.search(rf"^\s*- model_name: {re.escape(alias)}(?![\w-]).*\n(?:.*\n)*?\s*model:\s*(\S+)",
+                          values.read_text(), re.MULTILINE)
+        if found:
+            return found.group(1)
+    return None
 
 
 def hash_parts(config, dataset, judge):

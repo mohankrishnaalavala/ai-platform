@@ -18,6 +18,7 @@ on:
       - "**/prompts/**"                               # prompts (none exist yet)
       - projects/05-agent-action-gateway/policies/**  # P5's policies, once they exist
       - projects/04-eval-gated-releases/evals/**      # the gate itself: scorers, judge rubric, thresholds, dataset
+      - projects/04-eval-gated-releases/helm/**       # the judge alias (gateway-canary.yaml) and canary settings
       - projects/04-eval-gated-releases/results/**    # a results-only PR
       - .github/workflows/evals.yml
 

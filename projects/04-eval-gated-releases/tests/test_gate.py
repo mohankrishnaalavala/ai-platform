@@ -140,6 +140,9 @@ class Gate(unittest.TestCase):
         # Review item 3: a change to the gate checks the served config, with a baseline required.
         self.assertEqual(gate.enforced(["projects/04-eval-gated-releases/evals/judge.md"], served, served),
                          {("chat-default", served): "gate"})
+        self.assertEqual(gate.enforced([gate.JUDGE_VALUES], served, served),  # the judge's model is in the hash
+                         {("chat-default", served): "gate"})
+        self.assertIn(gate.JUDGE_VALUES, [run.rel(p) for p in run.GATEWAY_VALUES])
         path = self.commit("good.json")  # a results file alone enforces nothing; it is checked as report only
         self.assertEqual(gate.enforced([str(path)], served, served), {})
         self.assertEqual(gate.changed_results([str(path), "README.md", f"{self.results}/gone.json"]), [path])

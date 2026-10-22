@@ -4,7 +4,7 @@ a model: real runs happen in the session cluster window (run.py), and their resu
 
 Enforced: thresholds.yaml applies only to what the platform serves. That is chat-default's served config (the
 default CONFIG in P1's deploy.sh), when the PR changes that config, which file it is, or the gate itself (evals/:
-scorers, judge.md, dataset, thresholds). Its newest results file in results/<its config hash in this commit>/
+scorers, judge.md, dataset, thresholds; and the judge alias in helm/gateway-canary.yaml). Its newest results file in results/<its config hash in this commit>/
 must exist (a missing one means the committed results are stale, or were never run), pass every integrity check
 below and pass thresholds.yaml against the committed baseline. This keeps a bad candidate red.
 Report only: every other results file the PR adds or changes (a measurement such as BF16 vs FP8, or a candidate
@@ -43,6 +43,7 @@ SERVES = "projects/01-gpu-serving/deploy.sh"
 SERVED_TARGET = "chat-default"
 GATE_FILES = "projects/04-eval-gated-releases/evals/"
 THRESHOLDS = "projects/04-eval-gated-releases/evals/thresholds.yaml"
+JUDGE_VALUES = "projects/04-eval-gated-releases/helm/gateway-canary.yaml"  # the judge alias's model: part of the gate
 RESULTS = "projects/04-eval-gated-releases/results/"
 DATASET = "projects/04-eval-gated-releases/evals/datasets/v1"
 JUDGE = "judge"
@@ -68,7 +69,7 @@ def enforced(changed, now_served, base_served):
     """The served config to enforce thresholds on, as {(target, config): why}: "served" or "gate"; or {}."""
     if now_served != base_served or now_served in changed:
         return {(SERVED_TARGET, now_served): "served"}
-    if any(p.startswith(GATE_FILES) for p in changed):
+    if any(p.startswith(GATE_FILES) or p == JUDGE_VALUES for p in changed):
         return {(SERVED_TARGET, now_served): "gate"}
     return {}
 
