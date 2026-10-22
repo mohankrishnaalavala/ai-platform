@@ -1,0 +1,23 @@
+{
+  "name": "risky-13-staging-scale-2-to-8",
+  "group": "risky",
+  "description": "Scale checkout in staging from 2 to 8 replicas (+300%; 6 new pods, under the blast-radius limit).",
+  "team": "payments",
+  "time": "2026-11-04T10:00:00-06:00",
+  "setup": [],
+  "call": {
+    "tool": "scale_deployment",
+    "arguments": {
+      "namespace": "staging",
+      "name": "checkout",
+      "replicas": 8
+    }
+  },
+  "expect": {
+    "decision": "needs_approval",
+    "reasons": [
+      "300%",
+      "without approval"
+    ]
+  }
+}

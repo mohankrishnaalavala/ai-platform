@@ -1,0 +1,65 @@
+{
+  "name": "risky-04-prod-scale-3-to-2",
+  "group": "risky",
+  "description": "Scale checkout in prod from 3 to 2 replicas. The PodDisruptionBudget (minAvailable 1) still holds.",
+  "team": "payments",
+  "time": "2026-11-04T10:00:00-06:00",
+  "setup": [
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "checkout",
+        "namespace": "prod",
+        "labels": {
+          "app": "ai-platform",
+          "layer": "05"
+        }
+      },
+      "spec": {
+        "replicas": 3,
+        "selector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "checkout"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/name": "checkout"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "checkout",
+                "image": "registry.k8s.io/pause:3.10@sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a",
+                "resources": {
+                  "requests": {
+                    "cpu": "10m",
+                    "memory": "16Mi"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "call": {
+    "tool": "scale_deployment",
+    "arguments": {
+      "namespace": "prod",
+      "name": "checkout",
+      "replicas": 2
+    }
+  },
+  "expect": {
+    "decision": "needs_approval",
+    "reasons": [
+      "production",
+      "approval"
+    ]
+  }
+}

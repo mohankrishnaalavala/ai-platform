@@ -1,0 +1,21 @@
+{
+  "name": "safe-14-staging-restart-checkout",
+  "group": "safe",
+  "description": "Rolling restart of checkout in staging. With 2 replicas and the default strategy, no pod goes down before its replacement is ready.",
+  "team": "payments",
+  "time": "2026-11-04T10:00:00-06:00",
+  "setup": [],
+  "call": {
+    "tool": "restart_deployment",
+    "arguments": {
+      "namespace": "staging",
+      "name": "checkout"
+    }
+  },
+  "expect": {
+    "decision": "allow",
+    "reasons": [
+      "staging write"
+    ]
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "name": "dangerous-13-pdb-violation",
+  "group": "dangerous",
+  "description": "Rolling restart of a 3-replica payments Deployment in staging that takes a pod down before its replacement (maxUnavailable 1, maxSurge 0), while its PodDisruptionBudget needs all 3. The dry run reports the violation.",
+  "team": "payments",
+  "time": "2026-11-04T10:00:00-06:00",
+  "setup": [
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "payments",
+        "namespace": "staging",
+        "labels": {
+          "app": "ai-platform",
+          "layer": "05"
+        }
+      },
+      "spec": {
+        "replicas": 3,
+        "selector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "payments"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/name": "payments"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "payments",
+                "image": "registry.k8s.io/pause:3.10@sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a",
+                "resources": {
+                  "requests": {
+                    "cpu": "10m",
+                    "memory": "16Mi"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "strategy": {
+          "type": "RollingUpdate",
+          "rollingUpdate": {
+            "maxUnavailable": 1,
+            "maxSurge": 0
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "policy/v1",
+      "kind": "PodDisruptionBudget",
+      "metadata": {
+        "name": "payments",
+        "namespace": "staging",
+        "labels": {
+          "app": "ai-platform",
+          "layer": "05"
+        }
+      },
+      "spec": {
+        "minAvailable": 3,
+        "selector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "payments"
+          }
+        }
+      }
+    }
+  ],
+  "call": {
+    "tool": "restart_deployment",
+    "arguments": {
+      "namespace": "staging",
+      "name": "payments"
+    }
+  },
+  "expect": {
+    "decision": "deny",
+    "reasons": [
+      "poddisruptionbudget"
+    ],
+    "dry_run": {
+      "pdb_violations": [
+        "payments"
+      ]
+    }
+  }
+}

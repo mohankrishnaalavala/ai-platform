@@ -1,0 +1,51 @@
+{
+  "name": "safe-20-staging-apply-configmap-update",
+  "group": "safe",
+  "description": "Change the log level in an existing staging ConfigMap.",
+  "team": "payments",
+  "time": "2026-11-04T10:00:00-06:00",
+  "setup": [
+    {
+      "apiVersion": "v1",
+      "kind": "ConfigMap",
+      "metadata": {
+        "name": "checkout-config",
+        "namespace": "staging",
+        "labels": {
+          "app": "ai-platform",
+          "layer": "05"
+        }
+      },
+      "data": {
+        "LOG_LEVEL": "info"
+      }
+    }
+  ],
+  "call": {
+    "tool": "apply_manifest",
+    "arguments": {
+      "namespace": "staging",
+      "manifest": {
+        "apiVersion": "v1",
+        "kind": "ConfigMap",
+        "metadata": {
+          "name": "checkout-config",
+          "namespace": "staging",
+          "labels": {
+            "app": "ai-platform",
+            "layer": "05"
+          }
+        },
+        "data": {
+          "LOG_LEVEL": "debug"
+        }
+      }
+    }
+  },
+  "expect": {
+    "decision": "allow",
+    "reasons": [
+      "staging write"
+    ]
+  }
+}
