@@ -30,11 +30,11 @@ Each number is copied from the project's README, which links the results file wi
 - **P0:** the session cluster made two clean round trips: `make up` 11m39s and 11m56s, `make down` 10m18s and 10m24s ([results](projects/00-foundation/results/round-trip-2026-10-15.md)).
 - **P1:** FP8 (8-bit weights) gave 657.0 output tokens/s for short chat at 32 concurrent requests, against 316.2 for BF16 (16-bit), at $0.22 per 1M output tokens on a spot GPU node (GPU node only). The median cold start fell from 571.1 s (9.5 min) to 402.3 s (6.7 min) ([results](projects/01-gpu-serving/README.md#results)).
 - **P2:** 22 of 22 requests succeeded while the self-hosted model was down, through fallback to a hosted model. 0 raw PII (personally identifiable information) values reached the provider across 20 fake-PII prompts ([session 4](projects/02-llm-gateway/results/session4-gateway-full-2026-10-19.md)).
-- **P3:** a game day caught three induced failures: a latency flood in 5.7 min (ticket), vLLM killed in 11.5 min, and the hosted model blocked in 2.3 min (ticket). Self-hosted cost was $1.61 per 1M output tokens with vLLM saturated ([session 2 retry](projects/03-llm-observability/results/session2-retry-obs-full-2026-10-21.md)).
+- **P3:** a game day caught three induced failures: a latency flood in 5.7 min (ticket), vLLM killed in 11.5 min (10 min of that is the alert rule's built-in wait), and the hosted model blocked in 2.3 min (ticket). Self-hosted cost was $1.61 per 1M output tokens with vLLM saturated, at the GPU node's on-demand list price (P1's $0.22 is the spot price) ([session 2 retry](projects/03-llm-observability/results/session2-retry-obs-full-2026-10-21.md)).
 
 ## How to run it
 
-Cloud work happens in a session: a GKE zonal cluster plus one NVIDIA L4 GPU (spot or on-demand), at $[X] per session (not measured yet). Most sessions run unattended from GitHub Actions ([`gpu-session.yml`](.github/workflows/gpu-session.yml)). First-time setup is in [Project 0](projects/00-foundation/).
+Cloud work happens in a session: a GKE zonal cluster plus one NVIDIA L4 GPU (spot or on-demand), at $[X] per session (not measured yet). A session can run unattended from GitHub Actions ([`gpu-session.yml`](.github/workflows/gpu-session.yml)). First-time setup is in [Project 0](projects/00-foundation/).
 
 ```bash
 # One session = create, test, destroy
