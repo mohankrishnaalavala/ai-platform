@@ -6,9 +6,19 @@ team; actions.py does the rest.
 
 Env (all optional):
   PORT 8080 · TOKENS_FILE /etc/action-gateway/tokens.json (SHA-256 of token -> team) · OPA_URL (policy.URL)
-  AUDIT_BUCKET (cloud) or AUDIT_FILE /data/audit.jsonl (kind) · APPROVER cli · APPROVALS_DIR /data/approvals
-  APPROVAL_TIMEOUT_S 900 · RISK_URL (the P2 gateway) · RISK_MODEL chat-hosted · RISK_KEY_FILE /secrets/action-gateway-team-key (no file: "unavailable")
-  RISK_TIMEOUT_S 15 · TEST_ONLY_CLOCK_FILE (tests only; see actions.now)"""
+  AUDIT_BUCKET (cloud) or AUDIT_FILE /data/audit.jsonl (kind) · APPROVAL_TIMEOUT_S 900
+  APPROVER cli (kind and CI; APPROVALS_DIR /data/approvals) or slack (the cluster; SLACK_CHANNEL, SLACK_APPROVERS
+    as JSON, SLACK_APP_TOKEN_FILE /secrets/slack-app-token, SLACK_BOT_TOKEN_FILE /secrets/slack-bot-token)
+  RISK_URL (the P2 gateway) · RISK_MODEL chat-hosted · RISK_KEY_FILE /secrets/action-gateway-team-key (no file: "unavailable")
+  RISK_TIMEOUT_S 15 · TEST_ONLY_CLOCK_FILE (tests only; see actions.now)
+
+Threads: each tool call runs in a worker thread, at most THREADS (40) at once. A call waiting for a person
+holds its thread for up to 15 minutes, so at most MAX_PENDING (16) approvals wait at once and the next one
+is rejected at once (approval.Bounded). That leaves at least 24 threads for every other call.
+
+Long waits: while a call runs, the server sends an MCP progress notification every PROGRESS_S (30) seconds,
+if the agent's request asked for progress. Each one resets the agent's idle timer (Claude Code's is 5
+minutes for HTTP servers), so a 15-minute approval wait isn't cut off."""
 import json
 import os
 
@@ -20,8 +30,25 @@ import kube
 import mcp_types as types
 import policy
 import risk
+import slack_approval
 import uvicorn
 from mcp.server import Server
+
+THREADS, MAX_PENDING, PROGRESS_S = 40, 16, 30.0
+CALLS = anyio.CapacityLimiter(THREADS)
+
+
+async def keep_alive(ctx):
+    """Progress every PROGRESS_S seconds, counting the seconds waited (it must only ever grow). A no-op if
+    the agent sent no progressToken."""
+    waited = 0.0
+    while True:
+        await anyio.sleep(PROGRESS_S)
+        waited += PROGRESS_S
+        try:
+            await ctx.session.report_progress(waited, message=f"still working: {waited:g} s (an approval can take 15 minutes)")
+        except Exception:  # noqa: BLE001 - the agent went away: stop telling it, but the call goes on (and is audited)
+            return
 
 
 def build(gateway, tokens_file):
@@ -36,7 +63,11 @@ def build(gateway, tokens_file):
         if team is None:
             result = {"decision": "deny", "reasons": ["unknown agent token"]}
         else:  # in a worker thread: an approval can wait 15 minutes, and the cluster calls block
-            result = await anyio.to_thread.run_sync(gateway.call, params.name, dict(params.arguments or {}), team)
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(keep_alive, ctx)
+                result = await anyio.to_thread.run_sync(gateway.call, params.name, dict(params.arguments or {}), team,
+                                                        limiter=CALLS)
+                tg.cancel_scope.cancel()
         return types.CallToolResult(content=[types.TextContent(type="text", text=json.dumps(result, indent=2))],
                                     structured_content=result,
                                     is_error=(result.get("result") or {}).get("status") == "failed")
@@ -60,14 +91,26 @@ def build(gateway, tokens_file):
     return require_token
 
 
+def _read(path):
+    with open(path) as f:
+        return f.read().strip()
+
+
 def gateway_from_env():
     e = os.environ.get
-    if e("APPROVER", "cli") != "cli":
-        raise SystemExit(f"unknown APPROVER {e('APPROVER')!r}: only cli so far")
+    audit_log = audit.GcsAudit(e("AUDIT_BUCKET")) if e("AUDIT_BUCKET") else audit.FileAudit(e("AUDIT_FILE", "/data/audit.jsonl"))
+    if e("APPROVER", "cli") == "cli":
+        approver = approval.CliApprover(e("APPROVALS_DIR", "/data/approvals"))
+    elif e("APPROVER") == "slack":  # tokens from the mounted files, straight to Slack's client; never logged
+        approver = slack_approval.connect(_read(e("SLACK_APP_TOKEN_FILE", "/secrets/slack-app-token")),
+                                          _read(e("SLACK_BOT_TOKEN_FILE", "/secrets/slack-bot-token")),
+                                          e("SLACK_CHANNEL"), json.loads(e("SLACK_APPROVERS") or "{}"), audit_log)
+    else:
+        raise SystemExit(f"unknown APPROVER {e('APPROVER')!r}: cli or slack")
     return actions.Gateway(
         kube=kube.Kube(),
-        audit_log=audit.GcsAudit(e("AUDIT_BUCKET")) if e("AUDIT_BUCKET") else audit.FileAudit(e("AUDIT_FILE", "/data/audit.jsonl")),
-        approver=approval.CliApprover(e("APPROVALS_DIR", "/data/approvals")),
+        audit_log=audit_log,
+        approver=approval.Bounded(approver, MAX_PENDING),
         decide=lambda facts: policy.decide(facts, e("OPA_URL", policy.URL)),
         summarize=lambda facts: risk.summary(
             facts, e("RISK_URL", "http://gateway.gateway.svc.cluster.local:4000/v1/chat/completions"),

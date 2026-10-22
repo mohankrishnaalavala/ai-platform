@@ -1,6 +1,6 @@
 """A small Kubernetes API client, standard library only. It signs in with the pod's own ServiceAccount
 token, so every call, dry runs included, has exactly that account's RBAC (role-based access control)
-permissions (rbac.yaml) and no more."""
+permissions (helm/action-gateway/templates/rbac.yaml) and no more."""
 import http.client
 import json
 import os

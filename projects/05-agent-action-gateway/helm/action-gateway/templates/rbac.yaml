@@ -1,13 +1,14 @@
 # The action gateway's Kubernetes identity (P5-05). Every tool call, dry runs included, runs as this
 # ServiceAccount, so the gateway can do only what is listed here: Deployments and ConfigMaps in the dev,
-# staging and prod namespaces, and nothing anywhere else. The Helm chart (P5-10) will template these
-# objects and add the owner and session labels.
+# staging and prod namespaces, and nothing anywhere else. No Secrets. In the cluster, Workload Identity
+# grants go straight to this name (foundation IAM): create and read on the audit bucket, read on its three
+# secrets. No Google service account and no key.
+# The three namespaces must exist first: deploy.sh applies evals/base.yaml before the chart.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: action-gateway
-  namespace: action-gateway
-  labels: {app: ai-platform, layer: "05"}
+  labels: {{- include "ag.labels" . | trim | nindent 4 }}
 ---
 # Read each target namespace's env label, which the policy checks. Namespaces are cluster-wide objects,
 # so this is a ClusterRole, limited by name to the three namespaces.
@@ -15,7 +16,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: action-gateway-namespaces
-  labels: {app: ai-platform, layer: "05"}
+  labels: {{- include "ag.labels" . | trim | nindent 4 }}
 rules:
   - apiGroups: [""]
     resources: [namespaces]
@@ -26,10 +27,10 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: action-gateway-namespaces
-  labels: {app: ai-platform, layer: "05"}
+  labels: {{- include "ag.labels" . | trim | nindent 4 }}
 roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: action-gateway-namespaces}
 subjects:
-  - {kind: ServiceAccount, name: action-gateway, namespace: action-gateway}
+  - {kind: ServiceAccount, name: action-gateway, namespace: {{ .Release.Namespace }}}
 ---
 # What the tools do. The rules are written once here; only the RoleBindings below grant them, and only
 # inside dev, staging and prod.
@@ -37,7 +38,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: action-gateway-actions
-  labels: {app: ai-platform, layer: "05"}
+  labels: {{- include "ag.labels" . | trim | nindent 4 }}
 rules:
   # get, list: status and snapshots; patch: scale, restart, rollout undo, apply, undo;
   # create: applying a new one; delete: undo of an action that created one
@@ -53,33 +54,15 @@ rules:
   - apiGroups: [policy]
     resources: [poddisruptionbudgets]
     verbs: [list]  # blast radius and get_status
+{{- range list "dev" "staging" "prod" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: action-gateway
-  namespace: dev
-  labels: {app: ai-platform, layer: "05"}
+  namespace: {{ . }}
+  labels: {{- include "ag.labels" $ | trim | nindent 4 }}
 roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: action-gateway-actions}
 subjects:
-  - {kind: ServiceAccount, name: action-gateway, namespace: action-gateway}
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: action-gateway
-  namespace: staging
-  labels: {app: ai-platform, layer: "05"}
-roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: action-gateway-actions}
-subjects:
-  - {kind: ServiceAccount, name: action-gateway, namespace: action-gateway}
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: action-gateway
-  namespace: prod
-  labels: {app: ai-platform, layer: "05"}
-roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: action-gateway-actions}
-subjects:
-  - {kind: ServiceAccount, name: action-gateway, namespace: action-gateway}
+  - {kind: ServiceAccount, name: action-gateway, namespace: {{ $.Release.Namespace }}}
+{{- end }}

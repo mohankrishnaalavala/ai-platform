@@ -13,7 +13,7 @@ import httpx2
 from mcp import Client
 from mcp.client.streamable_http import streamable_http_client
 
-CLOCK = "20261104T160000Z-"  # tests/kind/gateway.yaml's test-only clock: Wednesday 2026-11-04 10:00 in Chicago
+CLOCK = "20261104T160000Z-"  # kind-smoke.sh sets the test-only clock: Wednesday 2026-11-04 10:00 in Chicago
 
 
 async def main(url, step):

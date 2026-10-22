@@ -1,0 +1,12 @@
+# The agent tokens' SHA-256 hashes -> teams. The server reads this file on every call, so new tokens work
+# without a restart. A raw token can't land here: every key must be a 64-character hash.
+{{- range $hash, $team := .Values.agentTokens }}
+{{- if not (regexMatch "^[0-9a-f]{64}$" $hash) }}{{ fail "agentTokens keys must be SHA-256 hashes (64 lowercase hex characters), never tokens" }}{{ end }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-tokens
+  labels: {{- include "ag.labels" . | trim | nindent 4 }}
+data:
+  tokens.json: {{ toJson .Values.agentTokens | quote }}

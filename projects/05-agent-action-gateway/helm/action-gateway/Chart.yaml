@@ -1,0 +1,5 @@
+apiVersion: v2
+name: action-gateway
+description: An MCP (Model Context Protocol) server that checks, dry-runs, explains, gets approval for, audits and can undo AI agents' Kubernetes changes. No public endpoint.
+type: application
+version: 0.1.0
