@@ -36,6 +36,7 @@ BY_PROMPT = {c["prompt"]: ANSWERS[c["id"]] for c in CASES}
 
 class FakeGateway(BaseHTTPRequestHandler):
     def do_POST(self):
+        self.server.calls += 1
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         alias = body["model"]
         text = "Both facts.\nSCORE: 4" if alias == "judge" else BY_PROMPT[body["messages"][-1]["content"]]
@@ -59,6 +60,7 @@ class Runner(unittest.TestCase):
     def setUpClass(cls):
         cls.server = ThreadingHTTPServer(("127.0.0.1", 0), FakeGateway)
         cls.server.fallback = {}  # alias -> its x-litellm-attempted-fallbacks value ("0" when absent)
+        cls.server.calls = 0
         threading.Thread(target=cls.server.serve_forever, daemon=True).start()
 
     @classmethod
@@ -83,7 +85,7 @@ class Runner(unittest.TestCase):
         self.assertEqual((code, r["status"], r["invalid_reasons"]), (0, "VALID", []))
         self.assertEqual(len(r["cases"]), 20)
         self.assertEqual(r["config"], "projects/04-eval-gated-releases/tests/fixtures/config.yaml")
-        self.assertEqual(r["config_hash"], run.config_hash(run.hash_parts(r["config"], r["dataset"])))
+        self.assertEqual(r["config_hash"], run.config_hash(run.hash_parts(r["config"], r["dataset"], r["judge"])))
         s = r["summary"]
         self.assertEqual(s["qa"]["judge_avg"], 4)
         self.assertEqual((s["structured"]["pass_pct"], s["safety"]["pass_pct"], s["instruction"]["pass_pct"]), (100, 100, 75))
@@ -106,6 +108,18 @@ class Runner(unittest.TestCase):
         code, r = self.run_cli()
         self.assertEqual((code, len(r["invalid_reasons"])), (1, 2))
         self.server.fallback = {}
+
+    def test_a_dataset_error_stops_the_run_before_any_call(self):
+        env = {"GATEWAY_URL": f"http://127.0.0.1:{self.server.server_port}", "MASTER_KEY": "sk-test"}
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, env):
+            (Path(tmp) / "cases.jsonl").write_text(json.dumps(
+                {"id": "x-1", "category": "instruction", "prompt": "p", "check": {"type": "must_contain", "values": []}}))
+            calls = self.server.calls
+            with self.assertRaises(SystemExit) as stop:
+                run.main(["--target", "chat-default", "--config", str(FIXTURES / "config.yaml"), "--dataset", tmp,
+                          "--out", tmp])
+        self.assertIn("empty values", str(stop.exception))
+        self.assertEqual(self.server.calls, calls)
 
 
 class Parts(unittest.TestCase):
@@ -152,12 +166,33 @@ class Parts(unittest.TestCase):
         self.assertAlmostEqual(gpu["token_usd"], (2000 * 1 + 200 * 10) / 1e6)  # the judge only
         self.assertAlmostEqual(gpu["total_usd"], gpu["token_usd"] + per_hour)
 
-    def test_the_hash_covers_config_judge_scorers_and_dataset(self):
+    def test_the_hash_covers_config_judge_scorers_dataset_and_judge_model(self):
         parts = run.hash_parts("projects/04-eval-gated-releases/tests/fixtures/config.yaml",
-                               "projects/04-eval-gated-releases/tests/fixtures/dataset")
-        self.assertEqual(sorted(parts), ["config", "dataset", "judge_md", "scorers"])
-        self.assertNotEqual(run.config_hash(parts), run.config_hash(dict(parts, judge_md="x")))
+                               "projects/04-eval-gated-releases/tests/fixtures/dataset", "chat-hosted")
+        self.assertEqual(sorted(parts), ["config", "dataset", "judge_md", "judge_model", "scorers"])
+        self.assertEqual(parts["judge_model"], "vertex_ai/gemini-3.5-flash-lite")  # P2's values today
+        for k in parts:
+            self.assertNotEqual(run.config_hash(parts), run.config_hash(dict(parts, **{k: "x"})), k)
         self.assertEqual(len(run.config_hash(parts)), 16)
+
+    def test_alias_model_reads_the_gateway_values(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            values = Path(tmp) / "values.yaml"
+            values.write_text("config:\n  model_list:\n    - model_name: chat-default  # vLLM\n      litellm_params:\n"
+                              "        model: openai/qwen\n    - model_name: judge\n      litellm_params:\n"
+                              "        temperature: 0\n        model: vertex_ai/gemini-3.5-flash\n")
+            with mock.patch.object(run, "GATEWAY_VALUES", values):
+                self.assertEqual(run.alias_model("judge"), "vertex_ai/gemini-3.5-flash")
+                self.assertEqual(run.alias_model("chat-default"), "openai/qwen")
+                self.assertIsNone(run.alias_model("chat"))  # not a prefix of chat-default
+                self.assertIsNone(run.alias_model("chat-hosted"))
+
+    def test_an_unknown_gate_raises_and_only_the_canary_gate_is_skipped(self):
+        r = {"cases": [{"category": "qa", "round": 1, "passed": True, "score": None}], "hash_parts": {}}
+        rows, _ = run.compare(r, None, {"latency_canary": {"metric": "ttft_p95", "gate": "baseline_times_at_most", "value": 1.2}})
+        self.assertEqual(rows, [])
+        with self.assertRaises(ValueError):
+            run.compare(r, None, {"qa": {"metric": "pass_pct", "gate": "at_most", "value": 1}})
 
 
 if __name__ == "__main__":

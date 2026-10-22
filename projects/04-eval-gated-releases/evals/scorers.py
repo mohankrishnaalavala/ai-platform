@@ -145,11 +145,25 @@ CHECKS = {
 }
 
 
+LISTS = {"must_contain": "values", "must_not_contain": "values", "order": "values", "all": "checks"}
+
+
+def validate(check_):
+    """Raises on a check that can't be scored: an unknown kind, or an empty list (which would pass anything)."""
+    kind = check_["type"]
+    if kind not in CHECKS:
+        raise ValueError(f"not a deterministic check kind: {kind}")
+    if kind in LISTS and not check_.get(LISTS[kind]):
+        raise ValueError(f"{kind}: empty {LISTS[kind]}")
+    for sub in check_.get("checks", []):
+        validate(sub)
+
+
 def check(answer, check_):
-    """True when the answer passes a deterministic check. The answer is trimmed first."""
-    if check_["type"] not in CHECKS:
-        raise ValueError(f"not a deterministic check kind: {check_['type']}")
-    return CHECKS[check_["type"]](answer.strip(), check_)
+    """True when the answer passes a deterministic check. The answer is trimmed first; an empty one never passes."""
+    validate(check_)
+    answer = answer.strip()
+    return bool(answer) and CHECKS[check_["type"]](answer, check_)
 
 
 def judge_prompt(case_, answer):

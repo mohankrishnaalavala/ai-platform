@@ -40,7 +40,7 @@ class RunnerAgainstTheGateway(unittest.TestCase):
             self.assertTrue(Path(str(path)[:-len(".json")] + ".md").exists())
             r = json.loads(path.read_text())
         self.assertEqual(r["config_hash"], path.parent.name)
-        self.assertEqual(r["config_hash"], run.config_hash(run.hash_parts(r["config"], r["dataset"])))
+        self.assertEqual(r["config_hash"], run.config_hash(run.hash_parts(r["config"], r["dataset"], r["judge"])))
         self.assertEqual(len(r["cases"]), 10 * rounds)
         for c in r["cases"]:
             self.assertEqual(c["status"], 200, c["id"])

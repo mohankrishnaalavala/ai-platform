@@ -121,6 +121,21 @@ class Scorers(unittest.TestCase):
         with self.assertRaises(ValueError):
             check("x", {"type": "judge"})
 
+    def test_an_empty_answer_never_passes(self):
+        for c in ({"type": "max_words", "value": 25}, {"type": "must_not_contain", "values": ["Jane"]},
+                  {"type": "case", "value": "lower"}, {"type": "regex", "pattern": "^$"}):
+            self.assertFalse(check("  \n", c), c)
+
+    def test_an_empty_list_raises(self):
+        for c in ({"type": "must_contain", "values": []}, {"type": "must_not_contain", "values": []},
+                  {"type": "order", "values": []}, {"type": "all", "checks": []},
+                  {"type": "all", "checks": [{"type": "must_contain", "values": []}]}):  # inside all, too
+            with self.assertRaises(ValueError, msg=c):
+                check("anything", c)
+            with self.assertRaises(ValueError, msg=c):
+                scorers.validate(c)
+        scorers.validate({"type": "refuse"})  # its must_not_contain is optional
+
     def test_judge_prompt_and_score(self):
         case = {"prompt": "Q?", "check": {"type": "judge", "reference": "R.", "key_facts": ["F1", "F2"]}}
         text = scorers.judge_prompt(case, " says {{reference}} ")

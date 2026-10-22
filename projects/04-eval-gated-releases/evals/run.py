@@ -8,9 +8,9 @@ Usage, in the session cluster window, through a port-forward to the gateway:
       --config config/models/qwen2.5-7b-bf16.yaml [--baseline <results file>] [--repeat 2]
 --config is the target's config file: the vLLM config behind chat-default, or the gateway values for a hosted alias.
 
-Config hash: the first 16 hex characters of a sha256 over the sha256 of four parts: the target's config file,
-judge.md, scorers.py and the dataset's files. Changing any of them makes old results stale, and evals.yml
-(gate.py) fails a pull request whose results don't match its files.
+Config hash: the first 16 hex characters of a sha256 over five parts: the sha256 of the target's config file,
+judge.md, scorers.py and the dataset's files, and the judge alias's model in P2's gateway values. Changing any of
+them makes old results stale, and evals.yml (gate.py) fails a pull request whose results don't match its files.
 
 INVALID: a run is INVALID when any call to the target or the judge gave no HTTP 200 answer or was answered by a
 fallback, or when the judge gave no score. Fallback detection relies on LiteLLM's response header
@@ -48,10 +48,12 @@ ROOT = EVALS.parents[2]
 THRESHOLDS = EVALS / "thresholds.yaml"
 PRICES = EVALS / "prices.json"
 GPU_PRICES = ROOT / "projects/01-gpu-serving/bench/prices.json"
+GATEWAY_VALUES = ROOT / "projects/02-llm-gateway/helm/gateway/values.yaml"
 TIMEOUT_S = 180  # longer than the gateway's own timeouts (30 s for chat-default, 60 s for chat-hosted)
 FALLBACK_RULE = ("answered by a fallback when LiteLLM's x-litellm-attempted-fallbacks response header is not 0; "
                  "a missing header counts as a fallback")
-GATES = {"at_least": "≥ {:g}", "baseline_minus": "≥ baseline − {:g}"}  # the latency gate is the canary's (P4-08)
+GATES = {"at_least": "≥ {:g}", "baseline_minus": "≥ baseline − {:g}"}
+CANARY_GATES = {"baseline_times_at_most"}  # the canary's latency gate, checked by promote.py (P4-08)
 
 
 def rel(path):
@@ -63,18 +65,27 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def hash_parts(config, dataset):
-    """The sha256 of each part the config hash covers. config and dataset are relative to the repo root."""
+def alias_model(alias):
+    """The model behind a gateway alias in P2's values (the first `model:` after its `model_name`), or None.
+    shortcut: a regex on that file's layout, not a YAML parser; use one if the layout changes."""
+    found = re.search(rf"^\s*- model_name: {re.escape(alias)}(?![\w-]).*\n(?:.*\n)*?\s*model:\s*(\S+)",
+                      GATEWAY_VALUES.read_text(), re.MULTILINE)
+    return found.group(1) if found else None
+
+
+def hash_parts(config, dataset, judge):
+    """Each part the config hash covers. config and dataset are relative to the repo root; judge is an alias."""
     files = sorted((ROOT / dataset).glob("*.jsonl"))
     if not files:
         raise FileNotFoundError(f"no *.jsonl files in {dataset}")
     return {"config": sha((ROOT / config).read_bytes()), "judge_md": sha(scorers.JUDGE_MD.read_bytes()),
             "scorers": sha(Path(scorers.__file__).read_bytes()),
-            "dataset": sha(b"".join(f.name.encode() + b"\0" + f.read_bytes() for f in files))}
+            "dataset": sha(b"".join(f.name.encode() + b"\0" + f.read_bytes() for f in files)),
+            "judge_model": alias_model(judge)}
 
 
 def config_hash(parts):
-    return sha(" ".join(parts[k] for k in sorted(parts)).encode())[:16]
+    return sha(" ".join(str(parts[k]) for k in sorted(parts)).encode())[:16]
 
 
 def load_cases(dataset):
@@ -175,12 +186,14 @@ def compare(results, baseline, thresholds, need_baseline=True):
     when need_baseline, and is only shown otherwise."""
     now, was = summarize(results["cases"]), summarize(baseline["cases"]) if baseline else {}
     failures = []
-    if baseline and any(baseline["hash_parts"][k] != results["hash_parts"][k] for k in ("judge_md", "scorers", "dataset")):
-        failures.append("the baseline ran with a different judge.md, scorers.py or dataset")
+    if baseline and any(baseline["hash_parts"].get(k) != v for k, v in results["hash_parts"].items() if k != "config"):
+        failures.append("the baseline ran with a different judge.md, scorers.py, dataset or judge model")
     rows = []
     for cat, t in thresholds.items():
-        if t["gate"] not in GATES:
+        if t["gate"] in CANARY_GATES:
             continue
+        if t["gate"] not in GATES:
+            raise ValueError(f"unknown gate in thresholds.yaml: {t['gate']}")
         have, base = now.get(cat, {}).get(t["metric"]), was.get(cat, {}).get(t["metric"])
         limit = t["value"] if t["gate"] == "at_least" else None if base is None else base - t["value"]
         if have is None:
@@ -274,10 +287,13 @@ def main(argv=None):
     if not (os.environ.get("GATEWAY_URL") and os.environ.get("MASTER_KEY")):
         sys.exit("set GATEWAY_URL and MASTER_KEY")
     config, dataset = rel(a.config), rel(a.dataset)
-    parts, cases = hash_parts(config, dataset), load_cases(dataset)
-    unknown = {c["check"]["type"] for c in cases} - set(scorers.CHECKS) - {"judge"}
-    if unknown:
-        sys.exit(f"check kinds scorers.py doesn't know: {sorted(unknown)}")
+    parts, cases = hash_parts(config, dataset, a.judge), load_cases(dataset)
+    for case in cases:  # before any call, so a dataset error never costs GPU minutes
+        try:
+            if case["check"]["type"] != "judge":
+                scorers.validate(case["check"])
+        except ValueError as e:
+            sys.exit(f"{case['id']}: {e}")
     baseline = json.loads(Path(a.baseline).read_text()) if a.baseline else None
 
     start, rows = time.monotonic(), []

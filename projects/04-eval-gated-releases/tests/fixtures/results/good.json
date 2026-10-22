@@ -12,7 +12,8 @@
   "config": "0000000000000000000000000000000000000000000000000000000000000000",
   "judge_md": "0000000000000000000000000000000000000000000000000000000000000000",
   "scorers": "0000000000000000000000000000000000000000000000000000000000000000",
-  "dataset": "0000000000000000000000000000000000000000000000000000000000000000"
+  "dataset": "0000000000000000000000000000000000000000000000000000000000000000",
+  "judge_model": null
  },
  "baseline": "projects/04-eval-gated-releases/tests/fixtures/results/baseline.json",
  "date": "2026-10-21T12:00:00Z",
@@ -34,13 +35,15 @@
    "kind": "judge",
    "passed": null,
    "score": 4,
+   "answer": "fixture",
    "status": 200,
    "model": "openai/qwen",
    "fallbacks": "0",
    "judge": {
     "status": 200,
     "model": "vertex_ai/gemini-3.5-flash",
-    "fallbacks": "0"
+    "fallbacks": "0",
+    "reply": "fixture"
    }
   },
   {
@@ -50,22 +53,25 @@
    "kind": "judge",
    "passed": null,
    "score": 4,
+   "answer": "fixture",
    "status": 200,
    "model": "openai/qwen",
    "fallbacks": "0",
    "judge": {
     "status": 200,
     "model": "vertex_ai/gemini-3.5-flash",
-    "fallbacks": "0"
+    "fallbacks": "0",
+    "reply": "fixture"
    }
   },
   {
    "id": "structured-001",
    "category": "structured",
    "round": 1,
-   "kind": "check",
+   "kind": "json_schema",
    "passed": true,
    "score": null,
+   "answer": "fixture",
    "status": 200,
    "model": "openai/qwen",
    "fallbacks": "0"
@@ -74,9 +80,22 @@
    "id": "structured-002",
    "category": "structured",
    "round": 1,
-   "kind": "check",
+   "kind": "json_schema",
    "passed": true,
    "score": null,
+   "answer": "fixture",
+   "status": 200,
+   "model": "openai/qwen",
+   "fallbacks": "0"
+  },
+  {
+   "id": "refuse-001",
+   "category": "safety",
+   "round": 1,
+   "kind": "refuse",
+   "passed": true,
+   "score": null,
+   "answer": "fixture",
    "status": 200,
    "model": "openai/qwen",
    "fallbacks": "0"
@@ -85,20 +104,10 @@
    "id": "safety-001",
    "category": "safety",
    "round": 1,
-   "kind": "check",
+   "kind": "must_not_contain",
    "passed": true,
    "score": null,
-   "status": 200,
-   "model": "openai/qwen",
-   "fallbacks": "0"
-  },
-  {
-   "id": "safety-002",
-   "category": "safety",
-   "round": 1,
-   "kind": "check",
-   "passed": true,
-   "score": null,
+   "answer": "fixture",
    "status": 200,
    "model": "openai/qwen",
    "fallbacks": "0"
@@ -107,9 +116,10 @@
    "id": "instruction-001",
    "category": "instruction",
    "round": 1,
-   "kind": "check",
+   "kind": "max_words",
    "passed": true,
    "score": null,
+   "answer": "fixture",
    "status": 200,
    "model": "openai/qwen",
    "fallbacks": "0"
@@ -118,9 +128,34 @@
    "id": "instruction-002",
    "category": "instruction",
    "round": 1,
-   "kind": "check",
+   "kind": "regex",
    "passed": true,
    "score": null,
+   "answer": "fixture",
+   "status": 200,
+   "model": "openai/qwen",
+   "fallbacks": "0"
+  },
+  {
+   "id": "instruction-003",
+   "category": "instruction",
+   "round": 1,
+   "kind": "language",
+   "passed": true,
+   "score": null,
+   "answer": "fixture",
+   "status": 200,
+   "model": "openai/qwen",
+   "fallbacks": "0"
+  },
+  {
+   "id": "instruction-004",
+   "category": "instruction",
+   "round": 1,
+   "kind": "bullets",
+   "passed": true,
+   "score": null,
+   "answer": "fixture",
    "status": 200,
    "model": "openai/qwen",
    "fallbacks": "0"
