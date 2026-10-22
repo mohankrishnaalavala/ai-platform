@@ -67,6 +67,17 @@ helm upgrade --install action-gateway helm/action-gateway -n action-gateway -f t
 "${gw[@]}" rollout status deploy/action-gateway --timeout=180s
 "${gw[@]}" exec deploy/action-gateway -c gateway -- python -c "open('/data/clock', 'w').write('2026-11-04T10:00:00-06:00')"
 for ns in dev staging prod; do kubectl -n "$ns" rollout status deploy/checkout --timeout=120s; done
+# The pod has no probe (nothing listens on its own address), so wait here until the server listens:
+# kubectl port-forward gives up on its first refused connection.
+"${gw[@]}" exec deploy/action-gateway -c gateway -- python -c 'import socket, time
+for _ in range(60):
+    try:
+        socket.create_connection(("127.0.0.1", 8080), 1).close()
+        break
+    except OSError:
+        time.sleep(1)
+else:
+    raise SystemExit("the server never listened on 127.0.0.1:8080")'
 
 "${gw[@]}" port-forward deploy/action-gateway "$port:8080" >/dev/null &
 pf=$!

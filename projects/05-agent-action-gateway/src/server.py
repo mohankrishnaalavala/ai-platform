@@ -14,7 +14,11 @@ Env (all optional):
 
 Threads: each tool call runs in a worker thread, at most THREADS (40) at once. A call waiting for a person
 holds its thread for up to 15 minutes, so at most MAX_PENDING (16) approvals wait at once and the next one
-is rejected at once (approval.Bounded). That leaves at least 24 threads for every other call."""
+is rejected at once (approval.Bounded). That leaves at least 24 threads for every other call.
+
+Long waits: while a call runs, the server sends an MCP progress notification every PROGRESS_S (30) seconds,
+if the agent's request asked for progress. Each one resets the agent's idle timer (Claude Code's is 5
+minutes for HTTP servers), so a 15-minute approval wait isn't cut off."""
 import json
 import os
 
@@ -30,8 +34,21 @@ import slack_approval
 import uvicorn
 from mcp.server import Server
 
-THREADS, MAX_PENDING = 40, 16
+THREADS, MAX_PENDING, PROGRESS_S = 40, 16, 30.0
 CALLS = anyio.CapacityLimiter(THREADS)
+
+
+async def keep_alive(ctx):
+    """Progress every PROGRESS_S seconds, counting the seconds waited (it must only ever grow). A no-op if
+    the agent sent no progressToken."""
+    waited = 0.0
+    while True:
+        await anyio.sleep(PROGRESS_S)
+        waited += PROGRESS_S
+        try:
+            await ctx.session.report_progress(waited, message=f"still working: {waited:g} s (an approval can take 15 minutes)")
+        except Exception:  # noqa: BLE001 - the agent went away: stop telling it, but the call goes on (and is audited)
+            return
 
 
 def build(gateway, tokens_file):
@@ -46,7 +63,11 @@ def build(gateway, tokens_file):
         if team is None:
             result = {"decision": "deny", "reasons": ["unknown agent token"]}
         else:  # in a worker thread: an approval can wait 15 minutes, and the cluster calls block
-            result = await anyio.to_thread.run_sync(gateway.call, params.name, dict(params.arguments or {}), team, limiter=CALLS)
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(keep_alive, ctx)
+                result = await anyio.to_thread.run_sync(gateway.call, params.name, dict(params.arguments or {}), team,
+                                                        limiter=CALLS)
+                tg.cancel_scope.cancel()
         return types.CallToolResult(content=[types.TextContent(type="text", text=json.dumps(result, indent=2))],
                                     structured_content=result,
                                     is_error=(result.get("result") or {}).get("status") == "failed")

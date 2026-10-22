@@ -6,7 +6,8 @@ Same method as the CLI approver (approval.py): decide(action_id, request, timeou
 - Who may answer: the Slack user IDs listed for the request's approver team (SLACK_APPROVERS, e.g.
   {"default": ["U0123ABCD"], "break-glass": ["U0456EFGH"]}; "default" answers requests that name no
   team). A break-glass request takes only the break-glass list. A click from anyone else is refused, told
-  so, and audited (record "refused-N"); the request keeps waiting. A team with no list is rejected at once.
+  so, and audited (record "refused-N"); the request keeps waiting. If that audit write fails, the server
+  logs an ERROR line and counts it (unaudited_refusals). A team with no list is rejected at once.
 - The approver recorded is the Slack user ID from Slack's own payload, not a name someone typed.
 - No answer within the timeout (15 minutes in the server) is a reject, and the message says so. If Slack
   can't be reached, the request is rejected at once (fail closed).
@@ -87,7 +88,7 @@ class SlackApprover:
                 isinstance(ids, list) and all(isinstance(u, str) and USER.fullmatch(u) for u in ids) for ids in approvers.values()):
             raise ValueError('SLACK_APPROVERS must map approver teams to lists of user IDs, like {"default": ["U0123ABCD"]}')
         self.client, self.channel, self.approvers, self.audit = client, channel, approvers, audit_log
-        self.pending, self.lock = {}, threading.Lock()
+        self.pending, self.lock, self.unaudited_refusals = {}, threading.Lock(), 0
 
     def decide(self, action_id, request, timeout_s):
         team = request.get("approver_team") or "default"
@@ -143,8 +144,12 @@ class SlackApprover:
         if refused:
             try:
                 self.audit.write(refused)
-            except Exception as e:  # noqa: BLE001 - the click is refused either way
-                print(f"slack: the refused click on {action_id} wasn't audited ({type(e).__name__})", file=sys.stderr)
+            except Exception as e:  # noqa: BLE001 - the click is refused either way, but the gap must show
+                with self.lock:
+                    self.unaudited_refusals += 1
+                    n = self.unaudited_refusals
+                print(f"ERROR slack: a refused click on {action_id} by {uid} was NOT audited ({type(e).__name__}); "
+                      f"{n} unaudited refusals since the server started", file=sys.stderr, flush=True)
         if note and uid:
             try:
                 self.client.chat_postEphemeral(channel=(body.get("channel") or {}).get("id", self.channel), user=uid, text=note)

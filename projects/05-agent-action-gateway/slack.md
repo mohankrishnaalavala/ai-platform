@@ -1,4 +1,4 @@
-# Slack approvals: what to set up
+# Slack approvals and the demo: what to set up
 
 The action gateway asks a person in Slack before a risky change runs. It uses Slack's Socket Mode: the gateway opens a connection out to Slack, so Slack never calls into the cluster and there is no public endpoint. This takes about 20 minutes, once. kind and CI don't need any of it: they use the CLI (command line) approver.
 
@@ -66,3 +66,37 @@ SLACK_CHANNEL_ID=C... SLACK_APPROVERS=U...,U... SLACK_BREAK_GLASS_APPROVERS=U...
 ```
 
 On a cluster that's already up, use `make deploy LAYERS="02 05"` instead. Without Slack, `APPROVER=cli` uses the CLI approver: answer with `kubectl exec` (see `src/approval.py`).
+
+## 5. Connect Claude Code (the demo)
+
+`deploy.sh` prints this session's agent token once. Reach the gateway through a port-forward, and keep the token in your shell, not in a file:
+
+```bash
+kubectl -n action-gateway port-forward deploy/action-gateway 8080:8080
+export ACTION_GATEWAY_TOKEN=...   # the token deploy.sh printed
+```
+
+Then add the server to the project's `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "action-gateway": {
+      "type": "http",
+      "url": "http://127.0.0.1:8080/mcp",
+      "headers": {"Authorization": "Bearer ${ACTION_GATEWAY_TOKEN}"},
+      "timeout": 1200000
+    }
+  }
+}
+```
+
+**Why the timeout.** A call that needs approval can wait up to 15 minutes, but Claude Code drops a call to an HTTP server that sends nothing for 5 minutes. Two things cover that:
+- `timeout` is 20 minutes, in milliseconds, so it's longer than the 15-minute auto-reject. Claude Code's docs say a server's `timeout` also raises that 5-minute idle limit.
+- While a call waits, the gateway also sends a progress message every 30 seconds, if the agent asks for progress.
+
+Neither has been tried with Claude Code yet.
+
+## 6. A known limit: undo straight after a scale-up
+
+An undo sent right after a scale-up can be denied with "would violate PodDisruptionBudget". The new pods aren't ready yet, and the gateway counts the pods it would remove as healthy ones. This fails closed: nothing changes. Wait until the rollout is done (`kubectl rollout status`), then undo again.

@@ -1,7 +1,9 @@
 """The Slack approver with Slack faked: no network. Who may answer, the break-glass list, refused clicks
 audited, auto-reject, Slack down, and what the message shows. The Bolt wiring test needs slack_bolt, so CI
 runs it inside the image; CI's stdlib-only unit-test step skips it."""
+import contextlib
 import importlib.util
+import io
 import json
 import threading
 import time
@@ -86,6 +88,19 @@ class Slack(unittest.TestCase):
         self.assertEqual([(r["action_id"], r["record"], r["refused_click"]["slack_user"]) for r in self.audit.records],
                          [(ID, "refused-1", "U0MALLORY")])
         self.assertIn("not on the default approver list", self.slack.ephemeral[0]["text"])
+
+    def test_a_refusal_that_cant_be_audited_is_loud(self):
+        class BrokenAudit:
+            def write(self, record):
+                raise OSError("bucket unreachable")
+        self.approver.audit = BrokenAudit()
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            a = self.decide_while([click("U0MALLORY", "approve"), click("U0ALICE01", "reject")])
+        self.assertEqual((a["approved"], a["approver"]), (False, "U0ALICE01"))  # still refused; the request went on
+        self.assertEqual(self.approver.unaudited_refusals, 1)
+        self.assertIn("ERROR slack: a refused click on", err.getvalue())
+        self.assertIn("NOT audited (OSError)", err.getvalue())
 
     def test_break_glass_takes_only_the_break_glass_list(self):
         bg = REQUEST | {"approver_team": "break-glass"}

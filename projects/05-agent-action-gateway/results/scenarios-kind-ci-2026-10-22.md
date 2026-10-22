@@ -1,6 +1,13 @@
 # P5 scenarios on kind: 2026-10-22T21:38:59Z
 
-Source: CI run https://github.com/mohankrishnaalavala/ai-platform/actions/runs/39858413308 (job action-gateway, artifact p5-scenarios), on pull request #74's merge commit. Copied unchanged except this line; the raw output is `scenarios-kind-ci-2026-10-22.json`.
+Source: CI run https://github.com/mohankrishnaalavala/ai-platform/actions/runs/39858413308 (job action-gateway, artifact p5-scenarios), on pull request #74's merge commit. Copied unchanged except this line and the Caveats section; the raw output is `scenarios-kind-ci-2026-10-22.json`.
+
+## Caveats
+
+- **No LLM call in these numbers.** kind has no P2 gateway, so every `risk_summary` is "unavailable" and its call fails at once. The 29.6 ms median leaves out both the LLM summary and the human wait; in the cluster, the summary adds up to its 15 s timeout to every call that needs approval.
+- **The audit log is a local file** in the pod (`/data/audit.jsonl`), not the GCS bucket the cluster uses.
+- **Undo waits for the rollout.** The runner calls `undo_action` only after the change has rolled out (`settle()` in `evals/run_scenarios.py`), so "30 of 30" depends on that wait. Straight after a scale-up, the undo (a scale back down) is denied with "would violate PodDisruptionBudget": the new pods aren't ready yet, and the gateway counts the pods it would remove as healthy ones. Kubernetes removes unready pods first, so this is a false block. It fails closed: nothing changes, and the undo works once the rollout is done. An earlier local run without the wait hit this block; its output wasn't kept, so it gives no numbers here.
+- **The approver is the CLI one**, answering "approve" from the runner through `kubectl exec`; the Slack approver isn't part of this run.
 
 Commit `cdf5ac3ab8e8e4845ea0a106b6c2c577b6ad0bec` · config hash `6f6fca0907d53899` · Kubernetes v1.36.4 (kind node `kindest/node:v1.36.4@sha256:099e049362a1526b2db71494e1947aae99bd16290d7c895f2b7ea312e3cbfaed`) · image `action-gateway:ci` (sha256:dc71bc728e80f54b2824e6a330ffa94c1a264cc54d6a6e6396a81fc1f4e0608f) · host: Linux x86_64, 4 CPUs, GitHub-hosted runner ubuntu24 20261012.334.1
 

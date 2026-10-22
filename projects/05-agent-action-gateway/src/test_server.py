@@ -10,16 +10,18 @@ import time
 import unittest
 import urllib.error
 import urllib.request
+from unittest import mock
 
 HAVE_SDK = importlib.util.find_spec("mcp") is not None
 
 
 class FakeGateway:
     def __init__(self):
-        self.calls = []
+        self.calls, self.delay_s = [], 0
 
     def call(self, tool, args, team):
         self.calls.append((tool, args, team))
+        time.sleep(self.delay_s if tool == "restart_deployment" else 0)  # as a call waiting for approval
         return {"decision": "allow", "reasons": ["ok"], "result": {"status": "executed", "error": None}}
 
 
@@ -93,6 +95,34 @@ class Server(unittest.TestCase):
         self.assertFalse(r.is_error)
         self.assertIn(("scale_deployment", {"namespace": "dev", "name": "checkout", "replicas": 3, "extra": 1}, "sre"),
                       self.gateway.calls)  # raw arguments, unknown ones included, reach the policy
+
+    def test_progress_while_a_call_waits(self):  # keeps an agent's idle timer (Claude Code: 5 minutes) from firing
+        import anyio
+        import httpx2
+        import server
+        from mcp import Client
+        from mcp.client.streamable_http import streamable_http_client
+        seen = []
+
+        async def progress(value, total, message):
+            seen.append((value, message))
+
+        async def run():
+            http = httpx2.AsyncClient(headers={"Authorization": "Bearer agent-token"}, timeout=30)
+            async with Client(streamable_http_client(self.url, http_client=http)) as c:
+                return await c.call_tool("restart_deployment", {"namespace": "prod", "name": "checkout"},
+                                         progress_callback=progress)
+        self.gateway.delay_s = 0.5
+        try:
+            with mock.patch.object(server, "PROGRESS_S", 0.1):
+                r = anyio.run(run)
+        finally:
+            self.gateway.delay_s = 0
+        self.assertEqual(r.structured_content["decision"], "allow")
+        self.assertGreaterEqual(len(seen), 3)
+        values = [v for v, _ in seen]
+        self.assertEqual(values, sorted(set(values)))  # progress only ever grows
+        self.assertIn("approval can take 15 minutes", seen[0][1])
 
 
 if __name__ == "__main__":

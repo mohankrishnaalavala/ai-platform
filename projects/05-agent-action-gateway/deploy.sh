@@ -120,5 +120,5 @@ helm upgrade --install action-gateway "$here/helm/action-gateway" -n action-gate
 if [ -n "${new_token:-}" ]; then
   [ -z "${GITHUB_ACTIONS:-}" ] || echo "::add-mask::$new_token"
   echo "agent token for team $team (shown once; only its SHA-256 hash is stored): $new_token"
-  echo "connect: kubectl -n action-gateway port-forward deploy/action-gateway 8080:8080, then http://127.0.0.1:8080/mcp with Authorization: Bearer <token>"
+  echo "connect: kubectl -n action-gateway port-forward deploy/action-gateway 8080:8080, then http://127.0.0.1:8080/mcp with Authorization: Bearer <token> (slack.md, section 5)"
 fi

@@ -46,17 +46,36 @@ if grep -E '^ *image: ' "$out" | grep -v '@sha256:[0-9a-f]\{64\}"\?$'; then
 fi
 { cat "$out"; echo ---; cat "$kind_out"; } | docker run --rm -i "$yq" ea -o=json -I=0 'select(. != null)' | python3 -c '
 import json, sys
-bad = []
+bad, soft = [], []
+pods = 0
 for line in sys.stdin:
     o = json.loads(line)
+    name = o["kind"] + "/" + o["metadata"]["name"]
     metas = [("", o["metadata"])]
     if "template" in o.get("spec", {}):
         metas.append((" (pod)", o["spec"]["template"]["metadata"]))
     for where, meta in metas:
         l = meta.get("labels") or {}
         if not (l.get("app") == "ai-platform" and l.get("layer") == "05" and l.get("owner") and l.get("session")):
-            bad.append(o["kind"] + "/" + o["metadata"]["name"] + where)
-sys.exit("missing labels (app, layer=05, owner, session): " + ", ".join(bad) if bad else 0)'
+            bad.append(name + where)
+    pod = o.get("spec", {}).get("template", {}).get("spec")
+    if pod is None:
+        continue
+    pods += 1  # hardening: non-root pod; each container read-only, no escalation, no capabilities, with limits
+    if (pod.get("securityContext") or {}).get("runAsNonRoot") is not True:
+        soft.append(name + ": runAsNonRoot")
+    for c in pod.get("containers", []) + pod.get("initContainers", []):
+        sc, res = c.get("securityContext") or {}, c.get("resources") or {}
+        for ok, what in [(sc.get("readOnlyRootFilesystem") is True, "readOnlyRootFilesystem"),
+                         (sc.get("allowPrivilegeEscalation") is False, "allowPrivilegeEscalation false"),
+                         ((sc.get("capabilities") or {}).get("drop") == ["ALL"], "capabilities drop ALL"),
+                         ("memory" in (res.get("limits") or {}), "a memory limit"),
+                         (bool(res.get("requests")), "resource requests")]:
+            if not ok:
+                soft.append(name + " container " + c["name"] + ": " + what)
+problems = (["missing labels (app, layer=05, owner, session): " + ", ".join(bad)] if bad else []) \
+    + (["not hardened: " + ", ".join(soft)] if soft else []) + ([] if pods else ["no pod rendered"])
+sys.exit("; ".join(problems) or 0)'
 
 refuse() {  # refuse WHAT ARGS...: the render must fail
   local what=$1; shift
