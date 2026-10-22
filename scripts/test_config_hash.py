@@ -1,6 +1,7 @@
 """Unit tests for config_hash.py and the model configs. Run: python3 -m unittest discover -s scripts"""
 import hashlib
 import os
+import re
 import tempfile
 import unittest
 
@@ -31,6 +32,18 @@ class ConfigHashTest(unittest.TestCase):
         diff = [(a, b) for a, b in zip(bf16, fp8) if a != b]
         self.assertEqual([a.split(":")[0].strip() for a, _ in diff], ["name", "quantization"])
         self.assertIn("quantization: fp8", diff[1][1])
+
+    def test_every_config_pins_image_and_model(self):
+        # mirror.yml copies exactly these pins, and vLLM reads the weights from bucketPath.
+        configs = sorted(f for f in os.listdir(MODELS) if f.endswith(".yaml"))
+        self.assertGreaterEqual(len(configs), 4)
+        for name in configs:
+            with self.subTest(config=name), open(os.path.join(MODELS, name)) as f:
+                v = dict(re.findall(r"^ *(name|hfId|revision|bucketPath|digest): (\S+)", f.read(), re.MULTILINE))
+                self.assertEqual(v["name"] + ".yaml", name)
+                self.assertRegex(v["digest"], r"^sha256:[0-9a-f]{64}$")
+                self.assertRegex(v["revision"], r"^[0-9a-f]{40}$")
+                self.assertEqual(v["bucketPath"], v["hfId"].split("/")[1] + "/" + v["revision"])
 
 
 if __name__ == "__main__":

@@ -16,6 +16,7 @@ vllm:
   maxModelLen: 8192
   gpuMemoryUtilization: 0.90
   quantization: null
+  defaultChatTemplateKwargs: {}  # e.g. {enable_thinking: false}; empty adds no flag
 gpu: nvidia-l4  # GKE's accelerator label; the pod only lands on that GPU
 
 # Set by deploy.sh: <region>-docker.pkg.dev/<project>/images, and <project>-models.

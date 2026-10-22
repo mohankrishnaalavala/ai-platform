@@ -1,0 +1,18 @@
+# Qwen2.5-1.5B-Instruct served by vLLM on one NVIDIA L4: P4's deliberately bad candidate (a cheaper,
+# smaller model), evaluated offline. Not served by default (P1's deploy.sh serves qwen2.5-7b-bf16.yaml).
+# This file is also a Helm values file for the vLLM chart. Its config hash names every results folder.
+name: qwen2.5-1.5b
+model:
+  hfId: Qwen/Qwen2.5-1.5B-Instruct  # Apache 2.0, not gated
+  # main's commit on 2026-10-21, the "sha" field of https://huggingface.co/api/models/Qwen/Qwen2.5-1.5B-Instruct
+  revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+  bucketPath: Qwen2.5-1.5B-Instruct/989aa7980e4cf806f80c7fef2b1adb7bc71aa306  # in the models bucket
+image:
+  repository: vllm/vllm-openai  # Docker Hub; mirror.yml copies it to Artifact Registry as images/vllm-openai
+  tag: v0.30.0
+  digest: sha256:5f5e535216848d0c52159c8c13a0af04be5f6fe1a84e79914300610796f76d40  # linux/amd64 manifest: GKE nodes are amd64, so only it is copied
+vllm:
+  maxModelLen: 8192  # the same as Qwen2.5-7B, so every eval case fits the same way
+  gpuMemoryUtilization: 0.90
+  quantization: null  # null: BF16 weights as published; fp8: vLLM compresses them to FP8 while loading
+gpu: nvidia-l4

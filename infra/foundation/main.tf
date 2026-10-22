@@ -14,7 +14,8 @@ module "network" {
   services_cidr = "10.30.0.0/20"
 }
 
-# --- Deployer: what gpu-session.yml, cost-guard.yml and `make up/down` act as. Session work only.
+# --- Deployer: what gpu-session.yml, cost-guard.yml, release-model.yml and `make up/down` act as.
+# Session work only.
 resource "google_service_account" "deployer" {
   account_id   = "deployer"
   display_name = "Deployer (sessions)"
@@ -59,7 +60,7 @@ module "deployer_wif" {
   service_account_id = google_service_account.deployer.name
   project_number     = data.google_project.this.number
   github_repo        = var.github_repo
-  workflows          = ["gpu-session.yml", "cost-guard.yml"]
+  workflows          = ["gpu-session.yml", "cost-guard.yml", "release-model.yml"] # release-model.yml: P4's canary (ADR-0007)
 }
 
 # The session's Cloud Router and NAT. The custom role (router create/update/delete only) is
@@ -110,15 +111,17 @@ module "mirror_wif" {
 }
 
 # --- Pods in the session cluster, through GKE Workload Identity: IAM grants go straight to the
-# Kubernetes service account (namespaces vllm and gateway), so no Google service account or key is involved.
+# Kubernetes service account (namespaces vllm, gateway and action-gateway), so no Google service account or key is involved.
 # The Workload Identity pool these name exists once a session cluster has been created.
 locals {
   # From the module's output, not typed out, so the grants wait until the buckets exist.
-  models_bucket  = module.buckets.names[index(module.buckets.names, "${var.project_id}-models")]
-  results_bucket = module.buckets.names[index(module.buckets.names, "${var.project_id}-results")]
-  k8s_ns         = "principal://iam.googleapis.com/projects/${data.google_project.this.number}/locations/global/workloadIdentityPools/${var.project_id}.svc.id.goog/subject/ns"
-  k8s_sa         = "${local.k8s_ns}/vllm/sa"
-  litellm_sa     = "${local.k8s_ns}/gateway/sa/litellm"
+  models_bucket     = module.buckets.names[index(module.buckets.names, "${var.project_id}-models")]
+  results_bucket    = module.buckets.names[index(module.buckets.names, "${var.project_id}-results")]
+  audit_bucket      = module.buckets.names[index(module.buckets.names, "${var.project_id}-audit")]
+  k8s_ns            = "principal://iam.googleapis.com/projects/${data.google_project.this.number}/locations/global/workloadIdentityPools/${var.project_id}.svc.id.goog/subject/ns"
+  k8s_sa            = "${local.k8s_ns}/vllm/sa"
+  litellm_sa        = "${local.k8s_ns}/gateway/sa/litellm"
+  action_gateway_sa = "${local.k8s_ns}/action-gateway/sa/action-gateway"
 }
 
 resource "google_storage_bucket_iam_member" "vllm_reads_models" {
@@ -184,6 +187,44 @@ resource "google_project_iam_member" "litellm_vertex_predict" {
   member  = local.litellm_sa
 }
 
+# --- P5 action gateway: Kubernetes service account action-gateway in namespace action-gateway.
+# Secrets as for P2, containers only: the owner adds the two Slack token versions by hand, and P5's
+# deploy.sh adds the action gateway's P2 team key each session.
+resource "google_secret_manager_secret" "action_gateway" {
+  for_each = toset(["slack-app-token", "slack-bot-token", "action-gateway-team-key"])
+
+  secret_id = each.key
+  labels    = { layer = "05" }
+  replication {
+    auto {}
+  }
+}
+
+# The pod mounts all three through the GKE Secret Manager add-on.
+resource "google_secret_manager_secret_iam_member" "action_gateway_reads_secrets" {
+  for_each = google_secret_manager_secret.action_gateway
+
+  secret_id = each.value.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = local.action_gateway_sa
+}
+
+# deploy.sh adds this session's team key and destroys the previous one; no read. No grant on the Slack tokens.
+resource "google_secret_manager_secret_iam_member" "deployer_team_key_versions" {
+  secret_id = google_secret_manager_secret.action_gateway["action-gateway-team-key"].id
+  role      = "roles/secretmanager.secretVersionManager"
+  member    = google_service_account.deployer.member
+}
+
+# One object per audit record: create and read, never overwrite or delete (both need storage.objects.delete).
+resource "google_storage_bucket_iam_member" "action_gateway_audit" {
+  for_each = toset(["roles/storage.objectCreator", "roles/storage.objectViewer"])
+
+  bucket = local.audit_bucket
+  role   = each.value
+  member = local.action_gateway_sa
+}
+
 # --- GKE nodes run as their own account, not the default Compute Engine one (which has Editor).
 resource "google_service_account" "gke_nodes" {
   account_id   = "gke-nodes"
@@ -225,7 +266,7 @@ module "buckets" {
   buckets = {
     "${var.project_id}-models"  = { soft_delete = false } # weights are large and can be downloaded again
     "${var.project_id}-results" = {}
-    "${var.project_id}-audit"   = { retention_seconds = 86400 } # P5 sets the real period and locks it
+    "${var.project_id}-audit"   = { retention_seconds = 2592000 } # 30 days (P5). Not locked: a lock is permanent; locking is the production setting
   }
 }
 
