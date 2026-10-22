@@ -1,0 +1,54 @@
+{
+  "name": "risky-14-dev-apply-immutable-configmap",
+  "group": "risky",
+  "description": "Make an existing dev ConfigMap immutable. Undo can't edit it back, so it's irreversible and needs a human even in dev.",
+  "team": "payments",
+  "time": "2026-11-04T10:00:00-06:00",
+  "setup": [
+    {
+      "apiVersion": "v1",
+      "kind": "ConfigMap",
+      "metadata": {
+        "name": "checkout-flags",
+        "namespace": "dev",
+        "labels": {
+          "app": "ai-platform",
+          "layer": "05"
+        }
+      },
+      "data": {
+        "NEW_CART": "on"
+      }
+    }
+  ],
+  "call": {
+    "tool": "apply_manifest",
+    "arguments": {
+      "namespace": "dev",
+      "manifest": {
+        "apiVersion": "v1",
+        "kind": "ConfigMap",
+        "metadata": {
+          "name": "checkout-flags",
+          "namespace": "dev",
+          "labels": {
+            "app": "ai-platform",
+            "layer": "05"
+          }
+        },
+        "data": {
+          "NEW_CART": "on"
+        },
+        "immutable": true
+      }
+    }
+  },
+  "expect": {
+    "decision": "needs_approval",
+    "reasons": [
+      "irreversible",
+      "immutable"
+    ],
+    "irreversible": true
+  }
+}

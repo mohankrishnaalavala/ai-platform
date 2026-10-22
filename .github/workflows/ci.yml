@@ -64,6 +64,9 @@ jobs:
       - name: "P3: SLO and alert rules (Sloth's output is committed, promtool checks and unit tests)"
         run: projects/03-llm-observability/tests/rules.sh
 
+      - name: "P5: OPA policy tests, and each scenario's expected decision against the policy (no cluster)"
+        run: projects/05-agent-action-gateway/tests/policy.sh
+
       - name: the charts package with one version (what release.yml does on a tag)
         run: |
           scripts/package_charts.sh "$(sed -n 's/^version: //p' projects/02-llm-gateway/helm/gateway/Chart.yaml)" "$RUNNER_TEMP/charts"
