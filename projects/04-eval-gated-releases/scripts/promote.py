@@ -11,7 +11,7 @@ port-forwards to the gateway and to Prometheus and reads the gateway's master ke
      attempts out of all its attempts in the step. At most --max-error-rate (default 0.5%, the error budget
      of P3's gateway availability SLO). No candidate data fails the check.
    - TTFT (time to first token) p95: a short Job in the cluster (probe.py) streams to each deployment by
-     its id. The candidate's p95 must be at most the baseline's x --ttft-ratio (SPEC: 1.2).
+     its id. The candidate's p95 must be at most the baseline's x --ttft-ratio (default 1.2).
    - Live eval: 20 golden-set cases with deterministic checks only, sent to each deployment by its id, at
      temperature 0. In every category the candidate must pass at least as many as the baseline.
 3. Any failed check, or any error after the canary has started: the candidate's weight goes to 0 (all
