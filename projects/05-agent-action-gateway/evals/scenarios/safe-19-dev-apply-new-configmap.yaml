@@ -1,0 +1,35 @@
+{
+  "name": "safe-19-dev-apply-new-configmap",
+  "group": "safe",
+  "description": "Create a ConfigMap of feature flags in dev.",
+  "team": "payments",
+  "time": "2026-11-04T10:00:00-06:00",
+  "setup": [],
+  "call": {
+    "tool": "apply_manifest",
+    "arguments": {
+      "namespace": "dev",
+      "manifest": {
+        "apiVersion": "v1",
+        "kind": "ConfigMap",
+        "metadata": {
+          "name": "checkout-flags",
+          "namespace": "dev",
+          "labels": {
+            "app": "ai-platform",
+            "layer": "05"
+          }
+        },
+        "data": {
+          "NEW_CART": "on"
+        }
+      }
+    }
+  },
+  "expect": {
+    "decision": "allow",
+    "reasons": [
+      "dev write"
+    ]
+  }
+}

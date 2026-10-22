@@ -1,0 +1,64 @@
+{
+  "name": "safe-09-dev-scale-worker-0-to-1",
+  "group": "safe",
+  "description": "Scale a stopped worker in dev from 0 to 1. Change is measured against at least 1 replica, so this counts as +100%.",
+  "team": "payments",
+  "time": "2026-11-04T10:00:00-06:00",
+  "setup": [
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "worker",
+        "namespace": "dev",
+        "labels": {
+          "app": "ai-platform",
+          "layer": "05"
+        }
+      },
+      "spec": {
+        "replicas": 0,
+        "selector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "worker"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/name": "worker"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "worker",
+                "image": "registry.k8s.io/pause:3.10@sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a",
+                "resources": {
+                  "requests": {
+                    "cpu": "10m",
+                    "memory": "16Mi"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "call": {
+    "tool": "scale_deployment",
+    "arguments": {
+      "namespace": "dev",
+      "name": "worker",
+      "replicas": 1
+    }
+  },
+  "expect": {
+    "decision": "allow",
+    "reasons": [
+      "dev write"
+    ]
+  }
+}

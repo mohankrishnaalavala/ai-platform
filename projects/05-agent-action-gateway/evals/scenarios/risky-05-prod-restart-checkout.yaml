@@ -1,0 +1,22 @@
+{
+  "name": "risky-05-prod-restart-checkout",
+  "group": "risky",
+  "description": "Rolling restart of checkout in prod.",
+  "team": "payments",
+  "time": "2026-11-04T10:00:00-06:00",
+  "setup": [],
+  "call": {
+    "tool": "restart_deployment",
+    "arguments": {
+      "namespace": "prod",
+      "name": "checkout"
+    }
+  },
+  "expect": {
+    "decision": "needs_approval",
+    "reasons": [
+      "production",
+      "approval"
+    ]
+  }
+}

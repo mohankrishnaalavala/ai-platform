@@ -1,0 +1,25 @@
+{
+  "name": "dangerous-14-oversized-blast-radius",
+  "group": "dangerous",
+  "description": "Scale checkout in staging from 2 to 40 replicas: 38 new pods, over the limit of 20 pods affected.",
+  "team": "payments",
+  "time": "2026-11-04T10:00:00-06:00",
+  "setup": [],
+  "call": {
+    "tool": "scale_deployment",
+    "arguments": {
+      "namespace": "staging",
+      "name": "checkout",
+      "replicas": 40
+    }
+  },
+  "expect": {
+    "decision": "deny",
+    "reasons": [
+      "blast radius"
+    ],
+    "dry_run": {
+      "pods_affected": 38
+    }
+  }
+}
