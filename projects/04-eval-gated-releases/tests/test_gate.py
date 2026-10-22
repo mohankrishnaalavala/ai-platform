@@ -1,5 +1,7 @@
-"""P4-06: the eval gate on fixture results files. A good one passes; a stale hash, a below-threshold one, one that
-doesn't cover the dataset, and one without a committed baseline fail.
+"""P4-06: the eval gate on fixture results files, on both paths.
+Enforced (the served config): a good file passes; a stale hash, a below-threshold file, one that doesn't cover the
+dataset, and one without a committed baseline fail.
+Report only (any other results file): an integrity failure fails; scores below a threshold are only reported.
 The committed fixtures carry old hashes; a test writes in the hash of today's files before checking a fresh one.
 Each test runs with the fixture dataset as the golden set and a temporary folder as results/. Standard library only.
 """
@@ -49,8 +51,8 @@ class Gate(unittest.TestCase):
     def baseline(self):
         return self.commit("baseline.json", date="2026-10-21T11:00:00Z")
 
-    def check(self, path, need_baseline=True):
-        return gate.verify(path, THRESHOLDS, need_baseline, gate.baseline_for("chat-default", CONFIG, CONFIG_SHA, path))
+    def check(self, path, enforce=True):
+        return gate.verify(path, THRESHOLDS, enforce, gate.baseline_for("chat-default", CONFIG, CONFIG_SHA, path))
 
     def test_good_results_pass(self):
         self.baseline()
@@ -105,10 +107,10 @@ class Gate(unittest.TestCase):
         self.assertEqual(gate.baseline_for("chat-default", CONFIG, CONFIG_SHA, good)[0], base)
         self.assertEqual(self.check(good)[0], [])
 
-    def test_the_served_config_needs_a_baseline_a_results_file_doesnt(self):
+    def test_enforced_needs_a_baseline_report_only_doesnt(self):
         good = self.commit("good.json")
-        self.assertEqual(len(self.check(good, need_baseline=True)[0]), 2)
-        self.assertEqual(self.check(good, need_baseline=False)[0], [])
+        self.assertEqual(len(self.check(good, enforce=True)[0]), 2)
+        self.assertEqual(self.check(good, enforce=False)[0], [])
 
     def test_newest_finds_results_at_the_current_hash(self):
         self.commit("good.json", date="2026-10-21T10:00:00Z")
@@ -121,18 +123,31 @@ class Gate(unittest.TestCase):
         served = gate.served((run.ROOT / gate.SERVES).read_text())
         self.assertEqual(served, "config/models/qwen2.5-7b-bf16.yaml")
         self.assertEqual(gate.served("x\nconfig=${CONFIG:-config/models/new.yaml}\n"), "config/models/new.yaml")
-        self.assertEqual(gate.targets(["config/models/qwen3-8b.yaml"], served, served), {})  # a new, unserved config
-        self.assertEqual(gate.targets([gate.SERVES], "config/models/new.yaml", served),
+        self.assertEqual(gate.enforced(["config/models/qwen3-8b.yaml"], served, served), {})  # a new, unserved config
+        self.assertEqual(gate.enforced([gate.SERVES], "config/models/new.yaml", served),
                          {("chat-default", "config/models/new.yaml"): "served"})
-        self.assertEqual(gate.targets([served], served, served), {("chat-default", served): "served"})
+        self.assertEqual(gate.enforced([served], served, served), {("chat-default", served): "served"})
         # Review item 3: a change to the gate checks the served config, with a baseline required.
-        self.assertEqual(gate.targets(["projects/04-eval-gated-releases/evals/judge.md"], served, served),
+        self.assertEqual(gate.enforced(["projects/04-eval-gated-releases/evals/judge.md"], served, served),
                          {("chat-default", served): "gate"})
-        path = self.commit("good.json")
-        self.assertEqual(gate.targets([str(path)], served, served), {("chat-default", CONFIG): "results"})
+        path = self.commit("good.json")  # a results file alone enforces nothing; it is checked as report only
+        self.assertEqual(gate.enforced([str(path)], served, served), {})
+        self.assertEqual(gate.changed_results([str(path), "README.md", f"{self.results}/gone.json"]), [path])
 
     def run_gate(self, changed, deleted=()):
         return gate.gate(changed, list(deleted), CONFIG, CONFIG, lambda path: CONFIG_SHA, THRESHOLDS)
+
+    # Enforced: a PR that changes the served config is held to the thresholds (the bad candidate stays red).
+    def test_the_served_config_is_enforced(self):
+        self.baseline()
+        self.commit("below.json")
+        failed, text = self.run_gate([CONFIG])
+        self.assertTrue(failed)
+        self.assertIn(f"### `chat-default` with `{CONFIG}` (enforced): FAIL", text)
+        self.commit("good.json", date="2026-10-21T13:00:00Z")  # a newer, passing run
+        failed, text = self.run_gate([CONFIG])
+        self.assertFalse(failed)
+        self.assertIn("(enforced): pass", text)
 
     # Review item 3, end to end: after a gate change, stale results fail instead of "Nothing to check".
     def test_a_gate_change_fails_on_stale_results(self):
@@ -148,12 +163,43 @@ class Gate(unittest.TestCase):
         self.commit("good.json")  # both runs of the noise band, at today's hash
         self.assertEqual(self.run_gate([judge_md])[0], False)
 
-    def test_a_results_only_change_is_checked_and_nothing_else_passes(self):
+    # Report only: a results file for a config the PR doesn't make served (a measurement) reports its scores
+    # against the thresholds without failing the job.
+    def test_a_measurement_below_threshold_is_reported_not_enforced(self):
         self.baseline()
-        self.assertFalse(self.run_gate([str(self.commit("good.json", date="2026-10-21T13:00:00Z"))])[0])
-        self.assertTrue(self.run_gate([str(self.commit("below.json", date="2026-10-21T14:00:00Z"))])[0])
+        below = self.commit("below.json", date="2026-10-21T14:00:00Z")
+        failed, text = self.run_gate([str(below)])
+        self.assertFalse(failed)
+        self.assertIn(f"### `chat-default` with `{CONFIG}` (report only): pass", text)
+        self.assertIn("- Report only, not enforced: qa: judge_avg 3.50, gate ≥ baseline − 0.2: FAIL", text)
+        self.assertIn("| safety | pass_pct | 100.00 | 50.00 | 50.00 | ≥ 100 | FAIL |", text)
         failed, text = self.run_gate(["README.md"])
         self.assertEqual((failed, "Nothing to check" in text), (False, True))
+
+    # Report only still checks integrity, on the changed file itself (a fresh file beside it doesn't hide it).
+    def test_a_measurement_must_pass_every_integrity_check(self):
+        self.baseline()
+        self.commit("good.json")
+        for problem, path in (
+                ("stale: config hash", self.commit("stale.json", fresh=False)),
+                ("cases aren't", self.commit("good.json", date="2026-10-21T13:00:00Z",
+                                             edit=lambda r: r.update(cases=r["cases"][:3]))),
+                ("INVALID", self.commit("good.json", date="2026-10-21T14:00:00Z",
+                                        edit=lambda r: r["cases"][0].update(status=500))),
+                ("not projects/04", self.commit("good.json", date="2026-10-21T15:00:00Z",
+                                                edit=lambda r: r.update(dataset="projects/04-other")))):
+            failed, text = self.run_gate([str(path)])
+            self.assertTrue(failed, problem)
+            self.assertIn("(report only): FAIL", text)
+            self.assertIn(problem, text)
+
+    def test_every_config_in_the_comment_is_labelled(self):
+        self.baseline()
+        good, measurement = self.commit("good.json"), self.commit("below.json", date="2026-10-21T10:00:00Z")
+        failed, text = self.run_gate([CONFIG, str(good), str(measurement)])
+        self.assertFalse(failed)  # the served config's newest run passes; the older one is a report
+        self.assertEqual(text.count("(enforced): pass"), 1)
+        self.assertEqual(text.count("(report only): pass"), 1)  # good.json is the enforced one, not shown twice
 
     # Review item 4, and the comment step: results-only PRs run the gate; a read-only token can't turn it red.
     def test_evals_yml_triggers_on_results_and_the_comment_cant_fail_the_job(self):

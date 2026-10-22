@@ -247,8 +247,9 @@ def usd(x):
     return "[X]" if x is None else f"${x:.4f}"
 
 
-def table(results, rows, problems):
-    """The markdown table: run facts, problems, then one row per gate."""
+def table(results, rows, problems, label=None, notes=()):
+    """The markdown table: run facts, problems, then one row per gate. label: e.g. "enforced" or "report only";
+    notes: findings shown without failing (a report-only file's threshold misses)."""
     r, c = results, results["cost"]
     models = Counter(str(case["model"]) for case in r["cases"])
     judges = Counter(str(case["judge"]["model"]) for case in r["cases"] if case.get("judge"))
@@ -257,7 +258,7 @@ def table(results, rows, problems):
         spend += f" (no price yet for {', '.join(c['unpriced_models'])})"
     if c["gpu"]:
         spend += f"; GPU {c['gpu']['minutes']:.2f} min at ${c['gpu']['usd_per_hour']:.4f}/h = {usd(c['gpu']['usd'])}"
-    lines = [f"### `{r['target']}` with `{r['config']}`: {'FAIL' if problems else 'pass'}", "",
+    lines = [f"### `{r['target']}` with `{r['config']}`{f' ({label})' if label else ''}: {'FAIL' if problems else 'pass'}", "",
              f"- Run: {r['status']}, {r['rounds']} round(s), {r['date']}, commit `{r['git_commit']}`",
              f"- Config hash `{r['config_hash']}`; dataset {r['dataset_version']}; judge alias `{r['judge']}`",
              "- Answered by: " + ", ".join(f"`{m}` ({n})" for m, n in models.items()),
@@ -267,6 +268,7 @@ def table(results, rows, problems):
     lines += [f"- Problem: {p}" for p in problems[:10]]
     if len(problems) > 10:
         lines.append(f"- … and {len(problems) - 10} more problems (see the results file)")
+    lines += [f"- Report only, not enforced: {n}" for n in notes]
     lines += ["", "| Category | Metric | Baseline | This run | Each round | Gate | Result |",
               "|---|---|---|---|---|---|---|"]
     lines += [f"| {x['category']} | {x['metric']} | {fmt(x['baseline'])} | {fmt(x['value'])} | "

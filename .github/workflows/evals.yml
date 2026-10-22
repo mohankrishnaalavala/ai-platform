@@ -1,7 +1,8 @@
 # P4-06: the eval gate. On a pull request that can change what the platform answers, it checks the committed eval
-# results (projects/04-eval-gated-releases/evals/gate.py says which): their config hash must match the PR's files,
-# the run must be VALID (no fallback answers) and the scores must pass evals/thresholds.yaml. It posts the score
-# table as a PR comment and in the job summary.
+# results (projects/04-eval-gated-releases/evals/gate.py says which). Every results file must be intact: config
+# hash matching the PR's files, the whole golden set, VALID (no fallback answers). The served config's scores must
+# also pass evals/thresholds.yaml ("enforced"); any other file's scores are only shown ("report only"). It posts
+# the score table as a PR comment and in the job summary.
 # It never calls a model: real eval runs happen in the session cluster window, from the laptop through the
 # gateway (evals/run.py), and their results get committed. No Google login, ever: keyless login (WIF, Workload
 # Identity Federation) trusts main only, and this runs on pull requests.

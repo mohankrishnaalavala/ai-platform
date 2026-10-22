@@ -2,15 +2,15 @@
 """P4-06: the eval gate that evals.yml runs on pull requests. It reads committed results files and never calls
 a model: real runs happen in the session cluster window (run.py), and their results are committed.
 
-What it checks, given the pull request's base commit:
-- chat-default's served config (the default CONFIG in P1's deploy.sh), with a baseline required, when the PR
-  changes that config, which file it is, or the gate itself (evals/: scorers, judge.md, dataset, thresholds).
-- the target and config of every results file the PR adds or changes. Without a baseline, only the absolute
-  gates apply.
-- no results file is deleted: results are history.
-For each target and config, the newest results file in results/<its config hash in this commit>/ must exist (a
-missing one means the committed results are stale, or were never run), cover golden set v1 with the `judge`
-alias (every case, every round), be VALID and pass thresholds.yaml against the committed baseline.
+Enforced: thresholds.yaml applies only to what the platform serves. That is chat-default's served config (the
+default CONFIG in P1's deploy.sh), when the PR changes that config, which file it is, or the gate itself (evals/:
+scorers, judge.md, dataset, thresholds). Its newest results file in results/<its config hash in this commit>/
+must exist (a missing one means the committed results are stale, or were never run), pass every integrity check
+below and pass thresholds.yaml against the committed baseline. This keeps a bad candidate red.
+Report only: every other results file the PR adds or changes (a measurement such as BF16 vs FP8, or a candidate
+evaluated offline) must pass the integrity checks, but its scores against the thresholds are only reported.
+Integrity: the config hash matches this commit; it ran on golden set v1 with the `judge` alias and holds every
+case for every round; it is VALID. And no results file may be deleted: results are history.
 
 The baseline is never picked by the PR (run.py's --baseline field is ignored). It is the newest VALID, complete
 results file for the same target, run on the baseline config as it is at the base commit, with this commit's
@@ -18,11 +18,11 @@ judge, scorers, dataset and judge model, other than the candidate. The baseline 
 chat-default, and the config itself for any other target. So when the served config doesn't change (a gate
 change), its baseline is an earlier run of the same config: commit both runs of the noise band.
 A gate change before the served config was ever evaluated has nothing to go stale, and passes with a note.
-shortcut: a change to chat-hosted's model in the gateway values isn't detected, so a hosted candidate's PR must
-add its results file; wire hosted candidates in with the canary overlay (P4-08).
+shortcut: a change to chat-hosted's model in the gateway values isn't detected, so a hosted candidate is report
+only; enforce it once the canary overlay (P4-08) names the hosted model being served.
 
-Usage: gate.py BASE_SHA [--out scores.md]. Prints the score table as markdown. Exit code 0 when every check
-passes, 1 otherwise. Standard library only.
+Usage: gate.py BASE_SHA [--out scores.md]. Prints the score table as markdown, each config labelled "enforced"
+or "report only". Exit code 0 when every check passes, 1 otherwise. Standard library only.
 """
 import argparse
 import json
@@ -57,18 +57,18 @@ def load(path):
     return json.loads(Path(path).read_text())
 
 
-def targets(changed, now_served, base_served):
-    """{(target, config): why}: "served" or "gate" (a baseline is required), or "results" (it isn't)."""
-    out = {}
-    for path in changed:
-        if path.startswith(RESULTS) and path.endswith(".json") and (run.ROOT / path).exists():
-            r = load(run.ROOT / path)
-            out[(r["target"], r["config"])] = "results"
+def enforced(changed, now_served, base_served):
+    """The served config to enforce thresholds on, as {(target, config): why}: "served" or "gate"; or {}."""
     if now_served != base_served or now_served in changed:
-        out[(SERVED_TARGET, now_served)] = "served"
-    elif any(p.startswith(GATE_FILES) for p in changed):
-        out[(SERVED_TARGET, now_served)] = "gate"
-    return out
+        return {(SERVED_TARGET, now_served): "served"}
+    if any(p.startswith(GATE_FILES) for p in changed):
+        return {(SERVED_TARGET, now_served): "gate"}
+    return {}
+
+
+def changed_results(changed):
+    """The results files the PR adds or changes."""
+    return [run.ROOT / p for p in changed if p.startswith(RESULTS) and p.endswith(".json") and (run.ROOT / p).exists()]
 
 
 def results_in(folder, target, config, exclude=None):
@@ -112,8 +112,9 @@ def baseline_for(target, config, config_sha, exclude):
     return None
 
 
-def verify(path, thresholds, need_baseline, baseline):
-    """The failures of one results file against its baseline ((path, results) or None), and its score table."""
+def verify(path, thresholds, enforce, baseline):
+    """The failures of one results file, and its score table. Integrity always counts; the thresholds (against
+    baseline, (path, results) or None) count only when enforce, and are reported otherwise."""
     r = load(path)
     failures = coverage(r)
     try:
@@ -123,38 +124,52 @@ def verify(path, thresholds, need_baseline, baseline):
     if not fresh:
         failures.append(f"stale: config hash {r['config_hash']} doesn't match the files in this commit")
     failures += [f"INVALID: {x}" for x in run.invalid_reasons(r["cases"])]
-    rows, gate_failures = run.compare(r, baseline and baseline[1], thresholds, need_baseline)
-    failures += gate_failures
+    rows, below = run.compare(r, baseline and baseline[1], thresholds, need_baseline=enforce)
     shown = dict(r, baseline=run.rel(baseline[0]) if baseline else None)  # the derived baseline, not the file's own
-    return failures, run.table(shown, rows, failures)
+    if enforce:
+        failures += below
+        return failures, run.table(shown, rows, failures, "enforced")
+    return failures, run.table(shown, rows, failures, "report only", below)
 
 
 def gate(changed, deleted, now_served, base_served, sha_at_base, thresholds):
     """(failed, markdown) for a pull request. sha_at_base(path) is the file's sha256 at the base commit, or None."""
-    report, failed = ["## Eval gate (P4)", ""], False
+    report, failed, done = ["## Eval gate (P4)", ""], False, set()
+
+    def baseline(target, config, path):
+        base_config = base_served if target == SERVED_TARGET else config
+        base_sha = sha_at_base(base_config) if base_config else None
+        return baseline_for(target, base_config, base_sha, path) if base_sha else None
+
     gone = [p for p in deleted if p.startswith(RESULTS)]
     if gone:
         failed = True
         report += [f"**FAIL**: results files are history and must not be deleted: {', '.join(gone)}", ""]
-    todo = targets(changed, now_served, base_served)
-    if not todo and not gone:
+    todo, extra = enforced(changed, now_served, base_served), changed_results(changed)
+    if not (todo or extra or gone):
         report.append("Nothing to check: this PR changes neither the served config, the gate, nor a results file.")
-    for (target, config), why in sorted(todo.items()):
+    for (target, config), why in todo.items():
         path = newest(target, config)
         ever = any((r["target"], r["config"]) == (target, config)
                    for r in map(load, (run.ROOT / RESULTS).glob("*/*.json")))
         if path is None and why == "gate" and not ever:
-            report += [f"`{target}` with `{config}` was never evaluated, so a gate change leaves nothing stale.", ""]
+            report += [(f"`{target}` with `{config}` (enforced) was never evaluated, so a gate change leaves "
+                        "nothing stale."), ""]
             continue
         if path is None:
             failed = True
-            report += [f"### `{target}` with `{config}`: FAIL", "", ("No results file at its config hash in this "
-                       "commit: the committed results are stale or missing. Run evals/run.py and commit them."), ""]
+            report += [f"### `{target}` with `{config}` (enforced): FAIL", "", ("No results file at its config hash "
+                       "in this commit: the committed results are stale or missing. Run evals/run.py and commit "
+                       "them."), ""]
             continue
-        base_config = base_served if target == SERVED_TARGET else config
-        base_sha = sha_at_base(base_config) if base_config else None
-        baseline = baseline_for(target, base_config, base_sha, path) if base_sha else None
-        failures, md = verify(path, thresholds, why != "results", baseline)
+        failures, md = verify(path, thresholds, True, baseline(target, config, path))
+        failed, done = failed or bool(failures), done | {path.resolve()}
+        report += [f"Results file: `{run.rel(path)}`", "", md]
+    for path in extra:
+        if path.resolve() in done:
+            continue
+        r = load(path)
+        failures, md = verify(path, thresholds, False, baseline(r["target"], r["config"], path))
         failed = failed or bool(failures)
         report += [f"Results file: `{run.rel(path)}`", "", md]
     return failed, "\n".join(report) + "\n"
