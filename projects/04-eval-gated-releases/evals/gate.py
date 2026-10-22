@@ -10,14 +10,20 @@ below and pass thresholds.yaml against the committed baseline. This keeps a bad 
 Report only: every other results file the PR adds or changes (a measurement such as BF16 vs FP8, or a candidate
 evaluated offline) must pass the integrity checks, but its scores against the thresholds are only reported.
 Integrity: the config hash matches this commit; it ran on golden set v1 with the `judge` alias and holds every
-case for every round; it is VALID. And no results file may be deleted: results are history.
+case for every round; it is VALID. And committed results are append-only: a PR that modifies, moves or deletes
+one fails (the diff runs without rename detection, so a move shows as a delete).
+
+What the PR can't touch comes from the base commit: the thresholds (thresholds.yaml as it is there; a PR that
+edits it gets a note, and the edit applies only after merge), which config main serves, and which results exist.
 
 The baseline is never picked by the PR (run.py's --baseline field is ignored). It is the newest VALID, complete
 results file for the same target, run on the baseline config as it is at the base commit, with this commit's
 judge, scorers, dataset and judge model, other than the candidate. The baseline config is what main serves for
-chat-default, and the config itself for any other target. So when the served config doesn't change (a gate
-change), its baseline is an earlier run of the same config: commit both runs of the noise band.
-A gate change before the served config was ever evaluated has nothing to go stale, and passes with a note.
+chat-default, and the config itself for any other target. It must already be in the base commit, except after a
+gate change with the served config unchanged: then it is an earlier run of the same config (older than the
+candidate by its recorded date), which may come in the same PR. So commit both runs of the noise band.
+A gate change before the served config was ever evaluated (no results for it in the base commit) has nothing to
+go stale, and passes with a note.
 shortcut: a change to chat-hosted's model in the gateway values isn't detected, so a hosted candidate is report
 only; enforce it once the canary overlay (P4-08) names the hosted model being served.
 
@@ -36,6 +42,7 @@ import run
 SERVES = "projects/01-gpu-serving/deploy.sh"
 SERVED_TARGET = "chat-default"
 GATE_FILES = "projects/04-eval-gated-releases/evals/"
+THRESHOLDS = "projects/04-eval-gated-releases/evals/thresholds.yaml"
 RESULTS = "projects/04-eval-gated-releases/results/"
 DATASET = "projects/04-eval-gated-releases/evals/datasets/v1"
 JUDGE = "judge"
@@ -99,15 +106,17 @@ def coverage(r):
     return problems
 
 
-def baseline_for(target, config, config_sha, exclude):
-    """The committed baseline (see the docstring at the top): (path, results) or None."""
+def baseline_for(target, config, config_sha, exclude, accept):
+    """The committed baseline (see the docstring at the top): (path, results) or None. accept(path, results) says
+    which files may serve: those in the base commit, or for a gate change, any run older than the candidate."""
     try:
         parts = dict(run.hash_parts(config, DATASET, JUDGE), config=config_sha)
     except FileNotFoundError:
         return None
     for path in results_in(run.ROOT / RESULTS / run.config_hash(parts), target, config, exclude):
         r = load(path)
-        if r["hash_parts"]["config"] == config_sha and not run.invalid_reasons(r["cases"]) and not coverage(r):
+        if (r["hash_parts"]["config"] == config_sha and accept(path, r) and not run.invalid_reasons(r["cases"])
+                and not coverage(r)):
             return path, r
     return None
 
@@ -132,29 +141,44 @@ def verify(path, thresholds, enforce, baseline):
     return failures, run.table(shown, rows, failures, "report only", below)
 
 
-def gate(changed, deleted, now_served, base_served, sha_at_base, thresholds):
-    """(failed, markdown) for a pull request. sha_at_base(path) is the file's sha256 at the base commit, or None."""
+def gate(changed, touched, now_served, *, base_served, sha_at_base, base_results, thresholds):
+    """(failed, markdown) for a pull request. changed: every path the PR adds, modifies or deletes; touched: the
+    paths it modifies or deletes (both without rename detection, so a move is a delete and an add).
+    Everything else comes from the base commit, never from the PR: base_served, sha_at_base(path) (a file's
+    sha256 there, or None), base_results ({repo path: results} there) and thresholds (parsed, or None)."""
     report, failed, done = ["## Eval gate (P4)", ""], False, set()
 
-    def baseline(target, config, path):
+    def baseline(target, config, path, why):
         base_config = base_served if target == SERVED_TARGET else config
         base_sha = sha_at_base(base_config) if base_config else None
-        return baseline_for(target, base_config, base_sha, path) if base_sha else None
+        date = load(path)["date"]
+        accept = ((lambda p, r: r["date"] < date) if why == "gate"  # the noise band: an earlier run, maybe this PR's
+                  else (lambda p, r: run.rel(p) in base_results))  # otherwise only what main already has
+        return baseline_for(target, base_config, base_sha, path, accept) if base_sha else None
 
-    gone = [p for p in deleted if p.startswith(RESULTS)]
-    if gone:
+    if THRESHOLDS in changed:
+        report += [(f"**Note:** this PR changes `{THRESHOLDS}`. The gate uses the base commit's thresholds: the "
+                    "change applies only after merge, and needs the project owner's approval (thresholds are "
+                    "never edited to make a run pass)."), ""]
+    rewritten = [p for p in touched if p.startswith(RESULTS)]
+    if rewritten:
         failed = True
-        report += [f"**FAIL**: results files are history and must not be deleted: {', '.join(gone)}", ""]
+        report += [("**FAIL**: committed results are append-only; this PR modifies, moves or deletes "
+                    f"{', '.join(rewritten)}"), ""]
     todo, extra = enforced(changed, now_served, base_served), changed_results(changed)
-    if not (todo or extra or gone):
+    if not (todo or extra or rewritten):
         report.append("Nothing to check: this PR changes neither the served config, the gate, nor a results file.")
     for (target, config), why in todo.items():
         path = newest(target, config)
-        ever = any((r["target"], r["config"]) == (target, config)
-                   for r in map(load, (run.ROOT / RESULTS).glob("*/*.json")))
+        ever = any((r["target"], r["config"]) == (target, config) for r in base_results.values())
         if path is None and why == "gate" and not ever:
             report += [(f"`{target}` with `{config}` (enforced) was never evaluated, so a gate change leaves "
                         "nothing stale."), ""]
+            continue
+        if not thresholds:  # none, or empty, at the base commit: enforcing nothing would pass anything
+            failed = True
+            report += [f"### `{target}` with `{config}` (enforced): FAIL", "",
+                       f"No thresholds in `{THRESHOLDS}` at the base commit, so there is nothing to enforce.", ""]
             continue
         if path is None:
             failed = True
@@ -162,14 +186,14 @@ def gate(changed, deleted, now_served, base_served, sha_at_base, thresholds):
                        "in this commit: the committed results are stale or missing. Run evals/run.py and commit "
                        "them."), ""]
             continue
-        failures, md = verify(path, thresholds, True, baseline(target, config, path))
+        failures, md = verify(path, thresholds, True, baseline(target, config, path, why))
         failed, done = failed or bool(failures), done | {path.resolve()}
         report += [f"Results file: `{run.rel(path)}`", "", md]
     for path in extra:
         if path.resolve() in done:
             continue
         r = load(path)
-        failures, md = verify(path, thresholds, False, baseline(r["target"], r["config"], path))
+        failures, md = verify(path, thresholds or {}, False, baseline(r["target"], r["config"], path, "results"))
         failed = failed or bool(failures)
         report += [f"Results file: `{run.rel(path)}`", "", md]
     return failed, "\n".join(report) + "\n"
@@ -181,20 +205,29 @@ def main(argv=None):
     p.add_argument("--out", help="also write the markdown here")
     a = p.parse_args(argv)
 
-    def sha_at_base(path):
+    def at_base(path):
+        """A file's bytes at the base commit, or None."""
         try:
-            return run.sha(git("show", f"{a.base}:{path}"))
-        except subprocess.CalledProcessError:  # not in the base commit
+            return git("show", f"{a.base}:{path}")
+        except subprocess.CalledProcessError:
             return None
 
+    def sha_at_base(path):
+        blob = at_base(path)
+        return None if blob is None else run.sha(blob)
+
+    script, limits = at_base(SERVES), at_base(THRESHOLDS)
     try:
-        base_served = served(git("show", f"{a.base}:{SERVES}").decode())
-    except (subprocess.CalledProcessError, ValueError):  # no deploy.sh, or no default CONFIG, at the base commit
+        base_served = None if script is None else served(script.decode())
+    except ValueError:  # no default CONFIG at the base commit
         base_served = None
-    changed, deleted = (git("diff", "--name-only", *flag, f"{a.base}...HEAD").decode().split()
-                        for flag in ([], ["--diff-filter=D"]))
-    failed, text = gate(changed, deleted, served((run.ROOT / SERVES).read_text()), base_served, sha_at_base,
-                        run.load_thresholds())
+    listed = git("ls-tree", "-r", "--name-only", a.base, "--", RESULTS).decode().split()
+    changed, touched = (git("diff", "--name-only", "--no-renames", *flag, f"{a.base}...HEAD").decode().split()
+                        for flag in ([], ["--diff-filter=DM"]))
+    failed, text = gate(changed, touched, served((run.ROOT / SERVES).read_text()), base_served=base_served,
+                        sha_at_base=sha_at_base,
+                        base_results={p: json.loads(at_base(p)) for p in listed if p.endswith(".json")},
+                        thresholds=None if limits is None else run.parse_thresholds(limits.decode()))
     print(text)
     if a.out:
         Path(a.out).write_text(text)

@@ -168,9 +168,13 @@ def summarize(cases):
 
 
 def load_thresholds(path=THRESHOLDS):
+    return parse_thresholds(Path(path).read_text())
+
+
+def parse_thresholds(text):
     """thresholds.yaml's two levels: a category, then its metric, gate and value."""
     out = {}
-    for line in Path(path).read_text().splitlines():
+    for line in text.splitlines():
         text = line.split("#")[0].rstrip()
         if text:
             key, _, value = text.strip().partition(":")

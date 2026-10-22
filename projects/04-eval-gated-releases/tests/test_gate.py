@@ -5,6 +5,8 @@ Report only (any other results file): an integrity failure fails; scores below a
 The committed fixtures carry old hashes; a test writes in the hash of today's files before checking a fresh one.
 Each test runs with the fixture dataset as the golden set and a temporary folder as results/. Standard library only.
 """
+import contextlib
+import io
 import json
 import sys
 import tempfile
@@ -22,6 +24,7 @@ CONFIG = "projects/04-eval-gated-releases/tests/fixtures/config.yaml"
 DATASET = "projects/04-eval-gated-releases/tests/fixtures/dataset"
 THRESHOLDS = run.load_thresholds()
 CONFIG_SHA = run.sha((run.ROOT / CONFIG).read_bytes())
+ANY = lambda path, r: True  # accept any baseline file; gate() narrows this
 
 
 class Gate(unittest.TestCase):
@@ -33,9 +36,15 @@ class Gate(unittest.TestCase):
             patch.start()
             self.addCleanup(patch.stop)
         self.folder = self.results / run.config_hash(run.hash_parts(CONFIG, DATASET, "judge"))
+        self.base = {}  # the results files in the base commit, as gate.main reads them: {repo path: results}
+
+    def on_main(self, path):
+        """Mark a results file as already in the base commit."""
+        self.base[run.rel(path)] = json.loads(path.read_text())
+        return path
 
     def commit(self, name, date="2026-10-21T12:00:00Z", fresh=True, edit=None):
-        """A fixture results file, written to results/<its hash>/ as if committed. fresh: with today's hash."""
+        """A fixture results file, written to results/<its hash>/ as this PR adds it. fresh: with today's hash."""
         r = json.loads((FIXTURES / name).read_text())
         if fresh:
             r["hash_parts"] = run.hash_parts(r["config"], r["dataset"], r["judge"])
@@ -49,10 +58,11 @@ class Gate(unittest.TestCase):
         return path
 
     def baseline(self):
-        return self.commit("baseline.json", date="2026-10-21T11:00:00Z")
+        """The baseline run, already on main."""
+        return self.on_main(self.commit("baseline.json", date="2026-10-21T11:00:00Z"))
 
     def check(self, path, enforce=True):
-        return gate.verify(path, THRESHOLDS, enforce, gate.baseline_for("chat-default", CONFIG, CONFIG_SHA, path))
+        return gate.verify(path, THRESHOLDS, enforce, gate.baseline_for("chat-default", CONFIG, CONFIG_SHA, path, ANY))
 
     def test_good_results_pass(self):
         self.baseline()
@@ -93,18 +103,18 @@ class Gate(unittest.TestCase):
     # Review item 2: the baseline is derived, VALID, complete, another file, never the PR's pick.
     def test_the_baseline_is_derived_not_picked(self):
         good = self.commit("good.json")
-        self.assertIsNone(gate.baseline_for("chat-default", CONFIG, CONFIG_SHA, good))  # never itself
+        self.assertIsNone(gate.baseline_for("chat-default", CONFIG, CONFIG_SHA, good, ANY))  # never itself
         failures, _ = self.check(good)  # the file's own "baseline" field names baseline.json: ignored
         self.assertEqual([f.split(":")[0] for f in failures], ["qa", "instruction"])
         self.assertTrue(all(f.endswith("FAIL: no baseline") for f in failures), failures)
         self.commit("baseline.json", date="2026-10-21T11:00:00Z", edit=lambda r: r["cases"][0].update(fallbacks="1"))
-        self.assertIsNone(gate.baseline_for("chat-default", CONFIG, CONFIG_SHA, good))  # an INVALID one doesn't count
+        self.assertIsNone(gate.baseline_for("chat-default", CONFIG, CONFIG_SHA, good, ANY))  # an INVALID one doesn't count
         self.commit("baseline.json", date="2026-10-21T10:00:00Z", edit=lambda r: r.update(cases=r["cases"][:3]))
-        self.assertIsNone(gate.baseline_for("chat-default", CONFIG, CONFIG_SHA, good))  # nor an incomplete one
-        self.assertIsNone(gate.baseline_for("chat-default", CONFIG, "f" * 64, good))  # nor another config version
-        self.assertIsNone(gate.baseline_for("chat-hosted", CONFIG, CONFIG_SHA, good))  # nor another target
+        self.assertIsNone(gate.baseline_for("chat-default", CONFIG, CONFIG_SHA, good, ANY))  # nor an incomplete one
+        self.assertIsNone(gate.baseline_for("chat-default", CONFIG, "f" * 64, good, ANY))  # nor another config version
+        self.assertIsNone(gate.baseline_for("chat-hosted", CONFIG, CONFIG_SHA, good, ANY))  # nor another target
         base = self.baseline()
-        self.assertEqual(gate.baseline_for("chat-default", CONFIG, CONFIG_SHA, good)[0], base)
+        self.assertEqual(gate.baseline_for("chat-default", CONFIG, CONFIG_SHA, good, ANY)[0], base)
         self.assertEqual(self.check(good)[0], [])
 
     def test_enforced_needs_a_baseline_report_only_doesnt(self):
@@ -134,8 +144,9 @@ class Gate(unittest.TestCase):
         self.assertEqual(gate.enforced([str(path)], served, served), {})
         self.assertEqual(gate.changed_results([str(path), "README.md", f"{self.results}/gone.json"]), [path])
 
-    def run_gate(self, changed, deleted=()):
-        return gate.gate(changed, list(deleted), CONFIG, CONFIG, lambda path: CONFIG_SHA, THRESHOLDS)
+    def run_gate(self, changed, touched=(), thresholds=THRESHOLDS):
+        return gate.gate(changed, list(touched), CONFIG, base_served=CONFIG, sha_at_base=lambda path: CONFIG_SHA,
+                         base_results=self.base, thresholds=thresholds)
 
     # Enforced: a PR that changes the served config is held to the thresholds (the bad candidate stays red).
     def test_the_served_config_is_enforced(self):
@@ -155,13 +166,96 @@ class Gate(unittest.TestCase):
         failed, text = self.run_gate([judge_md])
         self.assertFalse(failed)  # never evaluated: nothing to go stale
         self.assertIn("never evaluated", text)
-        self.commit("stale.json", fresh=False)
+        self.on_main(self.commit("stale.json", fresh=False))
         failed, text = self.run_gate([judge_md])
         self.assertTrue(failed)
         self.assertIn("stale or missing", text)
-        self.baseline()
-        self.commit("good.json")  # both runs of the noise band, at today's hash
+        self.commit("baseline.json", date="2026-10-21T11:00:00Z")  # both runs of the noise band, in this PR
+        self.commit("good.json")
         self.assertEqual(self.run_gate([judge_md])[0], False)
+
+    # Attack: "never evaluated" is read from the base commit, so results the PR leaves out of its tree don't count.
+    def test_never_evaluated_comes_from_the_base_commit(self):
+        self.base["projects/04-eval-gated-releases/results/abc/old.json"] = {"target": "chat-default", "config": CONFIG}
+        failed, text = self.run_gate(["projects/04-eval-gated-releases/evals/judge.md"])
+        self.assertTrue(failed)
+        self.assertIn("stale or missing", text)
+
+    # Attack: relabelling (or rewriting, moving, deleting) a committed results file fails; results are append-only.
+    def test_relabelling_a_committed_file_fails(self):
+        self.baseline()
+        committed = self.on_main(self.commit("below.json"))
+        relabelled = json.loads(committed.read_text())
+        relabelled["cases"][4]["category"] = "instruction"  # hide the failed refusal from the safety gate
+        committed.write_text(json.dumps(relabelled))
+        failed, text = self.run_gate([str(committed)], touched=[str(committed)])
+        self.assertTrue(failed)
+        self.assertIn("append-only", text)
+        moved = f"{self.results}/elsewhere/below.json"  # a move, without rename detection: delete + add
+        failed, text = self.run_gate([str(committed), moved], touched=[str(committed)])
+        self.assertTrue(failed)
+        self.assertIn("append-only", text)
+
+    # Attack: a later, weak baseline added in a served change's PR is ignored; only main's baseline counts.
+    def test_a_weak_baseline_added_by_a_served_change_is_ignored(self):
+        real = self.baseline()  # qa 4.0, on main
+        self.commit("baseline.json", date="2026-10-21T11:30:00Z",  # qa 3.0, newer, added by this PR
+                    edit=lambda r: [c.update(score=3) for c in r["cases"] if c["kind"] == "judge"])
+        self.commit("below.json", edit=lambda r: r["cases"][4].update(passed=True))  # qa 3.5, safety fixed
+        failed, text = self.run_gate([CONFIG])
+        self.assertTrue(failed)  # 3.5 < 4.0 - 0.2; against the weak one it would pass (3.5 >= 3.0 - 0.2)
+        self.assertIn(f"- Baseline: `{run.rel(real)}`", text)
+        self.assertIn("qa: judge_avg 3.50, gate ≥ baseline − 0.2: FAIL", text)
+
+    # A gate change may bring its own baseline (the noise band), but only a run older than the candidate.
+    def test_a_gate_change_baseline_must_be_older_than_the_candidate(self):
+        self.on_main(self.commit("stale.json", fresh=False))  # evaluated before
+        self.commit("baseline.json")  # same recorded time as the candidate: not older
+        self.commit("good.json")
+        failed, text = self.run_gate(["projects/04-eval-gated-releases/evals/judge.md"])
+        self.assertTrue(failed)
+        self.assertIn("FAIL: no baseline", text)
+
+    # Attack: loosening thresholds in the same PR is ignored; the base commit's thresholds apply, with a note.
+    def test_loosened_thresholds_in_the_pr_are_ignored(self):
+        self.baseline()
+        self.commit("below.json")
+        failed, text = self.run_gate([CONFIG, gate.THRESHOLDS])  # the PR's loose file is never read
+        self.assertTrue(failed)
+        self.assertIn("applies only after merge, and needs the project owner's approval", text)
+        for missing in (None, {}):  # no thresholds at the base commit: nothing can pass as enforced
+            failed, text = self.run_gate([CONFIG], thresholds=missing)
+            self.assertTrue(failed)
+            self.assertIn("nothing to enforce", text)
+
+    def test_main_reads_the_base_commit_from_git(self):
+        base_limits = run.parse_thresholds((run.ROOT / gate.THRESHOLDS).read_text().replace("value: 100", "value: 77"))
+        files = {gate.SERVES: (run.ROOT / gate.SERVES).read_bytes(),
+                 gate.THRESHOLDS: (run.ROOT / gate.THRESHOLDS).read_text().replace("value: 100", "value: 77").encode(),
+                 f"{gate.RESULTS}abc/old.json": b'{"target": "chat-default", "config": "x"}'}
+        calls = []
+
+        def fake_git(*args):
+            calls.append(args)
+            if args[0] == "show":
+                path = args[1].split(":", 1)[1]
+                if path not in files:
+                    raise gate.subprocess.CalledProcessError(128, "git")
+                return files[path]
+            if args[0] == "ls-tree":
+                return f"{gate.RESULTS}abc/old.json\n".encode()
+            return b"" if "--diff-filter=DM" in args else f"{gate.THRESHOLDS}\n".encode()
+
+        with mock.patch.object(gate, "git", fake_git), mock.patch.object(gate, "gate", return_value=(False, "")) as g, \
+                contextlib.redirect_stdout(io.StringIO()):
+            gate.main(["BASE"])
+        kw = g.call_args.kwargs
+        self.assertEqual(kw["thresholds"], base_limits)  # the base commit's file, not the working tree's
+        self.assertEqual(kw["thresholds"]["safety"]["value"], 77)
+        self.assertEqual(kw["base_results"], {f"{gate.RESULTS}abc/old.json": {"target": "chat-default", "config": "x"}})
+        self.assertEqual(kw["base_served"], "config/models/qwen2.5-7b-bf16.yaml")
+        self.assertIn(("diff", "--name-only", "--no-renames", "--diff-filter=DM", "BASE...HEAD"), calls)
+        self.assertIn(("ls-tree", "-r", "--name-only", "BASE", "--", gate.RESULTS), calls)
 
     # Report only: a results file for a config the PR doesn't make served (a measurement) reports its scores
     # against the thresholds without failing the job.
@@ -208,9 +302,10 @@ class Gate(unittest.TestCase):
         self.assertRegex(workflow, r"gh pr comment [^\n]*\\\n\s+\|\| echo \"::warning::")
 
     def test_deleting_a_results_file_fails(self):
-        failed, text = self.run_gate([], deleted=[f"{self.results}/abc/old.json"])
+        gone = f"{self.results}/abc/old.json"
+        failed, text = self.run_gate([gone], touched=[gone])
         self.assertTrue(failed)
-        self.assertIn("must not be deleted", text)
+        self.assertIn("append-only", text)
 
 
 if __name__ == "__main__":
