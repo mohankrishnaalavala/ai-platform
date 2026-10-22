@@ -225,3 +225,41 @@ jobs:
       - name: container logs (keys scrubbed)
         if: failure()
         run: docker compose logs --no-color | sed -E 's/sk-[A-Za-z0-9_.-]{4,}/sk-<redacted>/g' | tail -200
+
+  # P5: the action gateway image, built and scanned; the unit tests inside it (they need the MCP SDK, which
+  # the lint job's unit-test step doesn't install); then the kind smoke test (tests/kind-smoke.sh). No cloud.
+  action-gateway:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: projects/05-agent-action-gateway
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: build the image
+        run: docker build -t action-gateway:ci .
+
+      # Fails on HIGH or CRITICAL findings that have a fix; unfixed ones can't be acted on here.
+      - name: scan the image (trivy)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa \
+            image --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL action-gateway:ci
+
+      - name: unit tests inside the image (read-only root filesystem, as in the pod)
+        run: docker run --rm --read-only --tmpfs /tmp action-gateway:ci python -m unittest discover -s /app -v
+
+      - name: install kind and kubectl (pinned, checked by sha256)
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/kind" https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-linux-amd64
+          echo "aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d  $RUNNER_TEMP/kind" | sha256sum -c -
+          curl -fsSL -o "$RUNNER_TEMP/kubectl" https://dl.k8s.io/release/v1.36.4/bin/linux/amd64/kubectl
+          echo "8b8f088da2dab964f853b38464033b1be15ede2839eca751482357c45abdd05a  $RUNNER_TEMP/kubectl" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/kind" "$RUNNER_TEMP/kubectl"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      - name: kind smoke test (get_status, a dry run, the write tools and undo as the scoped ServiceAccount; CLI approval)
+        run: tests/kind-smoke.sh
