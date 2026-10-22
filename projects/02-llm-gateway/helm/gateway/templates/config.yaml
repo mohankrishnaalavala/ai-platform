@@ -5,6 +5,7 @@ metadata:
   labels: {{- include "gateway.labels" . | trim | nindent 4 }}
 data:
   {{- $config := deepCopy .Values.config }}
+  {{- $_ := set $config "model_list" (concat $config.model_list .Values.extraModels) }}
   {{- if .Values.mockProvider.enabled }}
   {{- $mock := dict "model_name" "chat-hosted-mock" "litellm_params" (dict "model" "openai/hosted-mock" "api_base" "http://mock-provider:8000/v1" "api_key" "unused") }}
   {{- $_ := set $config "model_list" (append $config.model_list $mock) }}
