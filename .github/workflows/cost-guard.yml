@@ -1,5 +1,7 @@
 # Nightly janitor, as the deployer service account: destroys session clusters older than
 # max_age_hours (default 8) and opens an issue saying what it did. Runs from main only.
+# The repository variable COST_GUARD_MAX_AGE_HOURS raises the nightly limit while a cluster is meant to
+# stay up for days (P4 and P5's end-to-end phase); delete the variable when that cluster is gone.
 name: cost-guard
 
 on:
@@ -33,7 +35,7 @@ jobs:
     env:
       CLOUDSDK_CORE_DISABLE_PROMPTS: "1"
       PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-      MAX_AGE_HOURS: ${{ inputs.max_age_hours || '8' }}
+      MAX_AGE_HOURS: ${{ inputs.max_age_hours || vars.COST_GUARD_MAX_AGE_HOURS || '8' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -66,7 +68,12 @@ jobs:
       # cluster isn't the Terraform one, gcloud deletes the cluster so the bill still stops.
       - name: destroy old clusters
         run: |
-          [[ "$MAX_AGE_HOURS" =~ ^[0-9]+$ ]] || { echo "max_age_hours must be a whole number"; exit 1; }
+          # A typo in the variable must not stop the nightly run: it falls back to 8. A manual run with a bad value stops.
+          [[ "$MAX_AGE_HOURS" =~ ^[0-9]+$ ]] || { [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && { echo "max_age_hours must be a whole number"; exit 1; }; \
+            echo "max age '$MAX_AGE_HOURS' is not a whole number: using 8"; MAX_AGE_HOURS=8; }
+          MAX_AGE_HOURS=$((10#$MAX_AGE_HOURS))  # 08 would otherwise be read as octal and stop the arithmetic
+          # A variable left at a huge value would switch the guard off; a week is the most it keeps a cluster.
+          [ "$MAX_AGE_HOURS" -le 168 ] || { echo "max_age_hours $MAX_AGE_HOURS is over 168: using 168"; MAX_AGE_HOURS=168; }
           clusters=$(gcloud container clusters list --format='value(name,location,createTime.date("%s", tz=UTC))')
           now=$(date +%s); bad=""
           while read -r name zone created; do

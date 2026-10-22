@@ -71,4 +71,4 @@ Run on macOS. Replace `<PROJECT_ID>`, `<BILLING_ACCOUNT_ID>` and `<you>` with yo
 
    L4 capacity runs out in a zone at times (`ZONE_RESOURCE_POOL_EXHAUSTED`). Try another zone, or on demand with `gpu_spot = false`.
 
-8. **Workflows.** Set the two repository secrets listed in [`.github/workflows/README.md`](../../.github/workflows/README.md). `gpu-session.yml` runs a session from GitHub; `cost-guard.yml` destroys any session cluster older than 8 hours every night and opens an issue.
+8. **Workflows.** Set the two repository secrets listed in [`.github/workflows/README.md`](../../.github/workflows/README.md). `gpu-session.yml` runs a session from GitHub; `cost-guard.yml` destroys any session cluster older than 8 hours every night and opens an issue. To keep a cluster up for days, set the repository variable `COST_GUARD_MAX_AGE_HOURS` (at most 168) and delete it afterwards.

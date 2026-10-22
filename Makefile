@@ -35,11 +35,12 @@ tf = $(call as,$(1)) terraform -chdir=infra/$(2) init -input=false -reconfigure 
 session_vars = -var="project_id=$(PROJECT)" -var="owner=$(OWNER)" -var="session=$(SESSION)" -var="zone=$(ZONE)" \
 	$(if $(PROFILE),-var="autoscaling_profile=$(PROFILE)") $(if $(SPOT),-var="gpu_spot=$(SPOT)")
 
-.PHONY: help check-project up down status test bench team park foundation-plan foundation-apply
+.PHONY: help check-project up deploy down status test bench team park foundation-plan foundation-apply
 
 help:
 	@echo "make up | down | status        session cluster (cloud, costs money while up)"
 	@echo "make up LAYERS=01               also deploy those layers (each project's deploy.sh)"
+	@echo "make deploy LAYERS=\"04 05\"     deploy only those layers again, on the running cluster"
 	@echo "make test P=00                 run one project's tests"
 	@echo "make bench [CONFIG=… SCENARIOS=… CONCURRENCY=…]  P1 benchmarks, from a Job in the session cluster"
 	@echo "make team NAME=… BUDGET_USD=… RPM=… [TPM=…]  P2: onboard a team on the gateway; prints its key once"
@@ -51,14 +52,23 @@ check-project:
 	@[ -n "$(PROJECT)" ] && [ "$$(gcloud projects describe $(PROJECT) --format='value(labels.app)')" = ai-platform ] \
 		|| { echo "the ai-platform gcloud configuration does not point at the platform project"; exit 1; }
 
+# Each layer's deploy.sh, in order. They use helm upgrade --install, so running one again is safe.
+deploy_layers = for l in $(LAYERS); do d=$$(ls -d projects/$$l-*/ 2>/dev/null | head -1); \
+		[ -f "$${d}deploy.sh" ] || { echo "no deploy.sh for layer $$l"; exit 1; }; \
+		ZONE=$(ZONE) bash "$${d}deploy.sh" || exit 1; \
+	done
+
 up: check-project
 	$(call tf,deployer,session) apply -input=false -auto-approve $(session_vars)
 	gcloud container clusters get-credentials ai-platform --location=$(ZONE) --dns-endpoint
 	kubectl get nodes
-	@for l in $(LAYERS); do d=$$(ls -d projects/$$l-*/ 2>/dev/null | head -1); \
-		[ -f "$${d}deploy.sh" ] || { echo "no deploy.sh for layer $$l"; exit 1; }; \
-		ZONE=$(ZONE) bash "$${d}deploy.sh" || exit 1; \
-	done
+	@$(deploy_layers)
+
+# A fix on a cluster that stays up: only the named layers, no Terraform.
+deploy: check-project
+	@[ -n "$(LAYERS)" ] || { echo 'usage: make deploy LAYERS="04 05"'; exit 1; }
+	gcloud container clusters get-credentials ai-platform --location=$(ZONE) --dns-endpoint
+	@$(deploy_layers)
 
 # Helm releases and PVCs go first: a PVC left behind becomes a persistent disk that keeps billing.
 # Releases go newest first, so vLLM's ScaledObject is removed while KEDA can still clear its finalizer.
