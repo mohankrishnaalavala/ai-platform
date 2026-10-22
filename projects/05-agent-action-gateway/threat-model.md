@@ -1,6 +1,6 @@
 # Threat model: the agent action gateway
 
-What can go wrong when an AI agent changes Kubernetes through this gateway, and which control stops each thing. The components are in `docs/diagrams/05-agent-action-gateway-components.drawio`.
+What can go wrong when an AI agent changes Kubernetes through this gateway, and which control stops each thing. The components are in the [component diagram](../../docs/diagrams/05-agent-action-gateway-components.svg).
 
 **The setup.** An AI agent (for example Claude Code) calls the gateway's MCP (Model Context Protocol) tools to read or change Deployments and ConfigMaps in the `dev`, `staging` and `prod` namespaces of one cluster. We assume the agent can be wrong, or turned against us, at any moment.
 
