@@ -1,0 +1,167 @@
+<mxfile host="drawio" compressed="false">
+  <diagram id="p5-agent-action-gateway-components" name="P5 agent action gateway components">
+    <mxGraphModel background="#FFFFFF" dx="1700" dy="1030" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="1030" math="0" shadow="0" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="&lt;font style=&quot;font-size:20px&quot;&gt;&lt;b&gt;P5 agent action gateway: components&lt;/b&gt;&lt;/font&gt;&lt;br&gt;AI agents change Kubernetes only through this gate, which speaks MCP (Model Context Protocol): policy check, dry run, a plain-English risk summary, Slack approval, a narrowly scoped service account, an audit record and undo. The code decides; the LLM only explains. Runs in the session GKE (Google Kubernetes Engine) cluster, reached only through kubectl port-forward; nothing is public." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=13;fontColor=#2C2C2A;" vertex="1" parent="1">
+          <mxGeometry x="20" y="12" width="1660" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="zT" value="GitHub Actions" style="swimlane;startSize=30;html=1;whiteSpace=wrap;rounded=1;arcSize=3;container=1;collapsible=0;fontStyle=1;fontSize=13;align=left;spacingLeft=12;fillColor=#FFFFFF;swimlaneFillColor=#FFFFFF;strokeColor=#5F5E5A;fontColor=#2C2C2A;" vertex="1" parent="1">
+          <mxGeometry x="20" y="85" width="1660" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="ciN" value="&lt;b&gt;ci.yml&lt;/b&gt; on every pull request: builds and scans the action gateway image, then loads it into kind (Kubernetes in Docker). When policies/ or src/ change, the 50 scenarios run there with the CLI approver and a local audit file. Never touches GCP (Google Cloud Platform)." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=12;fontColor=#444441;" vertex="1" parent="zT">
+          <mxGeometry x="20" y="34" width="800" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="mrN" value="&lt;b&gt;mirror.yml&lt;/b&gt; on main (mirror account, keyless through WIF): builds the same image and pushes it to Artifact Registry, pinned by digest. Session nodes pull it with the reader role they already have." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=12;fontColor=#444441;" vertex="1" parent="zT">
+          <mxGeometry x="850" y="34" width="790" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="zL" value="Laptop · the demo" style="swimlane;startSize=30;html=1;whiteSpace=wrap;rounded=1;arcSize=3;container=1;collapsible=0;fontStyle=1;fontSize=13;align=left;spacingLeft=12;fillColor=#FFFFFF;swimlaneFillColor=#FFFFFF;strokeColor=#5F5E5A;fontColor=#2C2C2A;" vertex="1" parent="1">
+          <mxGeometry x="20" y="215" width="230" height="330" as="geometry" />
+        </mxCell>
+        <mxCell id="lN" value="Signed in as the deployer service account, by impersonation: no keys." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=11;fontColor=#444441;" vertex="1" parent="zL">
+          <mxGeometry x="15" y="45" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="CC" value="&lt;b&gt;Claude Code&lt;/b&gt; (the agent)&lt;br&gt;sends its agent token&lt;br&gt;through kubectl port-forward" style="rounded=1;whiteSpace=wrap;html=1;arcSize=6;fillColor=#FFFFFF;strokeColor=#5F5E5A;fontColor=#2C2C2A;fontSize=12;align=left;verticalAlign=middle;spacingLeft=12;spacingRight=8;" vertex="1" parent="zL">
+          <mxGeometry x="15" y="185" width="200" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="zS" value="Session: GKE zonal cluster · Cloud NAT (from P1) · P5 installed by its deploy.sh" style="swimlane;startSize=30;html=1;whiteSpace=wrap;rounded=1;arcSize=3;container=1;collapsible=0;fontStyle=1;fontSize=13;align=left;spacingLeft=12;fillColor=#EEEDFE;swimlaneFillColor=#F7F6FF;strokeColor=#534AB7;fontColor=#3C3489;" vertex="1" parent="1">
+          <mxGeometry x="340" y="215" width="920" height="620" as="geometry" />
+        </mxCell>
+        <mxCell id="sN" value="Private nodes. No load balancer and no public IP. What leaves the cluster: masked risk facts (to Gemini, through P2) and approval messages (to Slack, outbound through Cloud NAT). P5 uses no GPU." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#3C3489;" vertex="1" parent="zS">
+          <mxGeometry x="20" y="36" width="880" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="zSys" value="System node pool · 1× e2-standard-8 · every P5 pod runs here" style="html=1;whiteSpace=wrap;rounded=1;arcSize=3;container=1;collapsible=0;fontStyle=1;fontSize=12;align=left;verticalAlign=top;spacingLeft=12;spacingTop=4;fillColor=#FFFFFF;strokeColor=#534AB7;fontColor=#3C3489;" vertex="1" parent="zS">
+          <mxGeometry x="20" y="90" width="880" height="510" as="geometry" />
+        </mxCell>
+        <mxCell id="zP" value="Action gateway pod · 1 replica · runs as its own KSA" style="rounded=1;whiteSpace=wrap;html=1;arcSize=4;container=1;collapsible=0;fillColor=none;strokeColor=#534AB7;fontColor=#3C3489;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=2;" vertex="1" parent="zSys">
+          <mxGeometry x="20" y="50" width="360" height="400" as="geometry" />
+        </mxCell>
+        <mxCell id="MCP" value="&lt;b&gt;Action gateway&lt;/b&gt; (our Python MCP server)&lt;br&gt;Streamable HTTP · Slack approver in-process&lt;br&gt;agent token hashes → teams (ConfigMap)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=6;fillColor=#FFFFFF;strokeColor=#534AB7;fontColor=#2C2C2A;fontSize=12;align=left;verticalAlign=middle;spacingLeft=12;spacingRight=8;" vertex="1" parent="zP">
+          <mxGeometry x="20" y="40" width="320" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="OPA" value="&lt;b&gt;Policy engine&lt;/b&gt; (OPA sidecar)&lt;br&gt;listens on 127.0.0.1:8181 only&lt;br&gt;Rego policies from a ConfigMap" style="rounded=1;whiteSpace=wrap;html=1;arcSize=6;fillColor=#FFFFFF;strokeColor=#534AB7;fontColor=#2C2C2A;fontSize=11;align=left;verticalAlign=middle;spacingLeft=12;spacingRight=8;" vertex="1" parent="zP">
+          <mxGeometry x="20" y="250" width="220" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="P2" value="&lt;b&gt;Layer below: P2 LLM gateway&lt;/b&gt;&lt;br&gt;LiteLLM; Presidio masks the facts&lt;br&gt;chat-hosted alias, its own team key" style="rounded=1;whiteSpace=wrap;html=1;arcSize=6;fillColor=#F1EFE8;strokeColor=#888780;fontColor=#444441;fontSize=11;align=left;verticalAlign=middle;spacingLeft=12;spacingRight=8;" vertex="1" parent="zSys">
+          <mxGeometry x="520" y="165" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="TG" value="&lt;b&gt;Demo targets&lt;/b&gt;: dev, staging, prod&lt;br&gt;env label · checkout + PDB in each&lt;br&gt;the only namespaces RBAC allows" style="rounded=1;whiteSpace=wrap;html=1;arcSize=6;fillColor=#FFFFFF;strokeColor=#534AB7;fontColor=#2C2C2A;fontSize=11;align=left;verticalAlign=middle;spacingLeft=60;spacingRight=8;" vertex="1" parent="zSys">
+          <mxGeometry x="520" y="325" width="270" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="TGi" value="" style="aspect=fixed;sketch=0;html=1;dashed=0;whitespace=wrap;verticalLabelPosition=bottom;verticalAlign=top;fillColor=#2875E2;strokeColor=#ffffff;points=[[0.005,0.63,0],[0.1,0.2,0],[0.9,0.2,0],[0.5,0,0],[0.995,0.63,0],[0.72,0.99,0],[0.5,1,0],[0.28,0.99,0]];shape=mxgraph.kubernetes.icon2;prIcon=ns" vertex="1" parent="TG">
+          <mxGeometry x="10" y="30" width="42" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="zX" value="Outside Google Cloud · internet" style="swimlane;startSize=30;html=1;whiteSpace=wrap;rounded=1;arcSize=3;container=1;collapsible=0;fontStyle=1;fontSize=12;align=left;spacingLeft=12;fillColor=#FFFFFF;swimlaneFillColor=#FFFFFF;strokeColor=#5F5E5A;fontColor=#2C2C2A;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="320" width="380" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="SL" value="&lt;b&gt;Slack&lt;/b&gt; (the approvals channel)&lt;br&gt;Approve or Reject · auto-reject after 15 min&lt;br&gt;Socket Mode: we connect out, Slack never calls in" style="rounded=1;whiteSpace=wrap;html=1;arcSize=6;fillColor=#FFFFFF;strokeColor=#5F5E5A;fontColor=#2C2C2A;fontSize=11;align=left;verticalAlign=middle;spacingLeft=12;spacingRight=8;" vertex="1" parent="zX">
+          <mxGeometry x="20" y="40" width="340" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="zG" value="Google Cloud APIs · Private Google Access" style="swimlane;startSize=30;html=1;whiteSpace=wrap;rounded=1;arcSize=3;container=1;collapsible=0;fontStyle=1;fontSize=12;align=left;spacingLeft=12;fillColor=#FFFFFF;swimlaneFillColor=#FFFFFF;strokeColor=#5F5E5A;fontColor=#2C2C2A;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="480" width="380" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="VX" value="&lt;b&gt;Gemini on Vertex AI&lt;/b&gt;&lt;br&gt;writes the 3-line risk summary&lt;br&gt;keyless: P2&#39;s Workload Identity" style="rounded=1;whiteSpace=wrap;html=1;arcSize=6;fillColor=#FFFFFF;strokeColor=#5F5E5A;fontColor=#2C2C2A;fontSize=11;align=left;verticalAlign=middle;spacingLeft=60;spacingRight=8;" vertex="1" parent="zG">
+          <mxGeometry x="20" y="35" width="340" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="VXi" value="" style="sketch=0;html=1;verticalAlign=top;labelPosition=center;verticalLabelPosition=bottom;align=center;fontSize=11;fontStyle=0;fontColor=#000000;aspect=fixed;pointerEvents=1;shape=mxgraph.gcp3.vertexai;fillColor=#4285f4" vertex="1" parent="VX">
+          <mxGeometry x="10" y="23" width="40" height="39" as="geometry" />
+        </mxCell>
+        <mxCell id="zF" value="Foundation · always on" style="swimlane;startSize=30;html=1;whiteSpace=wrap;rounded=1;arcSize=3;container=1;collapsible=0;fontStyle=1;fontSize=12;align=right;spacingRight=12;fillColor=#F1EFE8;swimlaneFillColor=#FAF9F6;strokeColor=#888780;fontColor=#444441;" vertex="1" parent="1">
+          <mxGeometry x="260" y="860" width="1000" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="SM" value="&lt;b&gt;Secret Manager&lt;/b&gt;&lt;br&gt;Slack app + bot tokens, P2 team key&lt;br&gt;mounted by the GKE add-on" style="rounded=1;whiteSpace=wrap;html=1;arcSize=6;fillColor=#FFFFFF;strokeColor=#534AB7;fontColor=#2C2C2A;fontSize=11;align=left;verticalAlign=middle;spacingLeft=60;spacingRight=8;" vertex="1" parent="zF">
+          <mxGeometry x="20" y="45" width="290" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="SMi" value="" style="editableCssRules=.*;sketch=0;html=1;verticalAlign=top;labelPosition=center;verticalLabelPosition=bottom;align=center;spacingTop=-6;fontSize=11;fontStyle=1;fontColor=#999999;shape=image;aspect=fixed;imageAspect=0;image=data:image/svg+xml,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGlkPSJzdmc1MzkzNyIgdmVyc2lvbj0iMS4xIiB2aWV3Qm94PSIwIDAgMTc1LjE2MDY0NDUzMTI1IDEwNC4yNzczNTEzNzkzOTQ1MyIgaGVpZ2h0PSIxMDQuMjc3MzUxMzc5Mzk0NTMiIHdpZHRoPSIxNzUuMTYwNjQ0NTMxMjUiPiYjeGE7CTxzdHlsZSB0eXBlPSJ0ZXh0L2NzcyI+CS5zdDB7ZmlsbDojNDI4NWY0O308L3N0eWxlPgkmI3hhOyAgPHBhdGggY2xhc3M9InN0MCIgZD0ibSAxMjguNTY5MSwzNC4xMTUyMzYgdiAxMi45Nzg1MTYgbCAtMTIuMzM3ODksLTQuMzgwODYgLTIuNTA5NzcsNy4wNjgzNiAxMi41NDEwMiw0LjQ1MzEyNSAtOC41NjA1NSwxMS40MzE2NCA2LjAwMTk2LDQuNDk2MDk0IDguNTk5NjEsLTExLjQ4MDQ2OSA4LjQ5NDE0LDExLjQ2NDg0NCA2LjAyNzM0LC00LjQ2NDg0NCAtOC40NzI2NiwtMTEuNDMzNTkzIDEyLjY0MDYzLC00LjQ2Njc5NyAtMi41LC03LjA3MDMxMyAtMTIuNDIzODMsNC4zOTA2MjUgViAzNC4xMTUyMzYgWiBtIC00NC43NzY4NzIsMCB2IDEyLjk3ODUxNiBsIC0xMi4zMzc4OTEsLTQuMzgwODYgLTIuNTA5NzY1LDcuMDY4MzYgMTIuNTQxMDE1LDQuNDUzMTI1IC04LjU2MDU0NywxMS40MzE2NCA2LjAwMTk1Myw0LjQ5NjA5NCA4LjU5OTYxLC0xMS40ODA0NjkgOC40OTQxNCwxMS40NjQ4NDQgNi4wMjczNDcsLTQuNDY0ODQ0IC04LjQ3MjY1OSwtMTEuNDMzNTkzIDEyLjY0MDYyOSwtNC40NjY3OTcgLTIuNSwtNy4wNzAzMTMgLTEyLjQyMzgzMiw0LjM5MDYyNSBWIDM0LjExNTIzNiBaIG0gLTQ0Ljc3Njg1LDAgdiAxMi45Nzg1MTYgbCAtMTIuMzM3ODkxLC00LjM4MDg2IC0yLjUwOTc2NSw3LjA2ODM2IDEyLjU0MTAxNSw0LjQ1MzEyNSAtOC41NjA1NDcsMTEuNDMxNjQgNi4wMDE5NTMsNC40OTYwOTQgOC41OTk2MSwtMTEuNDgwNDY5IDguNDk0MTQsMTEuNDY0ODQ0IDYuMDI3MzQ0LC00LjQ2NDg0NCAtOC40NzI2NTYsLTExLjQzMzU5MyAxMi42NDA2MjUsLTQuNDY2Nzk3IC0yLjUsLTcuMDcwMzEzIC0xMi40MjM4MjgsNC4zOTA2MjUgViAzNC4xMTUyMzYgWiBNIDE3NS4xNjA2NCwxMGUtNyBWIDEwNC4yNzczNCBoIC0zNy4yNzY4MiBjIC0xLjIwODU3LDAgLTIuMDAyNDgsLTAuNjIzNTQgLTIuMDAyNDgsLTEuODY2MzQgdiAtOS45MjcyMzggYyAwLC0xLjE0ODI1IDAuNzE1OTYsLTEuNzA2NDIgMi4wMDI0OCwtMS43MDY0MiBoIDIzLjc3NjgyIFYgMTMuNSBoIC0yMy45NDQ5OCBjIC0xLjQwODU1LDAgLTEuOTUxNTEsLTAuNzUyMzE3IC0xLjk1MTUxLC0yLjA3NDQ4MiBWIDEuODQyNzI2IGMgMCwtMS4yNjU5NzEgMC42OTgwOCwtMS44NDI3MjUgMS45NTE1MSwtMS44NDI3MjUgeiBNIDAsMCB2IDEwNC4yNzczNSBoIDM3LjI3NjgxNCBjIDEuMjA4NTcxLDAgMi4wMDI0ODMsLTAuNjIzNTQgMi4wMDI0ODMsLTEuODY2MzQgdiAtOS45MjcyMzggYyAwLC0xLjE0ODI1IC0wLjcxNTk1NywtMS43MDY0MiAtMi4wMDI0ODMsLTEuNzA2NDIgSCAxMy41IFYgMTMuNDk5OTk5IGggMjMuOTQ0OTczIGMgMS40MDg1NTIsMCAxLjk1MTUxMSwtMC43NTIzMTcgMS45NTE1MTEsLTIuMDc0NDgyIFYgMS44NDI3MjUgQyAzOS4zOTY0ODQsMC41NzY3NTQgMzguNjk4NDEsMCAzNy40NDQ5NzMsMCBaIi8+JiN4YTs8L3N2Zz4=;" vertex="1" parent="SM">
+          <mxGeometry x="10" y="30" width="42" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="AU" value="&lt;b&gt;Audit log bucket&lt;/b&gt; (Cloud Storage)&lt;br&gt;one record per object · 30 days, not locked&lt;br&gt;create + read only, via Workload Identity" style="rounded=1;whiteSpace=wrap;html=1;arcSize=6;fillColor=#FFFFFF;strokeColor=#534AB7;fontColor=#2C2C2A;fontSize=11;align=left;verticalAlign=middle;spacingLeft=60;spacingRight=8;" vertex="1" parent="zF">
+          <mxGeometry x="330" y="45" width="340" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="AUi" value="" style="sketch=0;html=1;verticalAlign=top;labelPosition=center;verticalLabelPosition=bottom;align=center;fontSize=11;fontStyle=0;fontColor=#000000;aspect=fixed;pointerEvents=1;shape=mxgraph.gcp3.cloud_storage;fillColor=#4285f4" vertex="1" parent="AU">
+          <mxGeometry x="10" y="22" width="40" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="P0" value="&lt;b&gt;Layer below: P0 foundation&lt;/b&gt;&lt;br&gt;VPC, keyless login (WIF), Artifact Registry&lt;br&gt;budget alerts, cost-guard (00 diagrams)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=6;fillColor=#F1EFE8;strokeColor=#888780;fontColor=#444441;fontSize=11;align=left;verticalAlign=middle;spacingLeft=12;spacingRight=8;" vertex="1" parent="zF">
+          <mxGeometry x="690" y="45" width="290" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="lg" value="" style="rounded=1;whiteSpace=wrap;html=1;arcSize=4;fillColor=#FFFFFF;strokeColor=#888780;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="640" width="380" height="370" as="geometry" />
+        </mxCell>
+        <mxCell id="lgT" value="&lt;b&gt;Legend&lt;/b&gt;" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontColor=#2C2C2A;" vertex="1" parent="lg">
+          <mxGeometry x="10" y="8" width="360" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lgL1" value="" style="line;html=1;strokeWidth=1.5;strokeColor=#5F5E5A;" vertex="1" parent="lg">
+          <mxGeometry x="12" y="40" width="44" height="10" as="geometry" />
+        </mxCell>
+        <mxCell id="lgL1t" value="Call, in request order 1–8. Line 3 runs twice: the dry run, then the change after approval (undo uses it too)" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#2C2C2A;" vertex="1" parent="lg">
+          <mxGeometry x="64" y="26" width="306" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="lgS1" value="" style="rounded=1;html=1;fillColor=#FFFFFF;strokeColor=#534AB7;" vertex="1" parent="lg">
+          <mxGeometry x="12" y="82" width="44" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lgS1t" value="Built, installed or set up by P5" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#2C2C2A;" vertex="1" parent="lg">
+          <mxGeometry x="64" y="76" width="306" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="lgS2" value="" style="rounded=1;html=1;fillColor=#EEEDFE;strokeColor=#534AB7;" vertex="1" parent="lg">
+          <mxGeometry x="12" y="116" width="44" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lgS2t" value="Exists only during a session (make up to make down)" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#2C2C2A;" vertex="1" parent="lg">
+          <mxGeometry x="64" y="110" width="306" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="lgS3" value="" style="rounded=1;html=1;fillColor=#F1EFE8;strokeColor=#888780;" vertex="1" parent="lg">
+          <mxGeometry x="12" y="150" width="44" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lgS3t" value="A layer below, or always on (drawn in its own diagram)" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#2C2C2A;" vertex="1" parent="lg">
+          <mxGeometry x="64" y="144" width="306" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="lgS4" value="" style="rounded=1;html=1;fillColor=#FFFFFF;strokeColor=#5F5E5A;" vertex="1" parent="lg">
+          <mxGeometry x="12" y="184" width="44" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lgS4t" value="Not ours: run by Google, Slack or the agent&#39;s maker" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#2C2C2A;" vertex="1" parent="lg">
+          <mxGeometry x="64" y="178" width="306" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="lgN" value="MCP: Model Context Protocol, how agents call tools. OPA: Open Policy Agent; Rego is its policy language. KSA: Kubernetes service account. RBAC: role-based access control. PDB: PodDisruptionBudget. LLM: large language model. Presidio: open-source detector that masks personal data. CLI: command line. NAT: network address translation. VPC: Virtual Private Cloud. WIF: Workload Identity Federation. Socket Mode: our app opens the connection to Slack, so nothing in the cluster listens for Slack." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=11;fontColor=#444441;" vertex="1" parent="lg">
+          <mxGeometry x="10" y="218" width="360" height="146" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="1 secrets mounted" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5F5E5A;strokeWidth=1.5;fontSize=12;fontColor=#2C2C2A;labelBackgroundColor=#FFFFFF;exitX=0.4828;exitY=0;exitDx=0;exitDy=0;entryX=0.1111;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="SM" target="zP">
+          <mxGeometry x="0.6" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e2" value="2 tool call" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5F5E5A;strokeWidth=1.5;fontSize=12;fontColor=#2C2C2A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="CC" target="MCP">
+          <mxGeometry x="-0.25" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e3" value="3 dry run, act" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5F5E5A;strokeWidth=1.5;fontSize=12;fontColor=#2C2C2A;labelBackgroundColor=#FFFFFF;exitX=0.9375;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="zSys" source="MCP" target="TG">
+          <mxGeometry x="0.6" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="340" y="375" />
+            </Array>
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e4" value="4 policy check" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5F5E5A;strokeWidth=1.5;fontSize=12;fontColor=#2C2C2A;labelBackgroundColor=#FFFFFF;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.3636;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="zP" source="MCP" target="OPA">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="5 risk facts" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5F5E5A;strokeWidth=1.5;fontSize=12;fontColor=#2C2C2A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.9167;exitDx=0;exitDy=0;entryX=0;entryY=0.35;entryDx=0;entryDy=0;" edge="1" parent="zSys" source="MCP" target="P2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="6 masked facts" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5F5E5A;strokeWidth=1.5;fontSize=12;fontColor=#2C2C2A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.3529;entryDx=0;entryDy=0;" edge="1" parent="1" source="P2" target="VX">
+          <mxGeometry x="-0.35" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e7" value="7 ask approval" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5F5E5A;strokeWidth=1.5;fontSize=12;fontColor=#2C2C2A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.125;exitDx=0;exitDy=0;entryX=0;entryY=0.5556;entryDx=0;entryDy=0;" edge="1" parent="1" source="MCP" target="SL">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="8 audit record" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5F5E5A;strokeWidth=1.5;fontSize=12;fontColor=#2C2C2A;labelBackgroundColor=#FFFFFF;exitX=0.78125;exitY=1;exitDx=0;exitDy=0;entryX=0.1765;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="MCP" target="AU">
+          <mxGeometry x="0.385" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
