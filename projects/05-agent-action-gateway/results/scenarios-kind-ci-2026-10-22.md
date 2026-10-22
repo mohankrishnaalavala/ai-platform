@@ -9,6 +9,8 @@ Source: CI run https://github.com/mohankrishnaalavala/ai-platform/actions/runs/3
 - **Undo waits for the rollout.** The runner calls `undo_action` only after the change has rolled out (`settle()` in `evals/run_scenarios.py`), so "30 of 30" depends on that wait. Straight after a scale-up, the undo (a scale back down) is denied with "would violate PodDisruptionBudget": the new pods aren't ready yet, and the gateway counts the pods it would remove as healthy ones. Kubernetes removes unready pods first, so this is a false block. It fails closed: nothing changes, and the undo works once the rollout is done. An earlier local run without the wait hit this block; its output wasn't kept, so it gives no numbers here.
 - **The approver is the CLI one**, answering "approve" from the runner through `kubectl exec`; the Slack approver isn't part of this run.
 
+**Produced by an earlier commit of PR #74** (a CI merge commit, not in the repo history). `src/` changed afterwards, so the config hash below does not match the merged code. To be regenerated from the final code before these numbers are quoted.
+
 Commit `cdf5ac3ab8e8e4845ea0a106b6c2c577b6ad0bec` · config hash `6f6fca0907d53899` · Kubernetes v1.36.4 (kind node `kindest/node:v1.36.4@sha256:099e049362a1526b2db71494e1947aae99bd16290d7c895f2b7ea312e3cbfaed`) · image `action-gateway:ci` (sha256:dc71bc728e80f54b2824e6a330ffa94c1a264cc54d6a6e6396a81fc1f4e0608f) · host: Linux x86_64, 4 CPUs, GitHub-hosted runner ubuntu24 20261012.334.1
 
 Each scenario's tool call went through the MCP server as an agent's call would, on a kind cluster, with the CLI approver answering approve. Method: `evals/run_scenarios.py`. Raw output: `scenarios.json`.
