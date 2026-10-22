@@ -125,6 +125,8 @@ jobs:
             echo "timeouts (and chat-default's prices): $chart"
           done
 
+      # With P4's values on top (the judge alias, canary deployments stored in the database), as in the cluster
+      # window, so P2's and P3's checks also run against them.
       - name: random secrets as files, the chart's config rendered
         run: |
           secrets="$RUNNER_TEMP/secrets" config="$RUNNER_TEMP/config"
@@ -134,6 +136,7 @@ jobs:
           printf '%s' "$master" > "$secrets/litellm-master-key"
           printf '%s' "$pg" > "$secrets/gateway-postgres-password"
           helm template gateway ../helm/gateway -f ../helm/gateway/values-ci.yaml --set project=ci \
+            -f ../../04-eval-gated-releases/helm/gateway-canary.yaml -f ../../04-eval-gated-releases/tests/gateway-ci.yaml \
             --set labels.owner=ci --set labels.session=ci --show-only templates/config.yaml > "$RUNNER_TEMP/cm.yaml"
           docker run --rm -i "$YQ" '.data["config.yaml"]' < "$RUNNER_TEMP/cm.yaml" > "$config/config.yaml"
           docker run --rm -i "$YQ" '.data["start.sh"]' < "$RUNNER_TEMP/cm.yaml" > "$config/start.sh"
@@ -193,6 +196,13 @@ jobs:
         run: |
           docker compose stop mock-vllm
           VLLM_DOWN=1 python3 -m unittest test_fallback test_pii -v
+
+      # What P4's canary promoter relies on in LiteLLM: two deployments of one alias split 90:10 by weight, a weight
+      # change with no restart, litellm.provider.model on attempt spans and in Prometheus, and the header that names
+      # the deployment. Uses promote.py's own calls; removes its deployments at the end.
+      - name: "P4: canary contract (weighted split, runtime weight change, provider-model label, deployment header)"
+        working-directory: projects/04-eval-gated-releases/tests
+        run: python3 -m unittest -v test_canary_contract
 
       # Container logs go to Cloud Logging on GKE, so they must not hold a prompt either.
       - name: no raw PII in logs, traces or spend logs

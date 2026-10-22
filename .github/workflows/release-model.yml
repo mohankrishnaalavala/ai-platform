@@ -1,0 +1,88 @@
+# P4-09: a canary release of a hosted model behind chat-hosted (ADR-0004), on a session cluster that is
+# already up with layers 02, 03 and 04 (make up). promote.py adds the candidate next to the baseline and moves
+# 10 -> 50 -> 100% of the alias's traffic to it. After each step it checks the candidate's error rate
+# (Prometheus), its TTFT (time to first token) p95 against the baseline's (a short Job in the cluster) and a
+# 20-case live eval. Any failed check sets the candidate's weight to 0 and opens an issue.
+# Manual only, as the deployer service account, from main only: the WIF (Workload Identity Federation) provider
+# trusts no other branch, and the foundation must list this workflow for the deployer.
+name: release-model
+on:
+  workflow_dispatch:
+    inputs:
+      candidate:
+        description: The candidate model (provider/model), next to the baseline behind chat-hosted
+        type: string
+        default: vertex_ai/gemini-3.5-flash
+      baseline:
+        description: The baseline model (provider/model), what chat-hosted serves now
+        type: string
+        default: vertex_ai/gemini-3.5-flash-lite
+      zone:
+        description: Zone of the running session cluster
+        type: choice
+        options: [us-central1-c, us-central1-a, us-central1-b]
+        default: us-central1-c
+
+permissions:
+  contents: read
+  id-token: write  # keyless login (WIF)
+  issues: write  # the issue a rollback opens
+
+# The same group as gpu-session and cost-guard: cost-guard never destroys the cluster while a canary runs.
+concurrency:
+  group: session
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  canary:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      CLOUDSDK_CORE_DISABLE_PROMPTS: "1"
+      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      ZONE: ${{ inputs.zone }}
+      # Inputs reach the scripts through the environment only; promote.py refuses anything but provider/model.
+      CANDIDATE: ${{ inputs.candidate }}
+      BASELINE: ${{ inputs.baseline }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: deployer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        with:
+          version: 587.0.0
+          install_components: gke-gcloud-auth-plugin
+
+      # The scripts use the `ai-platform` gcloud configuration and kubeconfig, as on the laptop.
+      - name: gcloud configuration and cluster credentials
+        run: |
+          gcloud config configurations create ai-platform
+          gcloud auth login --cred-file="$GOOGLE_APPLICATION_CREDENTIALS" --quiet
+          gcloud config set project "$PROJECT_ID"
+          KUBECONFIG="$HOME/.kube/ai-platform" gcloud container clusters get-credentials ai-platform --location="$ZONE" --dns-endpoint
+
+      # Stopped at its own limit, so the next step still has time to roll back.
+      - name: canary (promote.py)
+        id: canary
+        timeout-minutes: 60
+        env:
+          GH_TOKEN: ${{ github.token }}  # this step only: the issue a rollback opens
+        run: projects/04-eval-gated-releases/scripts/promote.sh --candidate "$CANDIDATE" --baseline "$BASELINE"
+
+      # promote.py rolls back on any failed check, error or SIGTERM. This catches a cancel or timeout that
+      # stopped it harder; it does nothing if there is no canary.
+      - name: candidate's weight to 0 unless the canary passed
+        if: ${{ always() && steps.canary.outcome != 'success' && steps.canary.outcome != 'skipped' }}
+        timeout-minutes: 5
+        run: projects/04-eval-gated-releases/scripts/promote.sh --rollback  # opens no issue: no GitHub token

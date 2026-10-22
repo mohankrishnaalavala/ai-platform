@@ -2,7 +2,7 @@
 # go on to Tempo, and the span_metrics connector (alpha in 0.161.0) turns them into request, error and
 # latency metrics, which Prometheus scrapes from port 8889 (ServiceMonitor below).
 # The sum connector adds cost per team and per model. Extra labels: model group, team and status code
-# only (tests/test_spans.py shows where each comes from).
+# only (tests/test_spans.py shows where each comes from), plus P4's provider model.
 # Anything per user or per prompt would make Prometheus huge. owner and session labels come from deploy.sh.
 ports:
   span-metrics:
@@ -38,6 +38,7 @@ config:
         - name: litellm.model_group
         - name: metadata.user_api_key_team_alias
         - name: http.response.status_code
+        - name: litellm.provider.model  # P4: the model a deployment calls, so a canary's two deployments split
     # Cost per team (P3-05): each model try's cost (gen_ai.cost.total_cost, the price the spend logs use)
     # and output tokens, summed from litellm_request spans. One attribute per metric: in 0.161.0 the sum
     # connector adds a value once per attribute (connector/sumconnector/sum.go, increment), so two would
