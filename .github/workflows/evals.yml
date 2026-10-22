@@ -1,0 +1,60 @@
+# P4-06: the eval gate. On a pull request that can change what the platform answers, it checks the committed eval
+# results (projects/04-eval-gated-releases/evals/gate.py says which). Every results file must be intact: config
+# hash matching the PR's files, the whole golden set, VALID (no fallback answers). The served config's scores must
+# also pass evals/thresholds.yaml ("enforced"); any other file's scores are only shown ("report only"). It posts
+# the score table as a PR comment and in the job summary.
+# It never calls a model: real eval runs happen in the session cluster window, from the laptop through the
+# gateway (evals/run.py), and their results get committed. No Google login, ever: keyless login (WIF, Workload
+# Identity Federation) trusts main only, and this runs on pull requests.
+name: evals
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - config/models/**                              # model configs
+      - projects/01-gpu-serving/deploy.sh             # its default CONFIG is the config chat-default serves
+      - projects/02-llm-gateway/helm/gateway/**       # gateway config
+      - "**/prompts/**"                               # prompts (none exist yet)
+      - projects/05-agent-action-gateway/policies/**  # P5's policies, once they exist
+      - projects/04-eval-gated-releases/evals/**      # the gate itself: scorers, judge rubric, thresholds, dataset
+      - projects/04-eval-gated-releases/helm/**       # the judge alias (gateway-canary.yaml) and canary settings
+      - projects/04-eval-gated-releases/results/**    # a results-only PR
+      - .github/workflows/evals.yml
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write  # the score table as a PR comment
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0  # the base commit, to see what the PR changes
+
+      - name: check the committed eval results (config hash, VALID, thresholds)
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: python3 projects/04-eval-gated-releases/evals/gate.py "$BASE" --out "$RUNNER_TEMP/scores.md"
+
+      # A PR from a fork gets a read-only token, so it gets the job summary only. So does a Dependabot PR (same
+      # repo, read-only token): its comment fails with a warning, not a red job. --edit-last updates the table on
+      # each push instead of adding a comment.
+      - name: the score table as a PR comment and in the job summary
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          [ -f "$RUNNER_TEMP/scores.md" ] || { echo "the gate wrote no score table"; exit 0; }
+          cat "$RUNNER_TEMP/scores.md" >> "$GITHUB_STEP_SUMMARY"
+          [ "$SAME_REPO" = true ] || exit 0
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --edit-last --create-if-none --body-file "$RUNNER_TEMP/scores.md" \
+            || echo "::warning::could not post the score table as a PR comment (read-only token?)"

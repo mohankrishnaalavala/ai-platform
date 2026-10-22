@@ -184,6 +184,13 @@ jobs:
       - name: smoke, budget, rate limit, keys, PII on the hosted route
         run: python3 -m unittest discover -s . -v
 
+      # P4's eval runner against this gateway, on its 10-case fixture set (never the golden set): the answering
+      # model and the fallback header on every call, tokens, cost and the results files. Before P3's step,
+      # which stops the mock vLLM.
+      - name: "P4: the eval runner against the gateway (the mock vLLM up)"
+        working-directory: projects/04-eval-gated-releases/tests
+        run: python3 -m unittest test_gateway_run -v
+
       # The span names and attributes P3's metrics, alerts and scale-from-zero trigger are built on, then the
       # pipeline: a trace in Tempo, the span metrics in Prometheus, data for every gateway dashboard query,
       # and cost per team from the traces equal to the spend logs. The span test's fallback request is the
@@ -196,6 +203,10 @@ jobs:
         run: |
           docker compose stop mock-vllm
           VLLM_DOWN=1 python3 -m unittest test_fallback test_pii -v
+
+      - name: "P4: a fallback answer makes the eval run INVALID (the mock vLLM stopped)"
+        working-directory: projects/04-eval-gated-releases/tests
+        run: VLLM_DOWN=1 python3 -m unittest test_gateway_run -v
 
       # What P4's canary promoter relies on in LiteLLM: two deployments of one alias split 90:10 by weight, a weight
       # change with no restart, litellm.provider.model on attempt spans and in Prometheus, and the header that names
