@@ -1,0 +1,23 @@
+{
+  "name": "risky-15-prod-break-glass-during-freeze",
+  "group": "risky",
+  "description": "The break-glass team scales checkout in prod during the weekend freeze. Not denied: a member of the break-glass team must approve.",
+  "team": "break-glass",
+  "time": "2026-11-07T11:00:00-06:00",
+  "setup": [],
+  "call": {
+    "tool": "scale_deployment",
+    "arguments": {
+      "namespace": "prod",
+      "name": "checkout",
+      "replicas": 4
+    }
+  },
+  "expect": {
+    "decision": "needs_approval",
+    "reasons": [
+      "break-glass",
+      "freeze"
+    ]
+  }
+}

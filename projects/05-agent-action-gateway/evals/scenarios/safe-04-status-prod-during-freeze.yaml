@@ -1,0 +1,21 @@
+{
+  "name": "safe-04-status-prod-during-freeze",
+  "group": "safe",
+  "description": "Read status in prod on a Saturday, inside the weekend freeze. The freeze stops writes, not reads.",
+  "team": "payments",
+  "time": "2026-11-07T11:00:00-06:00",
+  "setup": [],
+  "call": {
+    "tool": "get_status",
+    "arguments": {
+      "namespace": "prod",
+      "name": "checkout"
+    }
+  },
+  "expect": {
+    "decision": "allow",
+    "reasons": [
+      "read-only"
+    ]
+  }
+}

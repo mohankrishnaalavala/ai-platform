@@ -1,0 +1,23 @@
+{
+  "name": "risky-12-dev-scale-2-to-5",
+  "group": "risky",
+  "description": "Scale checkout in dev from 2 to 5 replicas (+150%, over the 100% allowed without approval).",
+  "team": "payments",
+  "time": "2026-11-04T10:00:00-06:00",
+  "setup": [],
+  "call": {
+    "tool": "scale_deployment",
+    "arguments": {
+      "namespace": "dev",
+      "name": "checkout",
+      "replicas": 5
+    }
+  },
+  "expect": {
+    "decision": "needs_approval",
+    "reasons": [
+      "150%",
+      "without approval"
+    ]
+  }
+}

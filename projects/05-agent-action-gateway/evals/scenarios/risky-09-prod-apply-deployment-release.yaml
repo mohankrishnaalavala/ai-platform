@@ -1,0 +1,68 @@
+{
+  "name": "risky-09-prod-apply-deployment-release",
+  "group": "risky",
+  "description": "Apply a new release of checkout in prod (same replicas, a new RELEASE value).",
+  "team": "payments",
+  "time": "2026-11-04T10:00:00-06:00",
+  "setup": [],
+  "call": {
+    "tool": "apply_manifest",
+    "arguments": {
+      "namespace": "prod",
+      "manifest": {
+        "apiVersion": "apps/v1",
+        "kind": "Deployment",
+        "metadata": {
+          "name": "checkout",
+          "namespace": "prod",
+          "labels": {
+            "app": "ai-platform",
+            "layer": "05"
+          }
+        },
+        "spec": {
+          "replicas": 2,
+          "selector": {
+            "matchLabels": {
+              "app.kubernetes.io/name": "checkout"
+            }
+          },
+          "template": {
+            "metadata": {
+              "labels": {
+                "app.kubernetes.io/name": "checkout"
+              }
+            },
+            "spec": {
+              "containers": [
+                {
+                  "name": "checkout",
+                  "image": "registry.k8s.io/pause:3.10@sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a",
+                  "resources": {
+                    "requests": {
+                      "cpu": "10m",
+                      "memory": "16Mi"
+                    }
+                  },
+                  "env": [
+                    {
+                      "name": "RELEASE",
+                      "value": "2"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "expect": {
+    "decision": "needs_approval",
+    "reasons": [
+      "production",
+      "approval"
+    ]
+  }
+}

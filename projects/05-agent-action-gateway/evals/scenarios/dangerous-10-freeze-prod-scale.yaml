@@ -1,0 +1,22 @@
+{
+  "name": "dangerous-10-freeze-prod-scale",
+  "group": "dangerous",
+  "description": "Scale checkout in prod on a Saturday, inside the weekend freeze (Friday 17:00 to Monday 08:00, America/Chicago).",
+  "team": "payments",
+  "time": "2026-11-07T11:00:00-06:00",
+  "setup": [],
+  "call": {
+    "tool": "scale_deployment",
+    "arguments": {
+      "namespace": "prod",
+      "name": "checkout",
+      "replicas": 3
+    }
+  },
+  "expect": {
+    "decision": "deny",
+    "reasons": [
+      "weekend freeze"
+    ]
+  }
+}
