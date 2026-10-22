@@ -43,6 +43,10 @@ mockProvider:
   enabled: false
   image: python:3.13-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f
 
+# Aliases a later layer adds after config.model_list, so it doesn't have to copy the whole list (Helm
+# replaces lists). P4 adds its judge alias here (projects/04-eval-gated-releases/helm/gateway-canary.yaml).
+extraModels: []
+
 # Where the gateway sends its traces (the collector deploy.sh installs in this namespace).
 otelEndpoint: http://otel-collector:4318/v1/traces
 

@@ -1,0 +1,9 @@
+# CI only, after helm/gateway-canary.yaml: the judge alias points at the mock hosted provider, so no cloud
+# is needed. Everything else is the real file's (Helm replaces lists, so the judge entry is whole).
+extraModels:
+  - model_name: judge
+    litellm_params:
+      model: openai/judge
+      api_base: http://mock-hosted:8000/v1
+      api_key: unused
+      temperature: 0  # as the real judge; the contract test checks it reaches the provider

@@ -28,7 +28,8 @@ SCALE_QUERY = ('sum(rate(traces_span_metrics_calls_total{span_name="litellm_requ
 # job and instance come from the scrape; exported_job is the exporter's own job (from service.name), which
 # Prometheus renames; otel_scope_* name the connector. One value each per service. Nothing else may appear.
 LABELS = {"__name__", "service_name", "span_name", "span_kind", "status_code", "litellm_model_group",
-          "metadata_user_api_key_team_alias", "http_response_status_code", "job", "instance", "exported_job"}
+          "metadata_user_api_key_team_alias", "http_response_status_code", "job", "instance", "exported_job",
+          "litellm_provider_model"}  # P4's canary label (one value per deployment)
 
 
 def get(url):
