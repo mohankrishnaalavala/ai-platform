@@ -1,6 +1,7 @@
 """A small Kubernetes API client, standard library only. It signs in with the pod's own ServiceAccount
 token, so every call, dry runs included, has exactly that account's RBAC (role-based access control)
 permissions (rbac.yaml) and no more."""
+import http.client
 import json
 import os
 import ssl
@@ -30,13 +31,14 @@ class Kube:
             urllib.request.HTTPSHandler(context=ssl.create_default_context(cafile=f"{sa_dir}/ca.crt")))
 
     def call(self, method, path, body=None, ctype="application/json", **params):
-        with open(f"{self.sa_dir}/token") as f:  # read every time: Kubernetes rotates the mounted token
-            token = f.read().strip()
+        """The API server's answer. Any failure, the network's included, is a KubeError, so callers fail closed."""
         url = self.base + path + ("?" + urllib.parse.urlencode(params) if params else "")
-        req = urllib.request.Request(url, method=method, data=None if body is None else json.dumps(body).encode(),
-                                     headers={"Authorization": f"Bearer {token}", "Content-Type": ctype,
-                                              "Accept": "application/json"})
         try:
+            with open(f"{self.sa_dir}/token") as f:  # read every time: Kubernetes rotates the mounted token
+                token = f.read().strip()
+            req = urllib.request.Request(url, method=method, data=None if body is None else json.dumps(body).encode(),
+                                         headers={"Authorization": f"Bearer {token}", "Content-Type": ctype,
+                                                  "Accept": "application/json"})
             with self.opener.open(req, timeout=15) as r:
                 return json.loads(r.read() or b"null")
         except urllib.error.HTTPError as e:
@@ -45,6 +47,8 @@ class Kube:
             except ValueError:
                 message = e.reason
             raise KubeError(e.code, message) from None
+        except (OSError, http.client.HTTPException, ValueError) as e:  # refused, timed out, TLS, a garbled answer
+            raise KubeError(0, f"{type(e).__name__}: {e}") from None
 
     def get(self, kind, ns, name):
         """The object, or None if it doesn't exist."""

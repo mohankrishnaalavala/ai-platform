@@ -2,7 +2,7 @@
 
   dry run as the scoped ServiceAccount (diff, blast radius) -> policy (OPA) ->
   if needs_approval: risk summary, then a person's answer (auto-reject after 15 minutes) ->
-  act -> audit record, with an undo token
+  intent record (no record, no change) -> act -> result record, with an undo token
 
 undo_action runs the same pipeline on the change that restores the object. Standard library only.
 
@@ -22,6 +22,7 @@ missing one, a wrong type, a name that isn't a Kubernetes name) means nothing is
 dry run is marked failed, and the policy gives the reasons."""
 import datetime
 import hashlib
+import hmac
 import json
 import os
 import re
@@ -34,7 +35,7 @@ import kube
 import risk
 from kube import KubeError
 
-NAME = re.compile(r"^[a-z0-9]([-a-z0-9.]{0,251}[a-z0-9])?$")  # a Kubernetes object or namespace name
+NAME = re.compile(r"[a-z0-9]([-a-z0-9.]{0,251}[a-z0-9])?")  # a Kubernetes object or namespace name; use fullmatch
 TYPES = {"string": str, "integer": int, "object": dict}
 _NS = {"type": "string", "description": "Target namespace: dev, staging or prod."}
 _DEP = {"type": "string", "description": "Deployment name."}
@@ -87,14 +88,14 @@ def unsafe_args(tool, args):
         elif t == "integer" and v < props[k]["minimum"]:
             errors.append(f"{k} must be {props[k]['minimum']} or more")
     for k in ("namespace", "name"):
-        if isinstance(args.get(k), str) and not NAME.match(args[k]):
+        if isinstance(args.get(k), str) and not NAME.fullmatch(args[k]):
             errors.append(f"{k} is not a valid Kubernetes name")
-    if isinstance(args.get("action_id"), str) and not audit.ID.match(args["action_id"]):
+    if isinstance(args.get("action_id"), str) and not audit.ID.fullmatch(args["action_id"]):
         errors.append("action_id is not an action id")
     m = args.get("manifest")
     if isinstance(m, dict):
         name = m.get("metadata", {}).get("name") if isinstance(m.get("metadata"), dict) else None
-        if not isinstance(name, str) or not NAME.match(name):
+        if not isinstance(name, str) or not NAME.fullmatch(name):
             errors.append("the manifest needs a valid metadata.name")
     return errors
 
@@ -110,8 +111,21 @@ def team_for(authorization, tokens_file):
             teams = json.load(f)
     except (OSError, ValueError):
         return None
-    team = teams.get(hashlib.sha256(token.strip().encode()).hexdigest()) if isinstance(teams, dict) else None
+    digest = hashlib.sha256(token.strip().encode()).hexdigest()
+    teams = teams.items() if isinstance(teams, dict) else []
+    team = next((t for h, t in teams if isinstance(h, str) and h.isascii() and hmac.compare_digest(h, digest)), None)
     return team if isinstance(team, str) and team else None
+
+
+def recorded(args):
+    """The arguments as the audit log keeps them. A manifest of any kind but ConfigMap or Deployment (a
+    Secret, say) keeps only its kind and name, so its contents never reach the audit bucket."""
+    m = args.get("manifest")
+    if not isinstance(m, dict) or (isinstance(m.get("kind"), str) and m["kind"] in kube.PATHS):
+        return args
+    meta = m.get("metadata") if isinstance(m.get("metadata"), dict) else {}
+    return args | {"manifest": {"kind": m.get("kind"), "metadata": {"name": meta.get("name")},
+                                "contents": "not recorded: only ConfigMap and Deployment manifests are"}}
 
 
 def now():
@@ -163,7 +177,7 @@ class Gateway:
 
     def facts(self, tool, args, ns, team, when):
         namespace = {"name": ns}
-        env = self.kube.namespace_env(ns) if isinstance(ns, str) and NAME.match(ns) else None
+        env = self.kube.namespace_env(ns) if isinstance(ns, str) and NAME.fullmatch(ns) else None
         if env is not None:
             namespace["env"] = env
         return {"tool": tool, "args": args, "namespace": namespace, "time": _rfc3339(when), "team": team}
@@ -189,7 +203,10 @@ class Gateway:
     def target(self, tool, args, team):
         """(namespace, kind, name, the record being undone or None), from the (safe) arguments alone."""
         if tool == "undo_action":
-            rec = self.audit.read(args["action_id"])
+            try:
+                rec = self.audit.read(args["action_id"])
+            except Exception as e:  # noqa: BLE001 - fail closed: no readable record, no undo
+                raise Refused(f"the audit log couldn't be read ({type(e).__name__})") from None
             if rec is None:
                 raise Refused(f"no action {args['action_id']}")
             if rec.get("team") != team:
@@ -271,7 +288,10 @@ class Gateway:
             return self.finish(rec, "denied")
 
         rec.update(self.decide(facts))
-        if rec["decision"] == "deny" or not facts["dry_run"]["ok"]:  # never act on a failed dry run
+        if not facts["dry_run"]["ok"] and rec["decision"] != "deny":  # never act on a failed dry run
+            rec["reasons"] = [*rec["reasons"], f"the dry run failed, so the gateway denies (the policy said {rec['decision']})"]
+            rec["decision"] = "deny"
+        if rec["decision"] == "deny":
             return self.finish(rec, "denied")
         if rec["decision"] == "needs_approval":
             rec["risk_summary"] = self.summarize(risk.safe_facts(facts, kind, name, rec))
@@ -286,6 +306,13 @@ class Gateway:
         try:
             if dryrun.version(kind, self.kube.get(kind, ns, name)) != dryrun.version(kind, before):
                 return self.finish(rec, "failed", "the object changed after the dry run; nothing was done")
+        except KubeError as e:
+            return self.finish(rec, "failed", f"{e}; nothing was done")
+        try:
+            self.write(rec, "intent")
+        except Exception as e:  # noqa: BLE001 - no audit record, no change
+            return self.finish(rec, "failed", f"the intent record was not written ({type(e).__name__}); nothing was done")
+        try:
             after = self.kube.send(kind, ns, name, change, dry_run=False)
         except KubeError as e:
             return self.finish(rec, "failed", str(e))
@@ -296,12 +323,20 @@ class Gateway:
                 rec["undo_token"]["uid"] = after["metadata"]["uid"]
         return self.finish(rec, "executed")
 
+    def write(self, rec, kind):
+        """One audit record (audit.py): "intent" just before a change, "result" after every write call."""
+        args = recorded(rec["request"]["arguments"])
+        out = rec | {"record": kind, "request": rec["request"] | {"arguments": args}}
+        if rec.get("facts"):
+            out["facts"] = rec["facts"] | {"args": args}
+        self.audit.write(out)
+
     def finish(self, rec, status, error=None):
         rec["result"] = {"status": status, "error": error}
         try:
-            self.audit.write(rec)
+            self.write(rec, "result")
         except Exception as e:  # noqa: BLE001 - the action may have happened, so say so; the log line holds no object contents
-            rec["result"]["audit_error"] = f"the audit record was not written ({type(e).__name__})"
+            rec["result"]["audit_error"] = f"the result record was not written ({type(e).__name__})"
         print(json.dumps({"action_id": rec["action_id"], "team": rec["team"], "tool": rec["request"]["tool"],
                           "decision": rec.get("decision"), "result": rec["result"]}), file=sys.stderr, flush=True)
         return {k: rec.get(k) for k in RESPONSE} | {"dry_run": (rec.get("facts") or {}).get("dry_run")}

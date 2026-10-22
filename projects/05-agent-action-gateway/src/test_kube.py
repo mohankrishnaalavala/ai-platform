@@ -65,6 +65,28 @@ class Client(unittest.TestCase):
         self.assertIsNone(self.client(Opener(404, {})).get("Deployment", "dev", "x"))
         self.assertIsNone(c.namespace_env("kube-system"))
 
+    def test_transport_failures_are_kube_errors(self):
+        class Down:
+            def __init__(self, error):
+                self.error = error
+
+            def open(self, req, timeout):
+                raise self.error
+
+        class Garbled:
+            def open(self, req, timeout):
+                return io.BytesIO(b"<html>proxy error</html>")
+        for opener in (Down(urllib.error.URLError("connection refused")), Down(TimeoutError("timed out")),
+                       Down(ConnectionResetError()), Garbled()):
+            c = self.client(opener)
+            with self.assertRaises(kube.KubeError) as e:
+                c.get("Deployment", "dev", "checkout")  # not None: only a 404 means "doesn't exist"
+            self.assertEqual(e.exception.status, 0)
+            self.assertIsNone(c.namespace_env("dev"))
+        os.remove(os.path.join(self.sa, "token"))
+        with self.assertRaises(kube.KubeError):
+            self.client(Opener()).items("/api/v1/namespaces/dev/configmaps")
+
     def test_namespace_env(self):
         o = Opener(body={"metadata": {"labels": {"env": "prod"}}})
         self.assertEqual(self.client(o).namespace_env("prod"), "prod")

@@ -57,6 +57,7 @@ class Cli(unittest.TestCase):
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(approval.main(["approve", ID, "--by", "alice"]), 1)  # nothing pending
             self.assertEqual(approval.main(["approve", "../../etc/passwd", "--by", "alice"]), 2)
+            self.assertEqual(approval.main(["approve", ID + "\n", "--by", "alice"]), 2)
             self.assertEqual(approval.main(["approve", ID, "--by", " "]), 2)
 
 

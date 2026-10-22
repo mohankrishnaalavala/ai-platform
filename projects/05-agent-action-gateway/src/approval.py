@@ -69,7 +69,7 @@ def main(argv=None):
                 with open(os.path.join(approver.dir, name)) as f:
                     print(f.read())
         return 0
-    if not audit.ID.match(args.action_id) or not args.by.strip():
+    if not audit.ID.fullmatch(args.action_id) or not args.by.strip():
         print("need an action id (from list) and a non-empty --by", file=sys.stderr)
         return 2
     req, ans = approver.paths(args.action_id)

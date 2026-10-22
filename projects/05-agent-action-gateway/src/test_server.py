@@ -57,6 +57,19 @@ class Server(unittest.TestCase):
         self.assertEqual(self.post({}), 401)
         self.assertEqual(self.post({"Authorization": "Bearer wrong"}), 401)
 
+    def test_refuses_other_connection_types(self):  # only HTTP (and the server's lifespan events) get through
+        import anyio
+        import server
+        sent = []
+
+        async def run():
+            async def send(message):
+                sent.append(message)
+            app = server.build(self.gateway, self.tokens)
+            await app({"type": "websocket", "headers": [(b"authorization", b"Bearer agent-token")]}, None, send)
+        anyio.run(run)
+        self.assertEqual(sent, [{"type": "websocket.close", "code": 1008}])
+
     def test_refuses_a_foreign_host(self):  # DNS-rebinding protection: only 127.0.0.1/localhost, as port-forward sends
         self.assertEqual(self.post({"Authorization": "Bearer agent-token", "Host": "evil.example"}), 421)
 

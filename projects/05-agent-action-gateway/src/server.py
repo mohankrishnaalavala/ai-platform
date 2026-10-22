@@ -45,6 +45,10 @@ def build(gateway, tokens_file):
                  on_call_tool=call_tool).streamable_http_app(host="127.0.0.1")
 
     async def require_token(scope, receive, send):
+        if scope["type"] not in ("http", "lifespan"):  # e.g. a WebSocket: refused before the handshake
+            if scope["type"] == "websocket":
+                await send({"type": "websocket.close", "code": 1008})
+            return
         if scope["type"] == "http":
             auth = dict(scope["headers"]).get(b"authorization", b"").decode("latin-1")
             if actions.team_for(auth, tokens_file) is None:

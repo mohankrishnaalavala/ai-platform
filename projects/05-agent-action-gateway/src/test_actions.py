@@ -105,7 +105,7 @@ class MemoryAudit:
         self.records.append(json.loads(json.dumps(record)))
 
     def read(self, action_id):
-        return next((r for r in self.records if r["action_id"] == action_id), None)
+        return next((r for r in self.records if r["action_id"] == action_id and r["record"] == "result"), None)
 
 
 def simple_policy(facts):
@@ -143,7 +143,10 @@ class Pipeline(unittest.TestCase):
             "time": "2026-10-21T15:30:00Z", "team": "sre", "current": {"replicas": 2},
             "dry_run": {"ok": True, "error": "", "pods_affected": 4, "capacity_change_pct": 200.0, "pdb_violations": []}})
         self.assertIn('-    "replicas": 2', r["diff"])
-        rec = self.audit.records[0]
+        intent, rec = self.audit.records
+        self.assertEqual((intent["record"], rec["record"]), ("intent", "result"))
+        self.assertEqual((intent["decision"], intent["diff"], intent["before"]["spec"]["replicas"]), ("allow", r["diff"], 2))
+        self.assertNotIn("result", intent)
         self.assertEqual((rec["before"]["spec"]["replicas"], rec["after"]["spec"]["replicas"]), (2, 6))
         self.assertEqual(rec["undo_token"]["op"], "restore")
         self.assertEqual((rec["decision"], rec["policy_version"], rec["approver"]), ("allow", "test", None))
@@ -161,13 +164,18 @@ class Pipeline(unittest.TestCase):
         for args in ({"namespace": "dev", "name": "checkout", "replicas": True},
                      {"namespace": "dev", "name": "../../api/v1/secrets", "replicas": 1},
                      {"namespace": "dev", "name": "checkout", "replicas": -1},
-                     {"namespace": "dev", "name": "checkout"}):
+                     {"namespace": "dev", "name": "checkout"},
+                     {"namespace": "dev\n", "name": "checkout", "replicas": 1},  # $ would match before a newline
+                     {"namespace": "dev", "name": "checkout\n", "replicas": 1}):
             r = self.gw.call("scale_deployment", args, "sre")
-            self.assertEqual(r["result"]["status"], "denied", args)
+            self.assertEqual((r["decision"], r["result"]["status"]), ("deny", "denied"), args)
             self.assertTrue(r["dry_run"]["error"].startswith("not run: "), r["dry_run"])
         self.assertEqual(self.kube.sent, [])
         self.assertEqual([f["args"] for f in self.facts][1], {"namespace": "dev", "name": "../../api/v1/secrets", "replicas": 1})
-        self.assertEqual(len(self.audit.records), 4)
+        self.assertEqual(self.facts[4]["namespace"], {"name": "dev\n"})  # no env lookup for a malformed name
+        self.assertEqual([r["record"] for r in self.audit.records], ["result"] * 6)
+        r = self.gw.call("undo_action", {"action_id": "20261021T153000Z-0a1b2c3d\n"}, "sre")
+        self.assertEqual(r["dry_run"]["error"], "not run: action_id is not an action id")
 
     def test_other_kinds_and_namespaces_are_left_to_the_policy(self):
         secret = {"apiVersion": "v1", "kind": "Secret", "metadata": {"name": "s"}}
@@ -185,7 +193,43 @@ class Pipeline(unittest.TestCase):
         r = gw.call("scale_deployment", {"namespace": "dev", "name": "missing", "replicas": 3}, "sre")
         self.assertEqual(self.facts[0]["dry_run"], {"ok": False, "error": "HTTP 404: not found"})
         self.assertEqual(self.facts[0]["current"], {"replicas": 0})  # it doesn't exist
-        self.assertEqual(r["result"]["status"], "denied")
+        self.assertEqual((r["decision"], r["result"]["status"]), ("deny", "denied"))
+        self.assertIn("the dry run failed, so the gateway denies (the policy said allow)", r["reasons"])
+        self.assertEqual([(x["record"], x["decision"]) for x in self.audit.records], [("result", "deny")])
+
+    def test_other_manifest_kinds_never_reach_the_audit_log(self):
+        secret = {"apiVersion": "v1", "kind": "Secret", "metadata": {"name": "db"}, "stringData": {"password": "hunter2"}}
+        self.gw.call("apply_manifest", {"namespace": "dev", "manifest": secret}, "sre")
+        self.assertEqual(self.facts[0]["args"]["manifest"], secret)  # the policy sees it all, to deny it
+        rec = self.audit.records[0]
+        self.assertNotIn("hunter2", json.dumps(rec))
+        self.assertEqual(rec["request"]["arguments"]["manifest"]["kind"], "Secret")
+        self.assertEqual(rec["facts"]["args"], rec["request"]["arguments"])
+
+    def test_the_intent_is_recorded_before_the_change(self):
+        send = self.kube.send
+
+        def send_checking_the_record(kind, ns, name, change, dry_run):
+            if not dry_run:
+                self.assertEqual([r["record"] for r in self.audit.records], ["intent"])
+            return send(kind, ns, name, change, dry_run)
+        self.kube.send = send_checking_the_record
+        r = self.gw.call("scale_deployment", {"namespace": "dev", "name": "checkout", "replicas": 3}, "sre")
+        self.assertEqual(r["result"]["status"], "executed")
+
+    def test_no_intent_record_no_change(self):
+        self.audit.write = mock.Mock(side_effect=OSError("bucket unreachable"))
+        r = self.gw.call("scale_deployment", {"namespace": "dev", "name": "checkout", "replicas": 3}, "sre")
+        self.assertEqual(r["result"]["status"], "failed")
+        self.assertIn("intent record was not written (OSError); nothing was done", r["result"]["error"])
+        self.assertIn("result record was not written", r["result"]["audit_error"])
+        self.assertEqual(self.replicas(), 2)
+        self.assertNotIn(("merge", False), self.kube.sent)
+
+    def test_unreadable_audit_log_refuses_undo(self):
+        self.audit.read = mock.Mock(side_effect=OSError("bucket unreachable"))
+        r = self.gw.call("undo_action", {"action_id": "20261021T153000Z-0a1b2c3d"}, "sre")
+        self.assertEqual((r["decision"], r["reasons"]), ("deny", ["the audit log couldn't be read (OSError)"]))
 
     def test_apply_of_a_new_deployment_has_current_0(self):
         new = deployment("dev", "worker", replicas=3)
@@ -301,11 +345,17 @@ class Pipeline(unittest.TestCase):
         self.gw.call("undo_action", {"action_id": act["action_id"]}, "sre")
         self.assertEqual(self.kube.objects[("ConfigMap", "dev", "flags")]["data"], {"a": "1"})
 
-    def test_audit_failure_is_reported(self):
-        self.audit.write = mock.Mock(side_effect=OSError("disk full"))
+    def test_a_failed_result_record_is_reported(self):
+        write = self.audit.write
+
+        def intent_only(record):
+            if record["record"] != "intent":
+                raise OSError("disk full")
+            write(record)
+        self.audit.write = intent_only
         r = self.gw.call("scale_deployment", {"namespace": "dev", "name": "checkout", "replicas": 3}, "sre")
-        self.assertEqual(r["result"]["status"], "executed")
-        self.assertIn("audit record was not written", r["result"]["audit_error"])
+        self.assertEqual(r["result"]["status"], "executed")  # the intent record shows the change was made
+        self.assertIn("result record was not written", r["result"]["audit_error"])
 
     def test_get_status(self):
         r = self.gw.call("get_status", {"namespace": "dev"}, "sre")
@@ -326,7 +376,7 @@ class Pipeline(unittest.TestCase):
 class Helpers(unittest.TestCase):
     def test_team_for(self):
         with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
-            json.dump({hashlib.sha256(b"tok-1").hexdigest(): "sre"}, f)
+            json.dump({"é not a hash": "x", "": "empty", hashlib.sha256(b"tok-1").hexdigest(): "sre"}, f)
         self.addCleanup(os.remove, f.name)
         self.assertEqual(actions.team_for("Bearer tok-1", f.name), "sre")
         for header in ("Bearer tok-2", "tok-1", "Basic tok-1", "Bearer ", None):

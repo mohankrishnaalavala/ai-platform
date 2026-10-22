@@ -91,7 +91,12 @@ first=$(answer reject)
 answer approve "$first" >/dev/null
 wait "$client"
 
-echo "audit records by result:"
-"${gw[@]}" exec deploy/action-gateway -c gateway -- python -c \
-  'import collections, json; print(dict(collections.Counter(json.loads(l)["result"]["status"] for l in open("/data/audit.jsonl"))))'
+echo "audit records (intents, and results by status); every executed action must have its intent:"
+"${gw[@]}" exec deploy/action-gateway -c gateway -- python -c '
+import collections, json, sys
+recs = [json.loads(line) for line in open("/data/audit.jsonl")]
+intents = {r["action_id"] for r in recs if r["record"] == "intent"}
+executed = {r["action_id"] for r in recs if r["record"] == "result" and r["result"]["status"] == "executed"}
+print({"intent": len(intents)}, dict(collections.Counter(r["result"]["status"] for r in recs if r["record"] == "result")))
+sys.exit(0 if executed and executed <= intents else "an executed action has no intent record")'
 echo "kind smoke test OK"
