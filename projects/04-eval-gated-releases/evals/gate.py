@@ -225,6 +225,9 @@ def main(argv=None):
     listed = git("ls-tree", "-r", "--name-only", a.base, "--", RESULTS).decode().split()
     changed, touched = (git("diff", "--name-only", "--no-renames", *flag, f"{a.base}...HEAD").decode().split()
                         for flag in ([], ["--diff-filter=DM"]))
+    # What was evaluated, for the log: evals.yml fails the job unless the root is the PR's tree.
+    print(f"gate-root: {run.ROOT}")
+    print("".join(f"gate-changed: {p}\n" for p in changed) or "gate-changed: (none)\n", end="")
     failed, text = gate(changed, touched, served((run.ROOT / SERVES).read_text()), base_served=base_served,
                         sha_at_base=sha_at_base,
                         base_results={p: json.loads(at_base(p)) for p in listed if p.endswith(".json")},
