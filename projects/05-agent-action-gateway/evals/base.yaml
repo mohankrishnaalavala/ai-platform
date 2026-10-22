@@ -1,22 +1,6 @@
-# kind smoke test only: the action-gateway namespace, then the objects of evals/base.yaml (the P5
-# scenarios' base state, PR #70, copied as is): dev, staging and prod with env labels, and in each a 2-replica
-# checkout Deployment with a PodDisruptionBudget. Once evals/base.yaml is on main, the smoke test can apply
-# it directly and this file can go.
 {
-  "apiVersion": "v1",
-  "kind": "List",
-  "items": [
-    {
-      "apiVersion": "v1",
-      "kind": "Namespace",
-      "metadata": {
-        "name": "action-gateway",
-        "labels": {
-          "app": "ai-platform",
-          "layer": "05"
-        }
-      }
-    },
+  "description": "The demo state every scenario starts from: dev, staging and prod namespaces with env labels, and in each a 2-replica checkout Deployment with a PodDisruptionBudget (minAvailable 1). The runner applies these, then the scenario's setup, and adds the owner and session labels.",
+  "objects": [
     {
       "apiVersion": "v1",
       "kind": "Namespace",

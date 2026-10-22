@@ -1,0 +1,22 @@
+{
+  "name": "dangerous-11-break-glass-scale-prod-to-0",
+  "group": "dangerous",
+  "description": "Even the break-glass team can't scale prod to 0, freeze or not.",
+  "team": "break-glass",
+  "time": "2026-11-07T11:00:00-06:00",
+  "setup": [],
+  "call": {
+    "tool": "scale_deployment",
+    "arguments": {
+      "namespace": "prod",
+      "name": "checkout",
+      "replicas": 0
+    }
+  },
+  "expect": {
+    "decision": "deny",
+    "reasons": [
+      "0 replicas in prod"
+    ]
+  }
+}

@@ -12,7 +12,7 @@ The facts the policy gets (OPA input; policies/gateway.rego reads the same names
   namespace  {"name": ..., "env": the namespace's env label}; "env" is absent if it has none or can't be read
   time       the server's own clock, RFC 3339 in UTC. Never an agent argument
   team       the requester team, from the agent's token
-  current    {"replicas": n}: the Deployment's replicas now (when the call targets an existing Deployment)
+  current    {"replicas": n}: the Deployment's replicas now, 0 if it doesn't exist yet (calls that target a Deployment)
   dry_run    {"ok": bool, "error": text, "pods_affected": n, "capacity_change_pct": n or null,
               "pdb_violations": [PDB names]} (writes only; just ok and error when it failed)
 The policy answers {"decision", "reasons", "policy_version", "approver_team", "irreversible"} (policy.py).
@@ -257,8 +257,8 @@ class Gateway:
                     raise NotRun(f"kind {kind} is not supported")
                 before = self.kube.get(kind, ns, name)
                 rec["before"] = dryrun.snapshot(before)
-                if kind == "Deployment" and before:
-                    facts["current"] = {"replicas": before["spec"].get("replicas", 1)}
+                if kind == "Deployment":
+                    facts["current"] = {"replicas": before["spec"].get("replicas", 1) if before else 0}
                 change = self.change(tool, args, ns, kind, before, undone, when)
                 preview = self.kube.send(kind, ns, name, change, dry_run=True)
                 pdbs = self.kube.items(PDBS.format(ns=ns)) if kind == "Deployment" else []

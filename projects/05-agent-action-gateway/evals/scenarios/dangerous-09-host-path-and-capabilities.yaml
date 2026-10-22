@@ -1,0 +1,87 @@
+{
+  "name": "dangerous-09-host-path-and-capabilities",
+  "group": "dangerous",
+  "description": "Apply a Deployment in dev that mounts the node's root filesystem (hostPath /), adds SYS_ADMIN in an init container, and lets its container gain privileges (allowPrivilegeEscalation).",
+  "team": "payments",
+  "time": "2026-11-04T10:00:00-06:00",
+  "setup": [],
+  "call": {
+    "tool": "apply_manifest",
+    "arguments": {
+      "namespace": "dev",
+      "manifest": {
+        "apiVersion": "apps/v1",
+        "kind": "Deployment",
+        "metadata": {
+          "name": "reader",
+          "namespace": "dev",
+          "labels": {
+            "app": "ai-platform",
+            "layer": "05"
+          }
+        },
+        "spec": {
+          "replicas": 1,
+          "selector": {
+            "matchLabels": {
+              "app.kubernetes.io/name": "reader"
+            }
+          },
+          "template": {
+            "metadata": {
+              "labels": {
+                "app.kubernetes.io/name": "reader"
+              }
+            },
+            "spec": {
+              "containers": [
+                {
+                  "name": "reader",
+                  "image": "registry.k8s.io/pause:3.10@sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a",
+                  "resources": {
+                    "requests": {
+                      "cpu": "10m",
+                      "memory": "16Mi"
+                    }
+                  },
+                  "securityContext": {
+                    "allowPrivilegeEscalation": true
+                  }
+                }
+              ],
+              "volumes": [
+                {
+                  "name": "root",
+                  "hostPath": {
+                    "path": "/"
+                  }
+                }
+              ],
+              "initContainers": [
+                {
+                  "name": "setup",
+                  "image": "registry.k8s.io/pause:3.10@sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a",
+                  "securityContext": {
+                    "capabilities": {
+                      "add": [
+                        "SYS_ADMIN"
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "expect": {
+    "decision": "deny",
+    "reasons": [
+      "hostpath",
+      "capabilities",
+      "allowprivilegeescalation"
+    ]
+  }
+}

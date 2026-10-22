@@ -1,0 +1,21 @@
+{
+  "name": "safe-16-dev-restart-checkout",
+  "group": "safe",
+  "description": "Rolling restart of checkout in dev.",
+  "team": "payments",
+  "time": "2026-11-04T10:00:00-06:00",
+  "setup": [],
+  "call": {
+    "tool": "restart_deployment",
+    "arguments": {
+      "namespace": "dev",
+      "name": "checkout"
+    }
+  },
+  "expect": {
+    "decision": "allow",
+    "reasons": [
+      "dev write"
+    ]
+  }
+}

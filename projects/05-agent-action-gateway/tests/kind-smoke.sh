@@ -1,17 +1,16 @@
 #!/usr/bin/env bash
 # kind (Kubernetes in Docker) smoke test for the action gateway. No cloud: CI's action-gateway job runs
 # it on every pull request. It makes a throwaway kind cluster on Kubernetes 1.36.4 (GKE's version), with
-# its own kubeconfig so your kubectl context is untouched, and installs the scenario base state
-# (tests/kind/targets.yaml), rbac.yaml, and the gateway pod with its OPA sidecar. The sidecar loads
-# policies/ (P5-03), or tests/kind/stand-in.rego while policies/ isn't in the repo. Then it calls the
-# gateway as an agent would, through kubectl port-forward (tests/smoke_client.py):
+# its own kubeconfig so your kubectl context is untouched, and installs the scenarios' base state
+# (evals/base.yaml), rbac.yaml, and the gateway pod with its OPA sidecar running policies/. Then it calls
+# the gateway as an agent would, through kubectl port-forward (tests/smoke_client.py):
 #   - get_status, each write tool and undo in dev, all as the scoped ServiceAccount
 #   - RBAC refusing a namespace outside dev, staging and prod
 #   - two prod changes that wait for the CLI approver: this script rejects the first (its dry run changed
 #     nothing) and approves the second, from inside the pod, as a person would
 # The cluster is deleted at the end.
 #
-# Needs: Docker, kind, kubectl, openssl, and the image (IMAGE, default action-gateway:ci) built first.
+# Needs: Docker, kind, kubectl, openssl, python3, and the image (IMAGE, default action-gateway:ci) built first.
 # The agent runs in that image on Docker's host network (Linux). On macOS, Docker's host network can't
 # reach the port-forward: set SMOKE_PYTHON to a local Python that has requirements.txt installed.
 set -euo pipefail
@@ -22,8 +21,6 @@ node=kindest/node:v1.36.4@sha256:099e049362a1526b2db71494e1947aae99bd16290d7c895
 cluster=p5-smoke
 port=18080
 url="http://127.0.0.1:$port/mcp"
-policy=policies
-[ -d "$policy" ] || policy=tests/kind/stand-in.rego
 KUBECONFIG=$(mktemp)
 export KUBECONFIG
 gw=(kubectl -n action-gateway)
@@ -42,13 +39,16 @@ trap cleanup EXIT
 
 kind create cluster --name "$cluster" --image "$node" --wait 120s
 kind load docker-image "$image" --name "$cluster"
-kubectl apply -f tests/kind/targets.yaml -f rbac.yaml
+python3 -c 'import json; print(json.dumps({"apiVersion": "v1", "kind": "List", "items": json.load(open("evals/base.yaml"))["objects"]}))' \
+  | kubectl apply -f -
+kubectl create namespace action-gateway
+kubectl label namespace action-gateway app=ai-platform layer=05
+kubectl apply -f rbac.yaml
 
 token=$(openssl rand -hex 32)  # this run's agent token; only its SHA-256 goes into the cluster
 hash=$(printf '%s' "$token" | openssl dgst -sha256 | sed 's/^.*= //')
 "${gw[@]}" create configmap agent-tokens --from-literal=tokens.json="{\"$hash\": \"smoke\"}"
-echo "policy: $policy"
-"${gw[@]}" create configmap policies --from-file="$policy"
+"${gw[@]}" create configmap policies --from-file=policies
 "${gw[@]}" create configmap test-clock --from-literal=now=2026-11-04T10:00:00-06:00
 kubectl apply -f tests/kind/gateway.yaml
 "${gw[@]}" rollout status deploy/action-gateway --timeout=180s

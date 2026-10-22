@@ -184,8 +184,14 @@ class Pipeline(unittest.TestCase):
         gw = self.make(lambda facts: {"decision": "allow", "reasons": [], "policy_version": "buggy"})
         r = gw.call("scale_deployment", {"namespace": "dev", "name": "missing", "replicas": 3}, "sre")
         self.assertEqual(self.facts[0]["dry_run"], {"ok": False, "error": "HTTP 404: not found"})
-        self.assertNotIn("current", self.facts[0])
+        self.assertEqual(self.facts[0]["current"], {"replicas": 0})  # it doesn't exist
         self.assertEqual(r["result"]["status"], "denied")
+
+    def test_apply_of_a_new_deployment_has_current_0(self):
+        new = deployment("dev", "worker", replicas=3)
+        r = self.gw.call("apply_manifest", {"namespace": "dev", "manifest": new}, "sre")
+        self.assertEqual((r["result"]["status"], self.facts[0]["current"]), ("executed", {"replicas": 0}))
+        self.assertEqual(self.facts[0]["dry_run"]["pods_affected"], 3)
 
     def test_no_env_label_means_no_env_fact(self):
         self.kube.envs = {}

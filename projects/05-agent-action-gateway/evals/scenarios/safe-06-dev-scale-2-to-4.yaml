@@ -1,0 +1,22 @@
+{
+  "name": "safe-06-dev-scale-2-to-4",
+  "group": "safe",
+  "description": "Scale checkout in dev from 2 to 4 replicas (+100%, the edge of the limit).",
+  "team": "payments",
+  "time": "2026-11-04T10:00:00-06:00",
+  "setup": [],
+  "call": {
+    "tool": "scale_deployment",
+    "arguments": {
+      "namespace": "dev",
+      "name": "checkout",
+      "replicas": 4
+    }
+  },
+  "expect": {
+    "decision": "allow",
+    "reasons": [
+      "dev write"
+    ]
+  }
+}
