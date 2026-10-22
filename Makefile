@@ -35,7 +35,7 @@ tf = $(call as,$(1)) terraform -chdir=infra/$(2) init -input=false -reconfigure 
 session_vars = -var="project_id=$(PROJECT)" -var="owner=$(OWNER)" -var="session=$(SESSION)" -var="zone=$(ZONE)" \
 	$(if $(PROFILE),-var="autoscaling_profile=$(PROFILE)") $(if $(SPOT),-var="gpu_spot=$(SPOT)")
 
-.PHONY: help check-project up deploy down status test bench team park foundation-plan foundation-apply
+.PHONY: help check-project up deploy down status test bench team evals preflight park foundation-plan foundation-apply
 
 help:
 	@echo "make up | down | status        session cluster (cloud, costs money while up)"
@@ -44,6 +44,8 @@ help:
 	@echo "make test P=00                 run one project's tests"
 	@echo "make bench [CONFIG=… SCENARIOS=… CONCURRENCY=…]  P1 benchmarks, from a Job in the session cluster"
 	@echo "make team NAME=… BUDGET_USD=… RPM=… [TPM=…]  P2: onboard a team on the gateway; prints its key once"
+	@echo "make evals TARGET=… CONFIG=… [REPEAT=1 RUNS=2]  P4: the golden set against a gateway alias; results to commit"
+	@echo "make preflight                 read-only checks before make up for the P4 + P5 window (OK or MISSING)"
 	@echo "make foundation-plan | -apply  the always-on foundation, as the terraform service account"
 	@echo "make park CONFIRM=yes          empty Artifact Registry and the buckets (keeps Terraform state)"
 
@@ -122,6 +124,18 @@ team: check-project
 	master=$$(gcloud secrets versions access latest --secret=litellm-master-key $(if $(GITHUB_ACTIONS),,--impersonate-service-account=deployer@$(PROJECT).iam.gserviceaccount.com) 2>/dev/null) || true; \
 	[ -n "$$master" ] || { echo "couldn't read the gateway's master key"; exit 1; }; \
 	LITELLM_MASTER_KEY="$$master" GATEWAY_URL=http://127.0.0.1:14000 python3 projects/02-llm-gateway/scripts/onboard_team.py "$$NAME" "$$BUDGET_USD" "$$RPM" $${TPM:+"$$TPM"}
+
+# P4: the golden set against one gateway alias of the running session (make up LAYERS="01 02 03 04"), from the
+# laptop. Two runs by default, two results files (the noise band). The master key is read as the deployer
+# straight into the script's environment, never printed. TARGET, CONFIG, REPEAT and RUNS reach the script
+# through the environment, never pasted into the shell line by Make.
+evals: check-project
+	@ZONE=$(ZONE) bash projects/04-eval-gated-releases/scripts/evals.sh
+
+# Before `make up` for the P4 + P5 window. Read-only: lists metadata, never reads a secret's value. No
+# check-project here, so a wrong project prints as MISSING with every other check, instead of stopping.
+preflight:
+	@bash scripts/preflight.sh
 
 foundation-plan: check-project
 	@email=$$(gcloud config get account) && \

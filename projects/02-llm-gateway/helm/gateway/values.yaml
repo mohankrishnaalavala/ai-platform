@@ -56,7 +56,10 @@ config:
   model_list:
     - model_name: chat-default  # our vLLM (P1)
       litellm_params:
-        model: openai/Qwen/Qwen2.5-7B-Instruct
+        # vLLM's fixed second name (P1's chart), not the model's own: P4 swaps vLLM's model with
+        # CONFIG=… VLLM_ONLY=1 make deploy LAYERS=01, and vLLM refuses a name it doesn't serve. So x-litellm-model-name
+        # says openai/self-hosted; the config P1's deploy.sh served names the model.
+        model: openai/self-hosted
         api_base: http://vllm.vllm.svc:8000/v1
         api_key: unused  # vLLM has no auth inside the cluster; the gateway is the front door
         # Fall back after 10 s without a first token (streaming) or 30 s in all. P1's BF16 run: chat
