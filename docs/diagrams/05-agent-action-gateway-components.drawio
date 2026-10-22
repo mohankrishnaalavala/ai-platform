@@ -10,10 +10,10 @@
         <mxCell id="zT" value="GitHub Actions" style="swimlane;startSize=30;html=1;whiteSpace=wrap;rounded=1;arcSize=3;container=1;collapsible=0;fontStyle=1;fontSize=13;align=left;spacingLeft=12;fillColor=#FFFFFF;swimlaneFillColor=#FFFFFF;strokeColor=#5F5E5A;fontColor=#2C2C2A;" vertex="1" parent="1">
           <mxGeometry x="20" y="85" width="1660" height="100" as="geometry" />
         </mxCell>
-        <mxCell id="ciN" value="&lt;b&gt;ci.yml&lt;/b&gt; on every pull request: builds and scans the action gateway image, then loads it into kind (Kubernetes in Docker). When policies/ or src/ change, the 50 scenarios run there with the CLI approver and a local audit file. Never touches GCP (Google Cloud Platform)." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=12;fontColor=#444441;" vertex="1" parent="zT">
+        <mxCell id="ciN" value="&lt;b&gt;ci.yml&lt;/b&gt; on every pull request: builds and scans the action gateway image, then loads it into kind (Kubernetes in Docker). When policies/ or src/ change, the 50 scenarios run there with the CLI approver and a local audit file. ci.yml never touches GCP (Google Cloud Platform)." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=12;fontColor=#444441;" vertex="1" parent="zT">
           <mxGeometry x="20" y="34" width="800" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="mrN" value="&lt;b&gt;mirror.yml&lt;/b&gt; on main (mirror account, keyless through WIF): builds the same image and pushes it to Artifact Registry, pinned by digest. Session nodes pull it with the reader role they already have." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=12;fontColor=#444441;" vertex="1" parent="zT">
+        <mxCell id="mrN" value="&lt;b&gt;mirror.yml&lt;/b&gt; on main (mirror service account, keyless through WIF): builds the same image and pushes it to Artifact Registry, pinned by digest. Session nodes pull it with the reader role they already have." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=12;fontColor=#444441;" vertex="1" parent="zT">
           <mxGeometry x="850" y="34" width="790" height="60" as="geometry" />
         </mxCell>
         <mxCell id="zL" value="Laptop · the demo" style="swimlane;startSize=30;html=1;whiteSpace=wrap;rounded=1;arcSize=3;container=1;collapsible=0;fontStyle=1;fontSize=13;align=left;spacingLeft=12;fillColor=#FFFFFF;swimlaneFillColor=#FFFFFF;strokeColor=#5F5E5A;fontColor=#2C2C2A;" vertex="1" parent="1">
