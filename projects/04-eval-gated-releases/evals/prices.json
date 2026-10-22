@@ -1,0 +1,7 @@
+{
+  "note": "USD per 1M tokens, keyed by the model name LiteLLM reports in the x-litellm-model-name header. Enter a price by hand from its source page, with the date it was read. null means not looked up yet: run.py then records the token cost as null, shown as [X]. Self-hosted targets are priced by GPU minutes instead (projects/01-gpu-serving/bench/prices.json).",
+  "tokens": {
+    "vertex_ai/gemini-3.5-flash-lite": {"input_per_1m": null, "output_per_1m": null, "source": null, "date": null},
+    "vertex_ai/gemini-3.5-flash": {"input_per_1m": null, "output_per_1m": null, "source": null, "date": null}
+  }
+}

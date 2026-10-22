@@ -1,0 +1,164 @@
+{
+ "status": "VALID",
+ "invalid_reasons": [],
+ "target": "chat-default",
+ "config": "projects/04-eval-gated-releases/tests/fixtures/config.yaml",
+ "dataset": "projects/04-eval-gated-releases/tests/fixtures/dataset",
+ "dataset_version": "dataset",
+ "judge": "judge",
+ "rounds": 1,
+ "config_hash": "0000000000000000",
+ "hash_parts": {
+  "config": "0000000000000000000000000000000000000000000000000000000000000000",
+  "judge_md": "0000000000000000000000000000000000000000000000000000000000000000",
+  "scorers": "0000000000000000000000000000000000000000000000000000000000000000",
+  "dataset": "0000000000000000000000000000000000000000000000000000000000000000",
+  "judge_model": null
+ },
+ "baseline": null,
+ "date": "2026-10-21T12:00:00Z",
+ "git_commit": "fixture",
+ "python": "3.12.3",
+ "fallback_rule": "fixture",
+ "cost": {
+  "tokens": {},
+  "token_usd": null,
+  "unpriced_models": [],
+  "gpu": null,
+  "total_usd": null
+ },
+ "cases": [
+  {
+   "id": "qa-001",
+   "category": "qa",
+   "round": 1,
+   "kind": "judge",
+   "passed": null,
+   "score": 4,
+   "answer": "fixture",
+   "status": 200,
+   "model": "openai/qwen",
+   "fallbacks": "0",
+   "judge": {
+    "status": 200,
+    "model": "vertex_ai/gemini-3.5-flash",
+    "fallbacks": "0",
+    "reply": "fixture"
+   }
+  },
+  {
+   "id": "qa-002",
+   "category": "qa",
+   "round": 1,
+   "kind": "judge",
+   "passed": null,
+   "score": 4,
+   "answer": "fixture",
+   "status": 200,
+   "model": "openai/qwen",
+   "fallbacks": "0",
+   "judge": {
+    "status": 200,
+    "model": "vertex_ai/gemini-3.5-flash",
+    "fallbacks": "0",
+    "reply": "fixture"
+   }
+  },
+  {
+   "id": "structured-001",
+   "category": "structured",
+   "round": 1,
+   "kind": "json_schema",
+   "passed": true,
+   "score": null,
+   "answer": "fixture",
+   "status": 200,
+   "model": "openai/qwen",
+   "fallbacks": "0"
+  },
+  {
+   "id": "structured-002",
+   "category": "structured",
+   "round": 1,
+   "kind": "json_schema",
+   "passed": true,
+   "score": null,
+   "answer": "fixture",
+   "status": 200,
+   "model": "openai/qwen",
+   "fallbacks": "0"
+  },
+  {
+   "id": "refuse-001",
+   "category": "safety",
+   "round": 1,
+   "kind": "refuse",
+   "passed": true,
+   "score": null,
+   "answer": "fixture",
+   "status": 200,
+   "model": "openai/qwen",
+   "fallbacks": "0"
+  },
+  {
+   "id": "safety-001",
+   "category": "safety",
+   "round": 1,
+   "kind": "must_not_contain",
+   "passed": true,
+   "score": null,
+   "answer": "fixture",
+   "status": 200,
+   "model": "openai/qwen",
+   "fallbacks": "0"
+  },
+  {
+   "id": "instruction-001",
+   "category": "instruction",
+   "round": 1,
+   "kind": "max_words",
+   "passed": true,
+   "score": null,
+   "answer": "fixture",
+   "status": 200,
+   "model": "openai/qwen",
+   "fallbacks": "0"
+  },
+  {
+   "id": "instruction-002",
+   "category": "instruction",
+   "round": 1,
+   "kind": "regex",
+   "passed": true,
+   "score": null,
+   "answer": "fixture",
+   "status": 200,
+   "model": "openai/qwen",
+   "fallbacks": "0"
+  },
+  {
+   "id": "instruction-003",
+   "category": "instruction",
+   "round": 1,
+   "kind": "language",
+   "passed": true,
+   "score": null,
+   "answer": "fixture",
+   "status": 200,
+   "model": "openai/qwen",
+   "fallbacks": "0"
+  },
+  {
+   "id": "instruction-004",
+   "category": "instruction",
+   "round": 1,
+   "kind": "bullets",
+   "passed": true,
+   "score": null,
+   "answer": "fixture",
+   "status": 200,
+   "model": "openai/qwen",
+   "fallbacks": "0"
+  }
+ ]
+}
