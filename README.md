@@ -2,45 +2,45 @@
 
 An open-source reference platform for running AI in production on Google Cloud:
 
-- self-hosted models on GPUs
-- one gateway for every LLM call
-- monitoring and SLOs
+- self-hosted models on GPUs (graphics processing units)
+- one gateway for every LLM (large language model) call
+- monitoring and SLOs (service level objectives)
 - eval-gated model releases
 - a safety gate for AI agents that change infrastructure
 
-It's built in public, one layer at a time. Each layer is a standalone story an enterprise team can copy, and each one runs on Terraform + GKE. You **develop locally for free**, **spin up GCP only to test**, and **tear everything down after**.
+It's built in public, one layer at a time. Each layer is a standalone story an enterprise team can copy, and each one runs on Terraform + GKE (Google Kubernetes Engine). Pull requests get **free checks in CI** (continuous integration), the cloud comes up **only to test**, and **everything is torn down after**.
 
 ![Platform overview](docs/diagrams/platform-overview.svg)
 
 ## The five projects (plus the base they stand on)
 
-| # | Project | The enterprise problem it solves | Weeks | Status |
-|---|---|---|---|---|
-| 0 | [Foundation](projects/00-foundation/) | "Our GPU bill is huge because nobody turns anything off." | 1 | planned |
-| 1 | [GPU model serving](projects/01-gpu-serving/) | "We want our own model, but we don't know what it costs or how fast it is." | 1–3 | planned |
-| 2 | [LLM gateway](projects/02-llm-gateway/) | "Every team calls AI with its own keys, and nobody knows the spend." | 4–6 | planned |
-| 3 | [LLM observability & SLOs](projects/03-llm-observability/) | "The AI feature is 'up', but users wait 8 seconds." | 7–8 | planned |
-| 4 | [Eval-gated model releases](projects/04-eval-gated-releases/) | "We swapped the model, quality dropped, and nobody noticed for a week." | 9–11 | planned |
-| 5 | [Agent action gateway](projects/05-agent-action-gateway/) | "We want AI agents to fix infrastructure, but we're scared they'll break prod." | 12–16 | planned |
-
-## Two ways to run it
-
-| Mode | What runs | Cost | Use it for |
+| # | Project | The enterprise problem it solves | Status |
 |---|---|---|---|
-| **Laptop** | kind (Kubernetes in Docker) + a tiny model via Ollama on CPU | Free | Daily development, CI on every pull request |
-| **Cloud** | GKE zonal cluster + one NVIDIA L4 GPU (spot) | $[X] per session (not measured yet) | Benchmarks, demos, real numbers |
+| 0 | [Foundation](projects/00-foundation/) | "Our GPU bill is huge because nobody turns anything off." | done |
+| 1 | [GPU model serving](projects/01-gpu-serving/) | "We want our own model, but we don't know what it costs or how fast it is." | done |
+| 2 | [LLM gateway](projects/02-llm-gateway/) | "Every team calls AI with its own keys, and nobody knows the spend." | done |
+| 3 | [LLM observability & SLOs](projects/03-llm-observability/) | "The AI feature is 'up', but users wait 8 seconds." | done, except scale from zero (P3-08, not measured) |
+| 4 | [Eval-gated model releases](projects/04-eval-gated-releases/) | "We swapped the model, quality dropped, and nobody noticed for a week." | not started |
+| 5 | [Agent action gateway](projects/05-agent-action-gateway/) | "We want AI agents to fix infrastructure, but we're scared they'll break prod." | not started |
+
+## Results so far
+
+Each number is copied from the project's README, which links the results file with the method and raw output.
+
+- **P0:** the session cluster made two clean round trips: `make up` 11m39s and 11m56s, `make down` 10m18s and 10m24s ([results](projects/00-foundation/results/round-trip-2026-10-15.md)).
+- **P1:** FP8 (8-bit weights) gave 657.0 output tokens/s for short chat at 32 concurrent requests, against 316.2 for BF16 (16-bit), at $0.22 per 1M output tokens on a spot GPU node (GPU node only). The median cold start fell from 571.1 s (9.5 min) to 402.3 s (6.7 min) ([results](projects/01-gpu-serving/README.md#results)).
+- **P2:** 22 of 22 requests succeeded while the self-hosted model was down, through fallback to a hosted model. 0 raw PII (personally identifiable information) values reached the provider across 20 fake-PII prompts ([session 4](projects/02-llm-gateway/results/session4-gateway-full-2026-10-19.md)).
+- **P3:** a game day caught three induced failures: a latency flood in 5.7 min (ticket), vLLM killed in 11.5 min, and the hosted model blocked in 2.3 min (ticket). Self-hosted cost was $1.61 per 1M output tokens with vLLM saturated ([session 2 retry](projects/03-llm-observability/results/session2-retry-obs-full-2026-10-21.md)).
+
+## How to run it
+
+Cloud work happens in a session: a GKE zonal cluster plus one NVIDIA L4 GPU (spot or on-demand), at $[X] per session (not measured yet). Most sessions run unattended from GitHub Actions ([`gpu-session.yml`](.github/workflows/gpu-session.yml)). First-time setup is in [Project 0](projects/00-foundation/).
 
 ```bash
-# Laptop
-make local-up            # kind + Ollama + the layers built so far
-make test P=02           # run project 2's tests
-make local-down
-
-# Cloud (one session = develop/test/terminate)
-make up                  # Terraform creates the session cluster, then deploys the layers
-make test P=01           # tests + benchmarks; results saved to projects/01-*/results and GCS
-make down                # deletes everything except the cheap foundation
-make status              # proves nothing billable is still running
+# One session = create, test, destroy
+make up LAYERS="01 02 03"  # Terraform creates the session cluster, then deploys those layers
+make test P=03             # run one project's tests against the cluster
+make bench                 # P1 benchmarks
+make down                  # deletes everything except the cheap foundation
+make status                # proves nothing billable is still running
 ```
-
-> Those `make` targets are the plan. They get built in [Project 0](projects/00-foundation/).
