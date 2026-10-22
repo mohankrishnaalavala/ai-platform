@@ -1,0 +1,240 @@
+# kind smoke test only: the action-gateway namespace, then the objects of evals/base.yaml (the P5
+# scenarios' base state, PR #70, copied as is): dev, staging and prod with env labels, and in each a 2-replica
+# checkout Deployment with a PodDisruptionBudget. Once evals/base.yaml is on main, the smoke test can apply
+# it directly and this file can go.
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "Namespace",
+      "metadata": {
+        "name": "action-gateway",
+        "labels": {
+          "app": "ai-platform",
+          "layer": "05"
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Namespace",
+      "metadata": {
+        "name": "dev",
+        "labels": {
+          "app": "ai-platform",
+          "layer": "05",
+          "env": "dev"
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Namespace",
+      "metadata": {
+        "name": "staging",
+        "labels": {
+          "app": "ai-platform",
+          "layer": "05",
+          "env": "staging"
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Namespace",
+      "metadata": {
+        "name": "prod",
+        "labels": {
+          "app": "ai-platform",
+          "layer": "05",
+          "env": "prod"
+        }
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "checkout",
+        "namespace": "dev",
+        "labels": {
+          "app": "ai-platform",
+          "layer": "05"
+        }
+      },
+      "spec": {
+        "replicas": 2,
+        "selector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "checkout"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/name": "checkout"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "checkout",
+                "image": "registry.k8s.io/pause:3.10@sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a",
+                "resources": {
+                  "requests": {
+                    "cpu": "10m",
+                    "memory": "16Mi"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "policy/v1",
+      "kind": "PodDisruptionBudget",
+      "metadata": {
+        "name": "checkout",
+        "namespace": "dev",
+        "labels": {
+          "app": "ai-platform",
+          "layer": "05"
+        }
+      },
+      "spec": {
+        "minAvailable": 1,
+        "selector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "checkout"
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "checkout",
+        "namespace": "staging",
+        "labels": {
+          "app": "ai-platform",
+          "layer": "05"
+        }
+      },
+      "spec": {
+        "replicas": 2,
+        "selector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "checkout"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/name": "checkout"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "checkout",
+                "image": "registry.k8s.io/pause:3.10@sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a",
+                "resources": {
+                  "requests": {
+                    "cpu": "10m",
+                    "memory": "16Mi"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "policy/v1",
+      "kind": "PodDisruptionBudget",
+      "metadata": {
+        "name": "checkout",
+        "namespace": "staging",
+        "labels": {
+          "app": "ai-platform",
+          "layer": "05"
+        }
+      },
+      "spec": {
+        "minAvailable": 1,
+        "selector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "checkout"
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "checkout",
+        "namespace": "prod",
+        "labels": {
+          "app": "ai-platform",
+          "layer": "05"
+        }
+      },
+      "spec": {
+        "replicas": 2,
+        "selector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "checkout"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/name": "checkout"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "checkout",
+                "image": "registry.k8s.io/pause:3.10@sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a",
+                "resources": {
+                  "requests": {
+                    "cpu": "10m",
+                    "memory": "16Mi"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "policy/v1",
+      "kind": "PodDisruptionBudget",
+      "metadata": {
+        "name": "checkout",
+        "namespace": "prod",
+        "labels": {
+          "app": "ai-platform",
+          "layer": "05"
+        }
+      },
+      "spec": {
+        "minAvailable": 1,
+        "selector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "checkout"
+          }
+        }
+      }
+    }
+  ]
+}
