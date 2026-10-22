@@ -9,11 +9,15 @@ port-forwards to the gateway and to Prometheus and reads the gateway's master ke
 2. The candidate's share goes 10 -> 50 -> 100 percent. After each step, three checks:
    - Error rate, from Prometheus (P3's span metrics, label litellm_provider_model): the candidate's failed
      attempts out of all its attempts in the step. At most --max-error-rate (default 0.5%, the error budget
-     of P3's gateway availability SLO). No candidate data fails the check.
+     of P3's gateway availability SLO). It first waits until Prometheus shows at least the attempts the step
+     sent the candidate (probe and live eval), up to --settle-timeout; fewer fails the check.
    - TTFT (time to first token) p95: a short Job in the cluster (probe.py) streams to each deployment by
-     its id. The candidate's p95 must be at most the baseline's x --ttft-ratio (default 1.2).
+     its id. Any failed stream fails the check (no p95 from a partial sample). Then the candidate's p95
+     must be at most the baseline's x --ttft-ratio (default 1.2).
    - Live eval: 20 golden-set cases with deterministic checks only, sent to each deployment by its id, at
-     temperature 0. In every category the candidate must pass at least as many as the baseline.
+     temperature 0. It fails if any call on either side gets no answer, if the candidate passes no case,
+     or if in any category the candidate passes fewer than the baseline. A case the scorer can't score
+     stops the run before the canary starts.
 3. Any failed check, or any error after the canary has started: the candidate's weight goes to 0 (all
    traffic to the baseline), then a GitHub issue opens with the timeline, and it exits 1.
    All passed: the candidate keeps 100% until the session ends; making that permanent is a change to
@@ -47,36 +51,37 @@ HOSTED_PARAMS = {"vertex_project": "os.environ/VERTEX_PROJECT", "vertex_location
 NAMESPACE, PROBE = "gateway", "canary-probe"
 PROBE_IMAGE = "python:3.13-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f"  # P2's mock pin
 ERROR = "STATUS_CODE_ERROR"
-MODEL = re.compile(r"^[a-z0-9_]+/[A-Za-z0-9._-]+$")  # provider/model, e.g. vertex_ai/gemini-3.5-flash
+MODEL = re.compile(r"[a-z0-9_]+/[A-Za-z0-9._-]+")  # provider/model, e.g. vertex_ai/gemini-3.5-flash (fullmatch)
 
 sys.path.insert(0, str(HERE.parent / "evals"))
-try:  # stream S1's deterministic scorers (P4-02): score(check, answer) -> bool
-    from scorers import score
+try:  # stream S1's deterministic scorers (P4-02): check(answer, check_) -> bool, ValueError if it can't score
+    from scorers import check as passes
 except ModuleNotFoundError as e:
     if e.name != "scorers":
         raise
 
-    def score(check, answer):
-        """shortcut: a stand-in until S1's evals/scorers.py is on main; delete it then. It covers the
-        simple check kinds only (substrings, not whole tokens; JSON parsed, not schema-checked). Any other
-        kind fails on both deployments alike, so it can't make the candidate look worse."""
-        text, kind = answer.strip(), check["type"]
-        if kind == "must_contain":
-            return all(v.lower() in text.lower() for v in check["values"])
-        if kind == "must_not_contain":
-            return not any(v.lower() in text.lower() for v in check["values"])
-        if kind == "max_words":
-            return len(text.split()) <= check["value"]
-        if kind == "min_words":
-            return len(text.split()) >= check["value"]
-        if kind == "regex":
-            return re.search(check["pattern"], text) is not None
-        if kind == "json_schema":
-            try:
-                return isinstance(json.loads(re.sub(r"^```(?:json)?\s*|\s*```$", "", text)), dict)
-            except ValueError:
-                return False
-        return False
+    def passes(answer, check_):
+        """shortcut: a stand-in with S1's interface until its evals/scorers.py is on main; delete it then.
+        Simple check kinds only (substrings, not whole tokens; JSON parsed, not schema-checked). Any other
+        kind raises, as S1's does, so the canary refuses to start rather than score it."""
+        text, kind = answer.strip(), check_["type"]
+        rules = {
+            "must_contain": lambda: all(v.lower() in text.lower() for v in check_["values"]),
+            "must_not_contain": lambda: not any(v.lower() in text.lower() for v in check_["values"]),
+            "max_words": lambda: len(text.split()) <= check_["value"],
+            "min_words": lambda: len(text.split()) >= check_["value"],
+            "regex": lambda: re.search(check_["pattern"], text) is not None,
+            "json_schema": lambda: is_json_object(re.sub(r"^```(?:json)?\s*|\s*```$", "", text)),
+        }
+        if kind not in rules:
+            raise ValueError(f"the stand-in scorer can't score {kind!r} checks")
+        return bool(text) and rules[kind]()
+
+    def is_json_object(text):
+        try:
+            return isinstance(json.loads(text), dict)
+        except ValueError:
+            return False
 
 
 class GatewayError(RuntimeError):
@@ -117,6 +122,12 @@ def set_weights(pct, current):
         api("PATCH", f"/model/{mid}/update", {"litellm_params": {"weight": weight}})
 
 
+def new_key(budget):
+    """A key for the probe and live eval: only the canary's deployments and alias, a USD cap, 2 hours."""
+    return api("POST", "/key/generate", {"key_alias": f"canary-{int(time.time())}", "max_budget": budget,
+                                         "models": [BASELINE_ID, CANDIDATE_ID, ALIAS], "duration": "2h"})["key"]
+
+
 def attempts(model, alias=ALIAS):
     """The deployment's attempt counts so far, by span status, from P3's span metrics. Calls to the
     alias, and calls that name the candidate's id (probe and live eval), both count."""
@@ -125,6 +136,17 @@ def attempts(model, alias=ALIAS):
     query = urllib.parse.urlencode({"query": f"sum by (status_code) (traces_span_metrics_calls_total{{{selector}}})"})
     with urllib.request.urlopen(f"{os.environ['PROMETHEUS_URL']}/api/v1/query?{query}", timeout=30) as r:
         return {s["metric"].get("status_code", ""): float(s["value"][1]) for s in json.load(r)["data"]["result"]}
+
+
+def wait_for_attempts(model, before, expected, timeout):
+    """The counts once Prometheus shows at least `expected` new attempts since `before`, or at the timeout
+    (spans reach it in batches: LiteLLM's exporter, then the collector's 15 s flush, then the scrape)."""
+    deadline = time.monotonic() + timeout
+    while True:
+        after = attempts(model)
+        if sum(after.values()) - sum(before.values()) >= expected or time.monotonic() >= deadline:
+            return after
+        time.sleep(5)
 
 
 def sh(*cmd, stdin=None):
@@ -184,12 +206,20 @@ def select_cases(pattern, n):
     cases = [c for c in cases if c["check"]["type"] != "judge"]
     if len(cases) < n:
         raise SystemExit(f"the live eval needs {n} cases with deterministic checks in {pattern}; found {len(cases)}")
-    return [cases[i * len(cases) // n] for i in range(n)]
+    picked = [cases[i * len(cases) // n] for i in range(n)]
+    for c in picked:
+        try:
+            passes("", c["check"])  # an empty answer never passes: this only asks whether the case can be scored
+        except ValueError as e:
+            raise SystemExit(f"the live eval can't score {c['id']}: {e}") from None
+    return picked
 
 
 def live_eval(cases, key, log):
-    """Passed cases per category, for each deployment; each called by its id at temperature 0."""
+    """Passed cases per category, and calls without an answer, for each deployment; each called by its id
+    at temperature 0."""
     passed = {BASELINE_ID: collections.Counter(), CANDIDATE_ID: collections.Counter()}
+    errors = dict.fromkeys(passed, 0)
     for case in cases:
         messages = [{"role": "system", "content": case["system"]}] if case.get("system") else []
         messages.append({"role": "user", "content": case["prompt"]})
@@ -198,26 +228,35 @@ def live_eval(cases, key, log):
             try:
                 body = api("POST", "/v1/chat/completions", {"model": mid, "messages": messages, "temperature": 0,
                                                             "max_tokens": 2048}, key)
-                result[mid] = bool(score(case["check"], body["choices"][0]["message"]["content"] or ""))
-            except (GatewayError, OSError, ValueError, KeyError, IndexError):  # no answer fails the case
+                result[mid] = bool(passes(body["choices"][0]["message"]["content"] or "", case["check"]))
+            except (GatewayError, OSError, ValueError, KeyError, IndexError):  # no answer: fails the case and the step
                 result[mid] = False
+                errors[mid] += 1
             counts[case["category"]] += result[mid]
         log("case", id=case["id"], baseline=result[BASELINE_ID], candidate=result[CANDIDATE_ID])
-    return passed
+    return passed, errors
 
 
-def checks(errors, total, probe, passed, categories, a):
-    """The failed checks, in words; empty if all passed."""
+def checks(errors, total, expected, probe, passed, eval_errors, categories, a):
+    """The failed checks, in words; empty if all passed. Each one fails closed on missing data."""
     failed = []
-    if total <= 0 or errors < 0:
-        failed.append("error rate: no candidate attempts in Prometheus during the step (or its counters reset)")
+    if errors < 0 or total < max(expected, 1):
+        failed.append(f"error rate: Prometheus showed {total:.0f} of the {expected} candidate attempts the step sent "
+                      f"within {a.settle_timeout} s (or its counters reset)")
     elif errors / total > a.max_error_rate:
         failed.append(f"error rate: {errors:.0f} of {total:.0f} candidate attempts failed, over {a.max_error_rate:.2%}")
-    base, cand = probe[BASELINE_ID]["ttft_p95_s"], probe[CANDIDATE_ID]["ttft_p95_s"]
-    if base is None or cand is None:
-        failed.append(f"TTFT: no successful stream from a deployment ({probe})")
-    elif cand > base * a.ttft_ratio:
-        failed.append(f"TTFT p95: candidate {cand:.2f} s, over baseline {base:.2f} s x {a.ttft_ratio}")
+    base, cand = probe[BASELINE_ID], probe[CANDIDATE_ID]
+    if base["errors"] or cand["errors"] or base["ttft_p95_s"] is None or cand["ttft_p95_s"] is None:
+        failed.append(f"TTFT: failed streams, baseline {base['errors']} and candidate {cand['errors']}: "
+                      "no p95 from a partial sample")
+    elif cand["ttft_p95_s"] > base["ttft_p95_s"] * a.ttft_ratio:
+        failed.append(f"TTFT p95: candidate {cand['ttft_p95_s']:.2f} s, over baseline {base['ttft_p95_s']:.2f} s "
+                      f"x {a.ttft_ratio}")
+    if any(eval_errors.values()):
+        failed.append(f"live eval: calls without an answer, baseline {eval_errors[BASELINE_ID]} and "
+                      f"candidate {eval_errors[CANDIDATE_ID]}")
+    if not sum(passed[CANDIDATE_ID].values()):
+        failed.append("live eval: the candidate passed no case")
     for c in categories:
         if passed[CANDIDATE_ID][c] < passed[BASELINE_ID][c]:
             failed.append(f"live eval, {c}: candidate passed {passed[CANDIDATE_ID][c]}, baseline {passed[BASELINE_ID][c]}")
@@ -238,7 +277,7 @@ def open_issue(a, pct, failed, timeline, rolled_back):
 
 
 def model(value):
-    if not MODEL.match(value):
+    if not MODEL.fullmatch(value):
         raise argparse.ArgumentTypeError(f"not a provider/model name: {value!r}")
     return value
 
@@ -253,7 +292,7 @@ def parse(argv):
     p.add_argument("--probe-requests", type=int, default=20)
     p.add_argument("--live-cases", type=int, default=20)
     p.add_argument("--cases", default=str(HERE.parent / "evals" / "datasets" / "v1" / "*.jsonl"))
-    p.add_argument("--settle", type=int, default=45, help="seconds for spans to reach Prometheus")
+    p.add_argument("--settle-timeout", type=int, default=180, help="seconds to wait for the step's spans in Prometheus")
     p.add_argument("--key-budget", type=float, default=5, help="USD cap on the probe and live eval's key")
     p.add_argument("--rollback", action="store_true", help="only set the candidate's weight to 0")
     return p.parse_args(argv)
@@ -283,7 +322,7 @@ def main(argv=None):
     cases = select_cases(a.cases, a.live_cases)  # before anything changes on the gateway
     categories = sorted({c["category"] for c in cases})
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))  # a cancelled run still rolls back (below)
-    key = api("POST", "/key/generate", {"key_alias": f"canary-{int(time.time())}", "max_budget": a.key_budget})["key"]
+    key = new_key(a.key_budget)
     pct, started = 0, False
     try:
         add_deployments(a.baseline, a.candidate)
@@ -296,14 +335,14 @@ def main(argv=None):
             log("weights", candidate_pct=step)
             probe = run_probe(key, a.probe_requests)
             log("probe", **{f"{k}_{m}": v for k, r in probe.items() for m, v in r.items()})
-            passed = live_eval(cases, key, log)
-            time.sleep(a.settle)
-            after = attempts(a.candidate)
+            passed, eval_errors = live_eval(cases, key, log)
+            expected = a.probe_requests + len(cases)  # what this step sent the candidate itself
+            after = wait_for_attempts(a.candidate, before, expected, a.settle_timeout)
             errors, total = after.get(ERROR, 0) - before.get(ERROR, 0), sum(after.values()) - sum(before.values())
             before = after
-            log("checks", candidate_errors=errors, candidate_attempts=total,
+            log("checks", candidate_errors=errors, candidate_attempts=total, expected_attempts=expected,
                 **{f"eval_{c}": f"{passed[CANDIDATE_ID][c]}/{passed[BASELINE_ID][c]}" for c in categories})
-            if failed := checks(errors, total, probe, passed, categories, a):
+            if failed := checks(errors, total, expected, probe, passed, eval_errors, categories, a):
                 return roll_back(a, pct, failed, timeline, log)
         log("promoted", candidate=a.candidate, candidate_pct=pct)
         return 0

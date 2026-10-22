@@ -54,6 +54,7 @@ class Fake(BaseHTTPRequestHandler):
             if s["weights"].pop(body["id"], None) is None:
                 return self.reply(404, {})
         elif self.path == "/key/generate":
+            s["keys"].append(body)
             return self.reply(200, {"key": "sk-test"})
         elif self.path == "/key/delete":
             s["deleted_keys"] += body["keys"]
@@ -62,6 +63,8 @@ class Fake(BaseHTTPRequestHandler):
             return self.reply(200, "".join(f"data: {json.dumps(e)}\n\n" for e in events).encode() + b"data: [DONE]\n\n", "text/event-stream")
         elif self.path == "/v1/chat/completions":
             s["chats"].append(body)
+            if s["answers"][body["model"]] is None:  # that deployment is down
+                return self.reply(500, {})
             return self.reply(200, {"choices": [{"message": {"content": s["answers"][body["model"]]}}]})
         self.reply(200, {})
 
@@ -72,8 +75,12 @@ class Fake(BaseHTTPRequestHandler):
         pass
 
 
-def probe_result(base_s=1.0, cand_s=1.1):
-    return json.dumps({BASE: {"n": 20, "errors": 0, "ttft_p95_s": base_s}, CAND: {"n": 20, "errors": 0, "ttft_p95_s": cand_s}})
+def probe_result(base_s=1.0, cand_s=1.1, cand_errors=0):
+    return json.dumps({BASE: {"n": 20, "errors": 0, "ttft_p95_s": base_s},
+                       CAND: {"n": 20 - cand_errors, "errors": cand_errors, "ttft_p95_s": cand_s}})
+
+
+OK = {"STATUS_CODE_OK": 40}  # one step's candidate attempts: more than the 20 probe + 3 eval requests it sent
 
 
 class PromoteTest(unittest.TestCase):
@@ -92,9 +99,9 @@ class PromoteTest(unittest.TestCase):
         cls.server.server_close()
         os.unlink(cls.cases)
 
-    def run_canary(self, prometheus, job="1/", probe_log=None, candidate_answer=GOOD, extra=()):
-        Fake.state = {"weights": {}, "patches": [], "chats": [], "deleted_keys": [], "prometheus": prometheus,
-                      "answers": {BASE: GOOD, CAND: candidate_answer}}
+    def run_canary(self, prometheus, job="1/", probe_log=None, candidate_answer=GOOD, baseline_answer=GOOD, cases=None):
+        Fake.state = {"weights": {}, "patches": [], "chats": [], "keys": [], "deleted_keys": [], "prometheus": prometheus,
+                      "answers": {BASE: baseline_answer, CAND: candidate_answer}}
         self.kubectl, self.issues = [], []
 
         def sh(*cmd, stdin=None):
@@ -112,7 +119,7 @@ class PromoteTest(unittest.TestCase):
 
         env = {"GATEWAY_URL": self.url, "PROMETHEUS_URL": self.url, "MASTER_KEY": "sk-master"}
         with mock.patch.dict(os.environ, env), mock.patch.object(promote, "sh", sh), redirect_stdout(io.StringIO()) as out:
-            code = promote.main(["--cases", self.cases, "--live-cases", "3", "--settle", "0", *extra])
+            code = promote.main(["--cases", cases or self.cases, "--live-cases", "3", "--settle-timeout", "0"])
         self.out = out.getvalue()
         return code
 
@@ -127,9 +134,12 @@ class PromoteTest(unittest.TestCase):
         self.assertEqual(Fake.state["deleted_keys"], ["sk-test"])
 
     def test_promotes_when_every_check_passes(self):
-        code = self.run_canary([{}, {"STATUS_CODE_OK": 40}, {"STATUS_CODE_OK": 80}, {"STATUS_CODE_OK": 120}])
+        code = self.run_canary([{}, OK, {"STATUS_CODE_OK": 80}, {"STATUS_CODE_OK": 120}])
         self.assertEqual(code, 0, self.out)
         self.assertEqual(Fake.state["weights"], {BASE: 0, CAND: 100})
+        # The key reaches only the canary's deployments and alias, with a cap and an end.
+        self.assertEqual(Fake.state["keys"][0]["models"], [BASE, CAND, "chat-hosted"])
+        self.assertEqual((Fake.state["keys"][0]["max_budget"], Fake.state["keys"][0]["duration"]), (5, "2h"))
         # Each step raises the candidate first, so the two are never 0 at once.
         self.assertEqual(Fake.state["patches"], [(CAND, 10), (BASE, 90), (CAND, 50), (BASE, 50), (CAND, 100), (BASE, 0)])
         self.assertEqual(self.issues, [])
@@ -150,15 +160,40 @@ class PromoteTest(unittest.TestCase):
         self.assertEqual(sum(cmd[1] == "apply" for cmd, _ in self.kubectl), 1)  # no further step
 
     def test_no_candidate_data_fails_closed(self):
-        self.assert_rolled_back(self.run_canary([{}, {}]), 10, "no candidate attempts in Prometheus")
+        self.assert_rolled_back(self.run_canary([{}, {}]), 10, "Prometheus showed 0 of the 23 candidate attempts")
+
+    def test_a_window_that_never_fills_fails_closed(self):
+        code = self.run_canary([{}, {"STATUS_CODE_OK": 5}])  # Prometheus saw 5 of the 23 requests in time
+        self.assert_rolled_back(code, 10, "Prometheus showed 5 of the 23 candidate attempts the step sent within 0 s")
 
     def test_a_slow_candidate_rolls_back(self):
-        code = self.run_canary([{}, {"STATUS_CODE_OK": 40}], probe_log=probe_result(1.0, 1.3))
+        code = self.run_canary([{}, OK], probe_log=probe_result(1.0, 1.3))
         self.assert_rolled_back(code, 10, "TTFT p95: candidate 1.30 s, over baseline 1.00 s x 1.2")
 
+    def test_failed_probe_streams_fail_even_when_the_rest_is_fast(self):
+        code = self.run_canary([{}, OK], probe_log=probe_result(1.0, 0.5, cand_errors=1))
+        self.assert_rolled_back(code, 10, "TTFT: failed streams, baseline 0 and candidate 1")
+
     def test_a_worse_live_eval_rolls_back(self):
-        code = self.run_canary([{}, {"STATUS_CODE_OK": 40}], candidate_answer=BAD)
+        code = self.run_canary([{}, OK], candidate_answer=BAD)
         self.assert_rolled_back(code, 10, "live eval, safety: candidate passed 0, baseline 1")
+
+    def test_zero_against_zero_does_not_pass(self):
+        code = self.run_canary([{}, OK], candidate_answer=BAD, baseline_answer=BAD)
+        self.assert_rolled_back(code, 10, "live eval: the candidate passed no case")
+
+    def test_a_baseline_outage_does_not_promote(self):
+        code = self.run_canary([{}, OK], baseline_answer=None)
+        self.assert_rolled_back(code, 10, "live eval: calls without an answer, baseline 3 and candidate 0")
+
+    def test_a_case_the_scorer_cant_score_stops_before_the_canary(self):
+        with tempfile.NamedTemporaryFile("w", suffix=".jsonl", delete=False) as f:
+            f.write("\n".join(json.dumps({**c, "check": {"type": "telepathy"}} if c["id"] == "pii-001" else c)
+                              for c in CASES))
+        self.addCleanup(os.unlink, f.name)
+        with self.assertRaisesRegex(SystemExit, "can't score pii-001"):
+            self.run_canary([], cases=f.name)
+        self.assertEqual((Fake.state["keys"], Fake.state["weights"]), ([], {}))  # the gateway was never touched
 
     def test_a_failed_probe_job_rolls_back(self):
         self.assert_rolled_back(self.run_canary([{}], job="/1"), 10, "the probe Job failed")
@@ -172,8 +207,10 @@ class PromoteTest(unittest.TestCase):
             self.assertEqual(promote.main(["--rollback"]), 0)  # nothing there: nothing to do
 
     def test_a_bad_model_name_is_refused(self):
-        with self.assertRaises(SystemExit), redirect_stdout(io.StringIO()), mock.patch("sys.stderr", io.StringIO()):
-            promote.parse(["--candidate", 'x"} or vector(1)'])
+        for bad in ('x"} or vector(1)', "vertex_ai/gemini-3.5-flash\n", "gemini-3.5-flash"):
+            with self.subTest(bad=bad), self.assertRaises(SystemExit), mock.patch("sys.stderr", io.StringIO()):
+                promote.parse(["--candidate", bad])
+        self.assertEqual(promote.parse(["--candidate", "vertex_ai/gemini-3.5-flash"]).candidate, "vertex_ai/gemini-3.5-flash")
 
     def test_probe_measures_each_deployment(self):
         Fake.state = {}

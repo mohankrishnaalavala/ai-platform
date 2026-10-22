@@ -49,7 +49,6 @@ jobs:
       # Inputs reach the scripts through the environment only; promote.py refuses anything but provider/model.
       CANDIDATE: ${{ inputs.candidate }}
       BASELINE: ${{ inputs.baseline }}
-      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -77,6 +76,8 @@ jobs:
       - name: canary (promote.py)
         id: canary
         timeout-minutes: 60
+        env:
+          GH_TOKEN: ${{ github.token }}  # this step only: the issue a rollback opens
         run: projects/04-eval-gated-releases/scripts/promote.sh --candidate "$CANDIDATE" --baseline "$BASELINE"
 
       # promote.py rolls back on any failed check, error or SIGTERM. This catches a cancel or timeout that
@@ -84,4 +85,4 @@ jobs:
       - name: candidate's weight to 0 unless the canary passed
         if: ${{ always() && steps.canary.outcome != 'success' && steps.canary.outcome != 'skipped' }}
         timeout-minutes: 5
-        run: projects/04-eval-gated-releases/scripts/promote.sh --rollback
+        run: projects/04-eval-gated-releases/scripts/promote.sh --rollback  # opens no issue: no GitHub token

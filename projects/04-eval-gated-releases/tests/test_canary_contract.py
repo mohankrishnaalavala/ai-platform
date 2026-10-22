@@ -12,7 +12,8 @@ compose stack with P4's values, mock providers) before any cloud run. It uses pr
    answers; x-litellm-model-name has its provider/model. The body's "model" is only the alias. A request
    may name a deployment's id as its model to reach just that one, at any weight: promote.py's probe and
    live eval use that.
-Also: the judge alias reaches its provider at temperature 0.
+Also: the judge alias reaches its provider at temperature 0, and promote.py's key reaches the canary's two
+deployment ids and the alias but no other model.
 
 Runs in ci.yml's gateway job after P2's and P3's checks, and deletes its two deployments at the end.
 Skipped unless GATEWAY_URL, MASTER_KEY, MOCK_HOSTED_URL, SPANS_FILE and PROMETHEUS_URL are set.
@@ -78,6 +79,8 @@ class CanaryContractTest(unittest.TestCase):
         promote.set_weights(0, 100)
         cls.rolled_back = answered_by(30)
         cls.by_id = {mid: answered_by(3, mid) for mid in MODELS}  # the candidate is at weight 0 now
+        cls.key = promote.new_key(1)
+        cls.key_calls = {m: chat(cls.key, m, "Reply with the single word: ok")[0] for m in (*MODELS, "chat-hosted", "judge")}
         cls.end = container()
         # A failing candidate: nothing listens on port 9.
         cls.errors_before = promote.attempts(MODELS[CAND]).get(promote.ERROR, 0)
@@ -88,6 +91,7 @@ class CanaryContractTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        promote.api("POST", "/key/delete", {"keys": [cls.key]})
         for mid in MODELS:
             promote.api("POST", "/model/delete", {"id": mid})
 
@@ -129,6 +133,11 @@ class CanaryContractTest(unittest.TestCase):
         self.assertEqual(self.stream[0], 200)
         self.assertIn(self.stream[2].get("x-litellm-model-id"), MODELS)
         self.assertEqual(self.by_id, {BASE: {BASE: 3}, CAND: {CAND: 3}})
+
+    def test_promotes_key_reaches_the_canary_only(self):
+        print(f"\nstatus per model with promote.py's key: {self.key_calls}")
+        self.assertEqual({m: self.key_calls[m] for m in (*MODELS, "chat-hosted")}, {BASE: 200, CAND: 200, "chat-hosted": 200})
+        self.assertIn(self.key_calls["judge"], (401, 403))
 
     def test_judge_reaches_its_provider_at_temperature_0(self):
         status, bodies = self.judge
