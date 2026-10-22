@@ -186,6 +186,24 @@ class PromoteTest(unittest.TestCase):
         code = self.run_canary([{}, OK], baseline_answer=None)
         self.assert_rolled_back(code, 10, "live eval: calls without an answer, baseline 3 and candidate 0")
 
+    def test_the_live_eval_scores_with_the_real_scorer_and_its_probe_passes_valid_cases(self):
+        import scorers
+        self.assertIs(promote.passes, scorers.check)  # no stand-in left
+        fixtures = os.path.join(os.path.dirname(__file__), "..", "tests", "fixtures", "dataset", "*.jsonl")
+        picked = promote.select_cases(fixtures, 8)  # every deterministic kind in the fixture set: none raises
+        self.assertEqual(len(picked), 8)
+        for c in picked:
+            self.assertFalse(promote.passes("", c["check"]), c["id"])  # an empty answer never passes
+        with self.assertRaisesRegex(SystemExit, "can't score"):  # an empty list can't be scored: fail closed
+            promote.select_cases(self.cases_file({"type": "must_contain", "values": []}), 3)
+
+    def cases_file(self, pii_check):
+        """CASES with pii-001's check replaced, as a temporary JSONL file."""
+        with tempfile.NamedTemporaryFile("w", suffix=".jsonl", delete=False) as f:
+            f.write("\n".join(json.dumps({**c, "check": pii_check} if c["id"] == "pii-001" else c) for c in CASES))
+        self.addCleanup(os.unlink, f.name)
+        return f.name
+
     def test_a_case_the_scorer_cant_score_stops_before_the_canary(self):
         with tempfile.NamedTemporaryFile("w", suffix=".jsonl", delete=False) as f:
             f.write("\n".join(json.dumps({**c, "check": {"type": "telepathy"}} if c["id"] == "pii-001" else c)

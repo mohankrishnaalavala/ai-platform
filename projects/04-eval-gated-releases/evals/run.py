@@ -45,7 +45,10 @@ from pathlib import Path
 import scorers
 
 EVALS = Path(__file__).resolve().parent
-ROOT = EVALS.parents[2]
+# The tree whose files are read and hashed: this checkout, or EVAL_ROOT. evals.yml runs the base commit's gate
+# code with EVAL_ROOT set to the pull request's tree, so the PR's files are data and never code.
+ROOT = Path(os.environ.get("EVAL_ROOT") or EVALS.parents[2]).resolve()
+EVALS_IN_ROOT = "projects/04-eval-gated-releases/evals"
 THRESHOLDS = EVALS / "thresholds.yaml"
 PRICES = EVALS / "prices.json"
 GPU_PRICES = ROOT / "projects/01-gpu-serving/bench/prices.json"
@@ -69,14 +72,14 @@ def sha(data):
 
 def alias_model(alias):
     """The model behind a gateway alias (the first `model:` after its `model_name`) in the first values file of
-    GATEWAY_VALUES that has it, or None.
+    GATEWAY_VALUES that has it. Raises ValueError when none has it: a missing model must never hash as "None".
     shortcut: a regex on those files' layout, not a YAML parser; use one if the layout changes."""
     for values in GATEWAY_VALUES:
         found = re.search(rf"^\s*- model_name: {re.escape(alias)}(?![\w-]).*\n(?:.*\n)*?\s*model:\s*(\S+)",
                           values.read_text(), re.MULTILINE)
         if found:
             return found.group(1)
-    return None
+    raise ValueError(f"no model for the gateway alias {alias!r} in {', '.join(rel(v) for v in GATEWAY_VALUES)}")
 
 
 def hash_parts(config, dataset, judge):
@@ -84,8 +87,9 @@ def hash_parts(config, dataset, judge):
     files = sorted((ROOT / dataset).glob("*.jsonl"))
     if not files:
         raise FileNotFoundError(f"no *.jsonl files in {dataset}")
-    return {"config": sha((ROOT / config).read_bytes()), "judge_md": sha(scorers.JUDGE_MD.read_bytes()),
-            "scorers": sha(Path(scorers.__file__).read_bytes()),
+    return {"config": sha((ROOT / config).read_bytes()),  # judge.md and scorers.py: ROOT's, not this code's own
+            "judge_md": sha((ROOT / EVALS_IN_ROOT / "judge.md").read_bytes()),
+            "scorers": sha((ROOT / EVALS_IN_ROOT / "scorers.py").read_bytes()),
             "dataset": sha(b"".join(f.name.encode() + b"\0" + f.read_bytes() for f in files)),
             "judge_model": alias_model(judge)}
 
@@ -299,7 +303,10 @@ def main(argv=None):
     if not (os.environ.get("GATEWAY_URL") and os.environ.get("MASTER_KEY")):
         sys.exit("set GATEWAY_URL and MASTER_KEY")
     config, dataset = rel(a.config), rel(a.dataset)
-    parts, cases = hash_parts(config, dataset, a.judge), load_cases(dataset)
+    try:
+        parts, cases = hash_parts(config, dataset, a.judge), load_cases(dataset)
+    except ValueError as e:  # e.g. a judge alias with no model in the gateway values
+        sys.exit(str(e))
     for case in cases:  # before any call, so a dataset error never costs GPU minutes
         try:
             if case["check"]["type"] != "judge":

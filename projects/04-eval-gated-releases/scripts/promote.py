@@ -54,34 +54,8 @@ ERROR = "STATUS_CODE_ERROR"
 MODEL = re.compile(r"[a-z0-9_]+/[A-Za-z0-9._-]+")  # provider/model, e.g. vertex_ai/gemini-3.5-flash (fullmatch)
 
 sys.path.insert(0, str(HERE.parent / "evals"))
-try:  # stream S1's deterministic scorers (P4-02): check(answer, check_) -> bool, ValueError if it can't score
-    from scorers import check as passes
-except ModuleNotFoundError as e:
-    if e.name != "scorers":
-        raise
-
-    def passes(answer, check_):
-        """shortcut: a stand-in with S1's interface until its evals/scorers.py is on main; delete it then.
-        Simple check kinds only (substrings, not whole tokens; JSON parsed, not schema-checked). Any other
-        kind raises, as S1's does, so the canary refuses to start rather than score it."""
-        text, kind = answer.strip(), check_["type"]
-        rules = {
-            "must_contain": lambda: all(v.lower() in text.lower() for v in check_["values"]),
-            "must_not_contain": lambda: not any(v.lower() in text.lower() for v in check_["values"]),
-            "max_words": lambda: len(text.split()) <= check_["value"],
-            "min_words": lambda: len(text.split()) >= check_["value"],
-            "regex": lambda: re.search(check_["pattern"], text) is not None,
-            "json_schema": lambda: is_json_object(re.sub(r"^```(?:json)?\s*|\s*```$", "", text)),
-        }
-        if kind not in rules:
-            raise ValueError(f"the stand-in scorer can't score {kind!r} checks")
-        return bool(text) and rules[kind]()
-
-    def is_json_object(text):
-        try:
-            return isinstance(json.loads(text), dict)
-        except ValueError:
-            return False
+# The eval's deterministic scorers (P4-02): check(answer, check_) -> bool; ValueError if it can't score.
+from scorers import check as passes
 
 
 class GatewayError(RuntimeError):
@@ -209,7 +183,7 @@ def select_cases(pattern, n):
     picked = [cases[i * len(cases) // n] for i in range(n)]
     for c in picked:
         try:
-            passes("", c["check"])  # an empty answer never passes: this only asks whether the case can be scored
+            passes("", c["check"])  # check() validates first (unknown kind, empty list: raises); "" then just fails
         except ValueError as e:
             raise SystemExit(f"the live eval can't score {c['id']}: {e}") from None
     return picked

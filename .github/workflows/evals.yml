@@ -38,10 +38,42 @@ jobs:
           persist-credentials: false
           fetch-depth: 0  # the base commit, to see what the PR changes
 
-      - name: check the committed eval results (config hash, VALID, thresholds)
+      # The gate's code (gate.py, run.py, scorers.py) comes from the PR's base commit; the PR's tree is only read as
+      # data (EVAL_ROOT). So a PR that edits the gate can't make itself pass: its edit takes effect after merge.
+      # - The base commit is a fresh git worktree under $RUNNER_TEMP, outside the PR's tree, so no file the PR
+      #   commits (a .gate-base/…/json.py, say) can sit beside the base gate and shadow one of its imports.
+      #   python3 -B -E -s: no bytecode written, no PYTHON* variables, no user site-packages.
+      # - Fail closed when the base commit has no gate.py, unless this PR introduces it (no other gate to run).
+      # - The gate prints the tree it evaluated (gate-root:); anything but this PR's tree fails the job. Exception:
+      #   a base gate older than EVAL_ROOT (the PR that adds EVAL_ROOT) can't evaluate the PR's tree, so its run
+      #   proves nothing, and the job says so.
+      # This workflow file itself still comes from the PR (pull_request runs the PR's version), so changes to it
+      # need review.
+      - name: check the committed eval results with the base commit's gate (config hash, VALID, thresholds)
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
-        run: python3 projects/04-eval-gated-releases/evals/gate.py "$BASE" --out "$RUNNER_TEMP/scores.md"
+          EVALS: projects/04-eval-gated-releases/evals
+        run: |
+          base="$RUNNER_TEMP/gate-base"
+          rm -rf "$base"
+          git worktree add --quiet --detach "$base" "$BASE"
+          evals="$base/$EVALS"
+          if [ ! -f "$evals/gate.py" ]; then
+            [ -f "$EVALS/gate.py" ] || { echo "::error::no gate.py in the base commit, and this PR doesn't introduce one"; exit 1; }
+            echo "::warning::the base commit has no gate.py; this PR introduces it, so its own gate runs once"
+            evals="$EVALS"
+          fi
+          set +e
+          EVAL_ROOT="$GITHUB_WORKSPACE" python3 -B -E -s "$evals/gate.py" "$BASE" --out "$RUNNER_TEMP/scores.md" > "$RUNNER_TEMP/gate.log"
+          status=$?
+          set -e
+          cat "$RUNNER_TEMP/gate.log"
+          if ! grep -q EVAL_ROOT "$evals/run.py"; then
+            echo "::warning::the base commit's gate predates EVAL_ROOT, so it evaluated its own checkout, not this PR's tree: this run proves nothing (the PR body has a local run of this PR's gate)"
+          elif ! grep -qxF "gate-root: $(realpath "$GITHUB_WORKSPACE")" "$RUNNER_TEMP/gate.log"; then
+            echo "::error::the gate didn't evaluate this PR's tree"; exit 1
+          fi
+          exit "$status"
 
       # A PR from a fork gets a read-only token, so it gets the job summary only. So does a Dependabot PR (same
       # repo, read-only token): its comment fails with a warning, not a red job. --edit-last updates the table on
