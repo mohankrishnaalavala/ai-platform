@@ -8,6 +8,8 @@ Each test runs with the fixture dataset as the golden set and a temporary folder
 import contextlib
 import io
 import json
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -309,6 +311,51 @@ class Gate(unittest.TestCase):
         failed, text = self.run_gate([gone], touched=[gone])
         self.assertTrue(failed)
         self.assertIn("append-only", text)
+
+
+class GateFromBase(unittest.TestCase):
+    """evals.yml runs the base commit's gate code on the PR's tree (EVAL_ROOT). A PR that replaces gate.py with
+    one that always passes still fails, because its gate.py is never run. Uses a throwaway git repo."""
+
+    def git(self, *args):
+        return subprocess.run(["git", "-C", self.repo, "-c", "user.name=test", "-c", "user.email=test@example.com",
+                               "-c", "commit.gpgsign=false", *args], check=True, capture_output=True, text=True).stdout
+
+    def write(self, path, text):
+        (Path(self.repo) / path).parent.mkdir(parents=True, exist_ok=True)
+        (Path(self.repo) / path).write_text(text)
+
+    def test_a_pr_that_rewrites_the_gate_cant_make_itself_pass(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.repo = tmp.name
+        self.git("init", "-q")
+        self.write(gate.SERVES, "config=${CONFIG:-config/models/a.yaml}\n")
+        self.write("config/models/a.yaml", "name: a\n")
+        self.write(gate.THRESHOLDS, (run.ROOT / gate.THRESHOLDS).read_text())
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+        base = self.git("rev-parse", "HEAD").strip()
+        # The PR: chat-default now serves a config with no results, and its gate.py always passes.
+        self.write(gate.SERVES, "config=${CONFIG:-config/models/b.yaml}\n")
+        self.write("config/models/b.yaml", "name: b\n")
+        self.write("projects/04-eval-gated-releases/evals/gate.py", "import sys\nsys.exit(0)\n")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "pr")
+        own = subprocess.run([sys.executable, f"{self.repo}/projects/04-eval-gated-releases/evals/gate.py", base],
+                             capture_output=True, check=False)
+        self.assertEqual(own.returncode, 0)  # what the PR's own gate would say
+        base_gate = subprocess.run([sys.executable, str(HERE.parent / "evals" / "gate.py"), base], text=True,
+                                   capture_output=True, check=False, env={**os.environ, "EVAL_ROOT": self.repo})
+        self.assertEqual(base_gate.returncode, 1, base_gate.stdout + base_gate.stderr)
+        self.assertIn("`chat-default` with `config/models/b.yaml` (enforced): FAIL", base_gate.stdout)
+
+    def test_evals_yml_runs_the_base_commits_gate_on_the_prs_tree(self):
+        workflow = (run.ROOT / ".github/workflows/evals.yml").read_text()
+        self.assertIn("ref: ${{ github.event.pull_request.base.sha }}\n          path: .gate-base", workflow)
+        self.assertIn('gate=".gate-base/$GATE"', workflow)
+        self.assertIn('EVAL_ROOT="$GITHUB_WORKSPACE" python3 "$gate" "$BASE"', workflow)
+        self.assertIn("doesn't introduce one\"; exit 1", workflow)  # fail closed without a base gate
 
 
 if __name__ == "__main__":

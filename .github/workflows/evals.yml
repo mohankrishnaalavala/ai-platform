@@ -38,10 +38,31 @@ jobs:
           persist-credentials: false
           fetch-depth: 0  # the base commit, to see what the PR changes
 
-      - name: check the committed eval results (config hash, VALID, thresholds)
+      # The gate's code (gate.py, run.py, scorers.py) comes from the PR's base commit, checked out apart; the PR's
+      # tree is only read as data (EVAL_ROOT). So a PR that edits the gate can't make itself pass: its edit takes
+      # effect after merge. Fail closed when the base commit has no gate.py, unless this PR introduces it (then
+      # there is no other gate to run). This workflow file itself still comes from the PR (pull_request runs the
+      # PR's version), so changes to it need review.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: .gate-base
+          persist-credentials: false
+
+      - name: check the committed eval results with the base commit's gate (config hash, VALID, thresholds)
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
-        run: python3 projects/04-eval-gated-releases/evals/gate.py "$BASE" --out "$RUNNER_TEMP/scores.md"
+          GATE: projects/04-eval-gated-releases/evals/gate.py
+        run: |
+          gate=".gate-base/$GATE"
+          if [ ! -f "$gate" ]; then
+            if git cat-file -e "$BASE:$GATE" 2>/dev/null || [ ! -f "$GATE" ]; then
+              echo "::error::no gate.py in the base commit's checkout, and this PR doesn't introduce one"; exit 1
+            fi
+            echo "::warning::the base commit has no gate.py; this PR introduces it, so its own gate runs once"
+            gate="$GATE"
+          fi
+          EVAL_ROOT="$GITHUB_WORKSPACE" python3 "$gate" "$BASE" --out "$RUNNER_TEMP/scores.md"
 
       # A PR from a fork gets a read-only token, so it gets the job summary only. So does a Dependabot PR (same
       # repo, read-only token): its comment fails with a warning, not a red job. --edit-last updates the table on
