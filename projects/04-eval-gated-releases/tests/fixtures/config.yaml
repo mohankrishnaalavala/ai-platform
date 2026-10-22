@@ -1,0 +1,4 @@
+# Test fixture: stands in for a model config in config/models/. The gpu key marks the target as
+# self-hosted, so a run's cost includes GPU minutes.
+name: fixture-model
+gpu: nvidia-l4
