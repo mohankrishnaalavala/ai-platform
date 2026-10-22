@@ -1,0 +1,21 @@
+# The Slack app for the action gateway's approvals: paste it at api.slack.com/apps -> Create New App ->
+# From a manifest (see slack.md). Socket Mode: the gateway opens the connection to Slack, so there is no
+# Request URL and nothing in the cluster listens for Slack. One bot scope: chat:write (post, update and
+# send the "you're not on the list" note).
+display_information:
+  name: AI platform approvals
+  description: Approve or reject the action gateway's changes to Kubernetes.
+features:
+  bot_user:
+    display_name: action-gateway
+    always_online: false
+oauth_config:
+  scopes:
+    bot:
+      - chat:write
+settings:
+  interactivity:
+    is_enabled: true
+  org_deploy_enabled: false
+  socket_mode_enabled: true
+  token_rotation_enabled: false

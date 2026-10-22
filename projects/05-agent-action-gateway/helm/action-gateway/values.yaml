@@ -1,0 +1,61 @@
+# The action gateway: one pod with our MCP server and an OPA (Open Policy Agent) sidecar, both on 127.0.0.1,
+# so it is reached only through kubectl port-forward (no Service, no Ingress). deploy.sh sets project,
+# image.ref, labels.owner, labels.session, agentTokens, policies and the Slack settings.
+project: ""  # the GCP project that holds the three Secret Manager secrets (cloud only)
+
+labels:
+  app: ai-platform
+  layer: "05"
+  owner: ""
+  session: ""
+
+image:
+  # Pinned by digest: <registry>/action-gateway@sha256:... (deploy.sh reads the digest mirror.yml pushed).
+  # Only an image never pulled (pullPolicy Never: loaded into kind) may be a tag.
+  ref: ""
+  pullPolicy: IfNotPresent
+
+opa:
+  image: openpolicyagent/opa:1.21.1@sha256:d3a9a6bd4fbcb0f4403294b0d0b239b07be163ac118a46df7d50045b52e52053
+
+# SHA-256 of each agent token -> its team. Hashes only, never a token: deploy.sh prints each token once.
+agentTokens: {}
+
+# File name -> contents: policies/gateway.rego and policies/data.json, passed with --set-file. Required.
+policies: {}
+
+# slack (the cluster) or cli (kind and CI only: the CLI approver's name is self-declared).
+approver: slack
+# Auto-reject after this long. A call waiting for a person holds one of the server's 40 worker threads;
+# at most 16 approvals wait at once and the next is rejected at once, so 24 threads stay free (server.py).
+approvalTimeoutSeconds: 900
+
+slack:
+  channel: ""  # the approvals channel's ID, e.g. C0123ABCD
+  # Slack user IDs who may answer, per approver team. "default" answers requests that name no team;
+  # break-glass requests take only the "break-glass" list.
+  approvers:
+    default: []
+    break-glass: []
+
+audit:
+  bucket: ""  # the GCS audit bucket (cloud); empty: one JSON line per record in /data/audit.jsonl (kind)
+
+# The 3-line risk summary, through P2's gateway with the action gateway's own team key.
+risk:
+  url: http://gateway.gateway.svc.cluster.local:4000/v1/chat/completions
+  model: chat-hosted
+  timeoutSeconds: 15
+
+secrets:
+  # true: the GKE Secret Manager add-on mounts the secrets (the cluster). false: a Kubernetes Secret named
+  # action-gateway-secrets that the test makes (kind). The chart never renders a Secret itself.
+  csi: true
+
+resources:
+  gateway:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 256Mi}
+  opa:
+    requests: {cpu: 10m, memory: 64Mi}
+    limits: {memory: 128Mi}

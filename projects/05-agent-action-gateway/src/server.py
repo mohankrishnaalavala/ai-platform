@@ -6,9 +6,15 @@ team; actions.py does the rest.
 
 Env (all optional):
   PORT 8080 · TOKENS_FILE /etc/action-gateway/tokens.json (SHA-256 of token -> team) · OPA_URL (policy.URL)
-  AUDIT_BUCKET (cloud) or AUDIT_FILE /data/audit.jsonl (kind) · APPROVER cli · APPROVALS_DIR /data/approvals
-  APPROVAL_TIMEOUT_S 900 · RISK_URL (the P2 gateway) · RISK_MODEL chat-hosted · RISK_KEY_FILE /secrets/action-gateway-team-key (no file: "unavailable")
-  RISK_TIMEOUT_S 15 · TEST_ONLY_CLOCK_FILE (tests only; see actions.now)"""
+  AUDIT_BUCKET (cloud) or AUDIT_FILE /data/audit.jsonl (kind) · APPROVAL_TIMEOUT_S 900
+  APPROVER cli (kind and CI; APPROVALS_DIR /data/approvals) or slack (the cluster; SLACK_CHANNEL, SLACK_APPROVERS
+    as JSON, SLACK_APP_TOKEN_FILE /secrets/slack-app-token, SLACK_BOT_TOKEN_FILE /secrets/slack-bot-token)
+  RISK_URL (the P2 gateway) · RISK_MODEL chat-hosted · RISK_KEY_FILE /secrets/action-gateway-team-key (no file: "unavailable")
+  RISK_TIMEOUT_S 15 · TEST_ONLY_CLOCK_FILE (tests only; see actions.now)
+
+Threads: each tool call runs in a worker thread, at most THREADS (40) at once. A call waiting for a person
+holds its thread for up to 15 minutes, so at most MAX_PENDING (16) approvals wait at once and the next one
+is rejected at once (approval.Bounded). That leaves at least 24 threads for every other call."""
 import json
 import os
 
@@ -20,8 +26,12 @@ import kube
 import mcp_types as types
 import policy
 import risk
+import slack_approval
 import uvicorn
 from mcp.server import Server
+
+THREADS, MAX_PENDING = 40, 16
+CALLS = anyio.CapacityLimiter(THREADS)
 
 
 def build(gateway, tokens_file):
@@ -36,7 +46,7 @@ def build(gateway, tokens_file):
         if team is None:
             result = {"decision": "deny", "reasons": ["unknown agent token"]}
         else:  # in a worker thread: an approval can wait 15 minutes, and the cluster calls block
-            result = await anyio.to_thread.run_sync(gateway.call, params.name, dict(params.arguments or {}), team)
+            result = await anyio.to_thread.run_sync(gateway.call, params.name, dict(params.arguments or {}), team, limiter=CALLS)
         return types.CallToolResult(content=[types.TextContent(type="text", text=json.dumps(result, indent=2))],
                                     structured_content=result,
                                     is_error=(result.get("result") or {}).get("status") == "failed")
@@ -60,14 +70,26 @@ def build(gateway, tokens_file):
     return require_token
 
 
+def _read(path):
+    with open(path) as f:
+        return f.read().strip()
+
+
 def gateway_from_env():
     e = os.environ.get
-    if e("APPROVER", "cli") != "cli":
-        raise SystemExit(f"unknown APPROVER {e('APPROVER')!r}: only cli so far")
+    audit_log = audit.GcsAudit(e("AUDIT_BUCKET")) if e("AUDIT_BUCKET") else audit.FileAudit(e("AUDIT_FILE", "/data/audit.jsonl"))
+    if e("APPROVER", "cli") == "cli":
+        approver = approval.CliApprover(e("APPROVALS_DIR", "/data/approvals"))
+    elif e("APPROVER") == "slack":  # tokens from the mounted files, straight to Slack's client; never logged
+        approver = slack_approval.connect(_read(e("SLACK_APP_TOKEN_FILE", "/secrets/slack-app-token")),
+                                          _read(e("SLACK_BOT_TOKEN_FILE", "/secrets/slack-bot-token")),
+                                          e("SLACK_CHANNEL"), json.loads(e("SLACK_APPROVERS") or "{}"), audit_log)
+    else:
+        raise SystemExit(f"unknown APPROVER {e('APPROVER')!r}: cli or slack")
     return actions.Gateway(
         kube=kube.Kube(),
-        audit_log=audit.GcsAudit(e("AUDIT_BUCKET")) if e("AUDIT_BUCKET") else audit.FileAudit(e("AUDIT_FILE", "/data/audit.jsonl")),
-        approver=approval.CliApprover(e("APPROVALS_DIR", "/data/approvals")),
+        audit_log=audit_log,
+        approver=approval.Bounded(approver, MAX_PENDING),
         decide=lambda facts: policy.decide(facts, e("OPA_URL", policy.URL)),
         summarize=lambda facts: risk.summary(
             facts, e("RISK_URL", "http://gateway.gateway.svc.cluster.local:4000/v1/chat/completions"),

@@ -1,0 +1,7 @@
+# The chart's values in kind (CI and the install guide): the image built and loaded into kind, the CLI
+# approver, the audit log as a local file, and a test Secret (made by tests/kind-smoke.sh) in place of
+# Secret Manager. There is no P2 gateway in kind, so the risk summary says "unavailable".
+labels: {owner: kind, session: kind}
+image: {ref: "action-gateway:ci", pullPolicy: Never}
+approver: cli
+secrets: {csi: false}

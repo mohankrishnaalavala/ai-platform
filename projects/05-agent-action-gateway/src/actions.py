@@ -28,6 +28,7 @@ import os
 import re
 import secrets
 import sys
+import time
 
 import audit
 import dryrun
@@ -60,7 +61,8 @@ TOOLS = {
                     {"action_id": {"type": "string"}}, ["action_id"]),
 }
 PDBS = "/apis/policy/v1/namespaces/{ns}/poddisruptionbudgets"
-RESPONSE = ("action_id", "decision", "reasons", "policy_version", "diff", "risk_summary", "approver", "result")
+RESPONSE = ("action_id", "decision", "reasons", "policy_version", "approver_team", "irreversible", "diff", "risk_summary",
+            "approver", "result")
 
 
 class Refused(Exception):
@@ -295,12 +297,14 @@ class Gateway:
             return self.finish(rec, "denied")
         if rec["decision"] == "needs_approval":
             rec["risk_summary"] = self.summarize(risk.safe_facts(facts, kind, name, rec))
+            asked = time.monotonic()
             rec["approver"] = self.approver.decide(rec["action_id"], {
                 "action_id": rec["action_id"], "team": team, "tool": tool, "namespace": ns, "kind": kind, "name": name,
                 "reasons": rec["reasons"], "approver_team": rec.get("approver_team", ""),
                 "irreversible": rec.get("irreversible", False), "dry_run": facts["dry_run"], "diff": rec["diff"],
                 "ai_risk_summary": rec["risk_summary"],  # the LLM explains; the policy above decided
                 "auto_reject_after_s": self.approval_timeout_s}, self.approval_timeout_s)
+            rec["approver"] = rec["approver"] | {"waited_s": round(time.monotonic() - asked, 3)}  # the human wait, apart
             if not rec["approver"]["approved"]:
                 return self.finish(rec, "rejected")
         try:

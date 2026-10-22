@@ -2,7 +2,8 @@
 """Approvers: who answers when the policy says needs_approval. An approver has one method,
 decide(action_id, request, timeout_s), which returns {"approved": bool, "approver": name or None,
 "via": how}. No answer within the timeout (15 minutes in the server) is a reject. The Slack approver
-(Socket Mode) comes later with the same method.
+(slack_approval.py, Socket Mode) has the same method and is the one the cluster uses. Bounded caps how
+many approvals wait at once.
 
 The CLI (command line) approver, for kind and CI: the server writes each pending request as a file in
 APPROVALS_DIR, and a person answers by running this file inside the pod:
@@ -10,15 +11,33 @@ APPROVALS_DIR, and a person answers by running this file inside the pod:
   kubectl -n action-gateway exec deploy/action-gateway -c gateway -- python approval.py list
   kubectl -n action-gateway exec deploy/action-gateway -c gateway -- python approval.py approve <action_id> --by <name>
 
-The agent can't do this: it reaches only the MCP port, never `kubectl exec`. The approver's name is what
---by says, which is fine for kind and CI but not for production (Slack gives a real identity)."""
+The agent can't do this: it reaches only the MCP port, never `kubectl exec`. The approver's name is
+whatever --by says: self-declared, so nothing proves who answered. The CLI approver is for kind and CI
+only; in the cluster the Slack approver records the Slack user ID that Slack itself sends."""
 import argparse
 import json
 import os
 import sys
+import threading
 import time
 
 import audit
+
+
+class Bounded:
+    """At most `limit` approvals wait at once; one more is rejected at once. Each waiting approval holds a
+    worker thread for up to 15 minutes, so this keeps waiting approvals from taking every thread
+    (server.py: 40 threads for tool calls, 16 approvals, so at least 24 threads stay free for other calls)."""
+    def __init__(self, approver, limit):
+        self.approver, self.limit, self.slots = approver, limit, threading.BoundedSemaphore(limit)
+
+    def decide(self, action_id, request, timeout_s):
+        if not self.slots.acquire(blocking=False):
+            return {"approved": False, "approver": None, "via": f"rejected at once: {self.limit} approvals already waiting"}
+        try:
+            return self.approver.decide(action_id, request, timeout_s)
+        finally:
+            self.slots.release()
 
 
 class CliApprover:

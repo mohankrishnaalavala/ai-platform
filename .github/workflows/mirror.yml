@@ -2,6 +2,8 @@
 # Registry, and the model weights from Hugging Face into the models bucket. Nothing large goes
 # through a laptop. Runs from main only (the WIF provider trusts no other branch). Safe to re-run:
 # files already in the bucket are skipped, and the mirror account can't overwrite or delete.
+# Also, on each push to main that changes it, P5's action gateway image: built here and pushed to
+# Artifact Registry (job action-gateway-image).
 name: mirror
 
 on:
@@ -10,6 +12,13 @@ on:
       config:
         description: Model config whose image and weights to copy
         default: config/models/qwen2.5-7b-bf16.yaml
+  push:
+    branches: [main]
+    paths:
+      - projects/05-agent-action-gateway/Dockerfile
+      - projects/05-agent-action-gateway/requirements.txt
+      - projects/05-agent-action-gateway/src/**
+      - .github/workflows/mirror.yml
 
 permissions:
   contents: read
@@ -26,6 +35,7 @@ defaults:
 
 jobs:
   mirror:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
@@ -90,3 +100,40 @@ jobs:
           want=$(wc -l <<< "$files"); got=$(gcloud storage ls "$dest/**" | wc -l)
           [ "$got" -eq "$want" ] || { echo "bucket has $got files, expected $want"; exit 1; }
           echo "weights copied: $got files"
+
+  # P5: the action gateway image from main, from the same Dockerfile CI built and scanned on the pull request
+  # (base image pinned by digest, every Python package by hash). Tagged with the commit and "main"; P5's
+  # deploy.sh reads the digest that "main" points at, so the pod runs the image pinned by digest. Session
+  # nodes pull it with the reader role they already have.
+  action-gateway-image:
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CLOUDSDK_CORE_DISABLE_PROMPTS: "1"
+      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: mirror@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        with:
+          version: 587.0.0
+
+      - name: build and push the action gateway image
+        working-directory: projects/05-agent-action-gateway
+        run: |
+          repo="us-central1-docker.pkg.dev/$PROJECT_ID/images/action-gateway"
+          docker build -t "$repo:$GITHUB_SHA" -t "$repo:main" .
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+          docker push "$repo:$GITHUB_SHA"
+          docker push "$repo:main"
+          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$repo:$GITHUB_SHA")
+          [[ "$digest" == "$repo@sha256:"* ]] || { echo "no digest for the pushed image ($digest)"; exit 1; }
+          echo "pushed ${digest#*@} as action-gateway:$GITHUB_SHA and :main" | tee -a "$GITHUB_STEP_SUMMARY"
