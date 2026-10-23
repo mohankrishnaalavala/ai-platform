@@ -108,8 +108,9 @@ class EvalsShTest(unittest.TestCase):
         (tree / "projects/02-llm-gateway/tests").mkdir(parents=True)  # lib.sh resolves it
         (tree / P4 / "evals/datasets/v1").mkdir(parents=True)
         shutil.copy2(HERE / "fixtures/dataset/cases.jsonl", tree / P4 / "evals/datasets/v1/cases.jsonl")
+        # As on the laptop: in GitHub Actions, lib.sh prints the key once on purpose, in an ::add-mask:: line.
         rc, out = self.run_evals(tree, CONFIG="config/models/qwen3-8b.yaml", STUB_SERVES="qwen3-8b",
-                                 STUB_CONTEXT="gke_proj_zone_ai-platform")
+                                 STUB_CONTEXT="gke_proj_zone_ai-platform", GITHUB_ACTIONS="")
         self.assertEqual(rc, 1, out)
         self.assertIn("run 1 of 2", out)
         self.assertIn("was answered by a fallback", out)  # so the key reached the gateway (no 401)
