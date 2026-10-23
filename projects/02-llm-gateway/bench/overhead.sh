@@ -57,9 +57,12 @@ printf '%s' "$key" | kubectl create secret generic overhead-bench-key -n vllm --
   --dry-run=client -o yaml | kubectl label --local -f - app=ai-platform layer=02 owner="$owner" session="$session" -o yaml \
   | kubectl apply -f - >/dev/null
 
-# Requests answered by anything but our Qwen model, i.e. fallbacks (the spend logs record each call's model).
+# Requests answered by anything but the self-hosted deployment, i.e. fallbacks. LiteLLM v1.103.3 records the
+# answering deployment's model as configured, provider included: openai/self-hosted for chat-default's vLLM,
+# whichever model vLLM serves; vertex_ai/gemini-3.5-flash-lite for a fallback to chat-hosted.
+self_hosted=openai/self-hosted  # chat-default's model in helm/gateway/values.yaml
 fallbacks() { kubectl exec -n gateway deployment/postgres -- psql -U litellm -d litellm -Atc \
-  "select count(*) from \"LiteLLM_SpendLogs\" where model not ilike '%qwen%'"; }
+  "select count(*) from \"LiteLLM_SpendLogs\" where model <> '$self_hosted'"; }
 # The count, once LiteLLM's batched spend-log writes have stopped changing it.
 settled() { local a b; a=$(fallbacks); for _ in $(seq 12); do sleep 5; b=$(fallbacks); [ "$a" = "$b" ] && break; a=$b; done; echo "$a"; }
 common=(SCENARIOS=chat CONCURRENCY="$concurrency" BACKEND=openai-chat ENDPOINT=/v1/chat/completions ZONE="$ZONE" CONFIG="$CONFIG")
@@ -95,7 +98,7 @@ gateway() {
   echo "requests that fell back to the hosted model during round $1's gateway run: $fell_back"
   # What those rows are: session 3 counted 3 and couldn't say which model, provider or status they had.
   kubectl exec -n gateway deployment/postgres -- psql -U litellm -d litellm -c "select model, custom_llm_provider,
-    status, call_type, count(*) from \"LiteLLM_SpendLogs\" where \"startTime\" >= '$t0' and model not ilike '%qwen%'
+    status, call_type, count(*) from \"LiteLLM_SpendLogs\" where \"startTime\" >= '$t0' and model <> '$self_hosted'
     group by 1, 2, 3, 4" || true
   kubectl top pods -n gateway 2>/dev/null || true
 }

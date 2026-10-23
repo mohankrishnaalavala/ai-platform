@@ -21,7 +21,7 @@ session=$(gcloud container clusters describe ai-platform --location="${ZONE:?set
 [ "$(kubectl config current-context)" = "gke_${project}_${ZONE}_ai-platform" ] \
   || { echo "kubectl doesn't point at this session's cluster (run make up first)"; exit 1; }
 
-if [ -z "${VLLM_ONLY:-}" ]; then
+if [ "${VLLM_ONLY:-}" != 1 ]; then
   kubectl apply -f "$here/helm/namespaces.yaml"
   kubectl label namespace vllm monitoring keda owner="$owner" session="$session" --overwrite
 

@@ -26,9 +26,10 @@ if grep -q '^gpu:' "$CONFIG"; then
     || { echo "vLLM serves '${have:-nothing}', not $want: run CONFIG=$CONFIG VLLM_ONLY=1 make deploy LAYERS=01 first"; exit 1; }
 fi
 
+# Before sourcing: lib.sh opens the port-forward and may exit after that (no master key, say).
+trap 'declare -F stop_port_forwards >/dev/null && stop_port_forwards' EXIT
 # shellcheck source=/dev/null  # P3's tests/lib.sh
 source "$here/../../03-llm-observability/tests/lib.sh"
-trap stop_port_forwards EXIT
 for n in $(seq "$runs"); do
   echo "run $n of $runs: $TARGET with $CONFIG"
   python3 "$here/../evals/run.py" --target "$TARGET" --config "$CONFIG" --repeat "${REPEAT:-1}"

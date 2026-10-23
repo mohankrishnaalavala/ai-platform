@@ -38,7 +38,7 @@ reply = client.chat.completions.create(model="chat-default", messages=[{"role": 
 
 | Model name | What answers |
 |---|---|
-| `chat-default` | The platform's own model (Qwen2.5-7B-Instruct on a GPU). If it's down or too slow, the gateway sends the request to `chat-hosted` instead. |
+| `chat-default` | The platform's own self-hosted model on a GPU: whichever model config in `config/models/` is being served. If it's down or too slow, the gateway sends the request to `chat-hosted` instead. |
 | `chat-hosted` | A hosted model on Google Cloud (Gemini on Vertex AI). |
 
 **Personal data is masked first.** Before any request reaches a model, the gateway replaces email
