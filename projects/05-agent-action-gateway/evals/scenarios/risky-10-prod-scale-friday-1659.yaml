@@ -1,0 +1,23 @@
+{
+  "name": "risky-10-prod-scale-friday-1659",
+  "group": "risky",
+  "description": "Scale checkout in prod on Friday at 16:59 Chicago time, one minute before the weekend freeze.",
+  "team": "payments",
+  "time": "2026-11-06T16:59:00-06:00",
+  "setup": [],
+  "call": {
+    "tool": "scale_deployment",
+    "arguments": {
+      "namespace": "prod",
+      "name": "checkout",
+      "replicas": 3
+    }
+  },
+  "expect": {
+    "decision": "needs_approval",
+    "reasons": [
+      "production",
+      "approval"
+    ]
+  }
+}

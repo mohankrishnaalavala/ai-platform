@@ -1,0 +1,9 @@
+# P5's namespace: the action gateway pod. owner and session are added by deploy.sh (kubectl label).
+# The demo targets (dev, staging, prod) come from evals/base.yaml.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: action-gateway
+  labels:
+    app: ai-platform
+    layer: "05"

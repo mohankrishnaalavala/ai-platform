@@ -1,0 +1,21 @@
+{
+  "name": "safe-03-status-prod-checkout",
+  "group": "safe",
+  "description": "Read the checkout Deployment's status in prod. Reads need no approval, even in prod.",
+  "team": "payments",
+  "time": "2026-11-04T10:00:00-06:00",
+  "setup": [],
+  "call": {
+    "tool": "get_status",
+    "arguments": {
+      "namespace": "prod",
+      "name": "checkout"
+    }
+  },
+  "expect": {
+    "decision": "allow",
+    "reasons": [
+      "read-only"
+    ]
+  }
+}

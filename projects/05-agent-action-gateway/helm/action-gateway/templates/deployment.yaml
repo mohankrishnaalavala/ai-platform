@@ -1,0 +1,87 @@
+{{- $image := required "image.ref is required" .Values.image.ref }}
+{{- if and (ne .Values.image.pullPolicy "Never") (not (contains "@sha256:" $image)) }}
+{{- fail "image.ref must be pinned by digest (...@sha256:...); only an image loaded into kind (pullPolicy Never) may be a tag" }}
+{{- end }}
+{{- if not (has .Values.approver (list "slack" "cli")) }}{{ fail "approver must be slack or cli" }}{{ end }}
+{{- if eq .Values.approver "slack" }}
+{{- if not (regexMatch "^[CG][A-Z0-9]{6,}$" .Values.slack.channel) }}{{ fail "slack.channel must be a channel ID like C0123ABCD" }}{{ end }}
+{{- if not .Values.slack.approvers.default }}{{ fail "slack.approvers.default needs at least one Slack user ID" }}{{ end }}
+{{- range $team, $ids := .Values.slack.approvers }}
+{{- range $ids }}
+{{- if not (regexMatch "^[UW][A-Z0-9]{6,}$" .) }}{{ fail (printf "slack.approvers.%s: %q is not a Slack user ID like U0123ABCD" $team .) }}{{ end }}
+{{- end }}
+{{- end }}
+{{- end }}
+# The action gateway, one replica: the MCP server and the OPA sidecar, both listening on 127.0.0.1 only. No
+# Service: it's reached only through kubectl port-forward. Nothing listens on the pod's own address either,
+# so there are no HTTP probes. Non-root, read-only root filesystem, no Linux capabilities.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: action-gateway
+  labels: {{- include "ag.labels" . | trim | nindent 4 }}
+    app.kubernetes.io/name: action-gateway
+spec:
+  replicas: 1
+  strategy: {type: Recreate}  # one server at a time: pending approvals live in the pod
+  selector:
+    matchLabels: {app.kubernetes.io/name: action-gateway}
+  template:
+    metadata:
+      labels: {{- include "ag.labels" . | trim | nindent 8 }}
+        app.kubernetes.io/name: action-gateway
+      annotations:
+        checksum/policies: {{ include (print $.Template.BasePath "/policies.yaml") . | sha256sum }}  # OPA loads the policy at start
+    spec:
+      serviceAccountName: action-gateway  # the gateway calls the Kubernetes API as itself, so its token is mounted
+      enableServiceLinks: false
+      securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: gateway
+          image: {{ $image | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - {name: TOKENS_FILE, value: /etc/action-gateway/tokens.json}
+            - {name: APPROVER, value: {{ .Values.approver | quote }}}
+            - {name: APPROVAL_TIMEOUT_S, value: {{ .Values.approvalTimeoutSeconds | quote }}}
+            {{- if .Values.audit.bucket }}
+            - {name: AUDIT_BUCKET, value: {{ .Values.audit.bucket | quote }}}
+            {{- else }}
+            - {name: AUDIT_FILE, value: /data/audit.jsonl}
+            {{- end }}
+            - {name: RISK_URL, value: {{ .Values.risk.url | quote }}}
+            - {name: RISK_MODEL, value: {{ .Values.risk.model | quote }}}
+            - {name: RISK_TIMEOUT_S, value: {{ .Values.risk.timeoutSeconds | quote }}}
+            - {name: RISK_KEY_FILE, value: /secrets/action-gateway-team-key}
+            {{- if eq .Values.approver "slack" }}
+            - {name: SLACK_CHANNEL, value: {{ .Values.slack.channel | quote }}}
+            - {name: SLACK_APPROVERS, value: {{ toJson .Values.slack.approvers | quote }}}
+            - {name: SLACK_APP_TOKEN_FILE, value: /secrets/slack-app-token}
+            - {name: SLACK_BOT_TOKEN_FILE, value: /secrets/slack-bot-token}
+            {{- end }}
+          resources: {{- toYaml .Values.resources.gateway | nindent 12 }}
+          securityContext: &hardened {readOnlyRootFilesystem: true, allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+          volumeMounts:
+            - {name: tokens, mountPath: /etc/action-gateway, readOnly: true}
+            - {name: secrets, mountPath: /secrets, readOnly: true}
+            - {name: data, mountPath: /data}  # the local audit file (kind) and pending CLI approvals
+            - {name: tmp, mountPath: /tmp}
+        - name: opa
+          image: {{ .Values.opa.image | quote }}
+          # --ignore=.* skips the ConfigMap volume's hidden ..data folders, so each policy loads once
+          args: [run, --server, --addr=127.0.0.1:8181, --skip-version-check, --log-level=error, --ignore=.*, /policies]
+          resources: {{- toYaml .Values.resources.opa | nindent 12 }}
+          securityContext: *hardened
+          volumeMounts:
+            - {name: policies, mountPath: /policies, readOnly: true}
+      volumes:
+        - {name: tokens, configMap: {name: agent-tokens}}
+        - {name: policies, configMap: {name: policies}}
+        - name: secrets
+          {{- if .Values.secrets.csi }}
+          csi: {driver: secrets-store-gke.csi.k8s.io, readOnly: true, volumeAttributes: {secretProviderClass: action-gateway-secrets}}
+          {{- else }}
+          secret: {secretName: action-gateway-secrets}  # kind: made by the test, with test values
+          {{- end }}
+        - {name: data, emptyDir: {}}
+        - {name: tmp, emptyDir: {}}

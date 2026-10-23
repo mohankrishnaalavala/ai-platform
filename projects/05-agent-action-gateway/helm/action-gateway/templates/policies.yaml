@@ -1,0 +1,14 @@
+# The Rego policy and its data, for the OPA sidecar. A change restarts the pod (the checksum in
+# deployment.yaml), so OPA loads it. The tests (gateway_test.rego) stay out.
+{{- if not (and (hasKey .Values.policies "gateway.rego") (hasKey .Values.policies "data.json")) }}
+{{- fail "policies needs gateway.rego and data.json: --set-file policies.gateway\\.rego=policies/gateway.rego --set-file policies.data\\.json=policies/data.json" }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: policies
+  labels: {{- include "ag.labels" . | trim | nindent 4 }}
+data:
+  {{- range $name, $text := .Values.policies }}
+  {{ $name }}: {{ $text | quote }}
+  {{- end }}

@@ -64,6 +64,9 @@ jobs:
       - name: "P3: SLO and alert rules (Sloth's output is committed, promtool checks and unit tests)"
         run: projects/03-llm-observability/tests/rules.sh
 
+      - name: "P5: OPA policy tests, and each scenario's expected decision against the policy (no cluster)"
+        run: projects/05-agent-action-gateway/tests/policy.sh
+
       - name: the charts package with one version (what release.yml does on a tag)
         run: |
           scripts/package_charts.sh "$(sed -n 's/^version: //p' projects/02-llm-gateway/helm/gateway/Chart.yaml)" "$RUNNER_TEMP/charts"
@@ -122,6 +125,8 @@ jobs:
             echo "timeouts (and chat-default's prices): $chart"
           done
 
+      # With P4's values on top (the judge alias, canary deployments stored in the database), as in the cluster
+      # window, so P2's and P3's checks also run against them.
       - name: random secrets as files, the chart's config rendered
         run: |
           secrets="$RUNNER_TEMP/secrets" config="$RUNNER_TEMP/config"
@@ -131,6 +136,7 @@ jobs:
           printf '%s' "$master" > "$secrets/litellm-master-key"
           printf '%s' "$pg" > "$secrets/gateway-postgres-password"
           helm template gateway ../helm/gateway -f ../helm/gateway/values-ci.yaml --set project=ci \
+            -f ../../04-eval-gated-releases/helm/gateway-canary.yaml -f ../../04-eval-gated-releases/tests/gateway-ci.yaml \
             --set labels.owner=ci --set labels.session=ci --show-only templates/config.yaml > "$RUNNER_TEMP/cm.yaml"
           docker run --rm -i "$YQ" '.data["config.yaml"]' < "$RUNNER_TEMP/cm.yaml" > "$config/config.yaml"
           docker run --rm -i "$YQ" '.data["start.sh"]' < "$RUNNER_TEMP/cm.yaml" > "$config/start.sh"
@@ -178,6 +184,13 @@ jobs:
       - name: smoke, budget, rate limit, keys, PII on the hosted route
         run: python3 -m unittest discover -s . -v
 
+      # P4's eval runner against this gateway, on its 10-case fixture set (never the golden set): the answering
+      # model and the fallback header on every call, tokens, cost and the results files. Before P3's step,
+      # which stops the mock vLLM.
+      - name: "P4: the eval runner against the gateway (the mock vLLM up)"
+        working-directory: projects/04-eval-gated-releases/tests
+        run: python3 -m unittest test_gateway_run -v
+
       # The span names and attributes P3's metrics, alerts and scale-from-zero trigger are built on, then the
       # pipeline: a trace in Tempo, the span metrics in Prometheus, data for every gateway dashboard query,
       # and cost per team from the traces equal to the spend logs. The span test's fallback request is the
@@ -190,6 +203,17 @@ jobs:
         run: |
           docker compose stop mock-vllm
           VLLM_DOWN=1 python3 -m unittest test_fallback test_pii -v
+
+      - name: "P4: a fallback answer makes the eval run INVALID (the mock vLLM stopped)"
+        working-directory: projects/04-eval-gated-releases/tests
+        run: VLLM_DOWN=1 python3 -m unittest test_gateway_run -v
+
+      # What P4's canary promoter relies on in LiteLLM: two deployments of one alias split 90:10 by weight, a weight
+      # change with no restart, litellm.provider.model on attempt spans and in Prometheus, and the header that names
+      # the deployment. Uses promote.py's own calls; removes its deployments at the end.
+      - name: "P4: canary contract (weighted split, runtime weight change, provider-model label, deployment header)"
+        working-directory: projects/04-eval-gated-releases/tests
+        run: python3 -m unittest -v test_canary_contract
 
       # Container logs go to Cloud Logging on GKE, so they must not hold a prompt either.
       - name: no raw PII in logs, traces or spend logs
@@ -212,3 +236,66 @@ jobs:
       - name: container logs (keys scrubbed)
         if: failure()
         run: docker compose logs --no-color | sed -E 's/sk-[A-Za-z0-9_.-]{4,}/sk-<redacted>/g' | tail -200
+
+  # P5: the action gateway image, built and scanned; the unit tests inside it (they need the MCP SDK, which
+  # the lint job's unit-test step doesn't install); then, on one kind cluster with the Helm chart, the smoke
+  # test and all 50 scenarios (tests/kind-smoke.sh). Runs on every pull request, so on every one that touches
+  # policies/ or src/. No cloud.
+  action-gateway:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: projects/05-agent-action-gateway
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: build the image
+        run: docker build -t action-gateway:ci .
+
+      # Fails on HIGH or CRITICAL findings that have a fix; unfixed ones can't be acted on here.
+      - name: scan the image (trivy)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa \
+            image --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL action-gateway:ci
+
+      - name: unit tests inside the image (read-only root filesystem, as in the pod)
+        run: docker run --rm --read-only --tmpfs /tmp action-gateway:ci python -m unittest discover -s /app -v
+
+      - name: install kind and kubectl (pinned, checked by sha256)
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/kind" https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-linux-amd64
+          echo "aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d  $RUNNER_TEMP/kind" | sha256sum -c -
+          curl -fsSL -o "$RUNNER_TEMP/kubectl" https://dl.k8s.io/release/v1.36.4/bin/linux/amd64/kubectl
+          echo "8b8f088da2dab964f853b38464033b1be15ede2839eca751482357c45abdd05a  $RUNNER_TEMP/kubectl" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/kind" "$RUNNER_TEMP/kubectl"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      - name: install helm
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/helm.tgz" https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz
+          echo "86584a54def73570558f66f5111cc53dfed56689637ae32c1201205d494f54fb  $RUNNER_TEMP/helm.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/helm.tgz" -C "$RUNNER_TEMP" linux-amd64/helm
+          echo "$RUNNER_TEMP/linux-amd64" >> "$GITHUB_PATH"
+
+      - name: "kind: smoke test (the write tools and undo as the scoped ServiceAccount, CLI approval), then the 50 scenarios (P5-09)"
+        run: RESULTS_DIR="$RUNNER_TEMP/scenarios" tests/kind-smoke.sh
+
+      # The metrics table on the run page, and every response as an artifact.
+      - name: scenario results
+        if: ${{ always() }}
+        run: |
+          f="$RUNNER_TEMP/scenarios/scenarios.md"
+          if [ -f "$f" ]; then cat "$f" >> "$GITHUB_STEP_SUMMARY"; else echo "no scenario results (the run stopped earlier)"; fi
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ always() }}
+        timeout-minutes: 3
+        with:
+          name: p5-scenarios
+          path: ${{ runner.temp }}/scenarios/
+          retention-days: 30
+          if-no-files-found: ignore

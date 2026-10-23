@@ -1,0 +1,28 @@
+{
+  "gateway_config": {
+    "version": "1",
+    "tools": {
+      "get_status": {"write": false, "irreversible": false, "required": ["namespace"], "optional": ["name"]},
+      "scale_deployment": {"write": true, "irreversible": false, "required": ["namespace", "name", "replicas"], "optional": []},
+      "restart_deployment": {"write": true, "irreversible": false, "required": ["namespace", "name"], "optional": []},
+      "rollout_undo": {"write": true, "irreversible": false, "required": ["namespace", "name"], "optional": ["to_revision"]},
+      "apply_manifest": {"write": true, "irreversible": false, "required": ["namespace", "manifest"], "optional": []},
+      "undo_action": {"write": true, "irreversible": false, "required": ["action_id"], "optional": []}
+    },
+    "allowed_kinds": ["ConfigMap", "Deployment"],
+    "limits": {
+      "max_scale_change_pct_without_approval": 100,
+      "max_pods_affected": 20
+    },
+    "break_glass_team": "break-glass",
+    "freezes": [
+      {
+        "name": "weekend freeze",
+        "envs": ["prod"],
+        "time_zone": "America/Chicago",
+        "start": "Friday 17:00",
+        "end": "Monday 08:00"
+      }
+    ]
+  }
+}

@@ -1,0 +1,5 @@
+# The action gateway server's direct dependencies. requirements.txt pins them and everything they pull in, with hashes.
+mcp==2.3.0
+uvicorn==0.54.0
+# The Slack approver (Socket Mode: the pod connects out to Slack; nothing listens for Slack)
+slack-bolt==1.30.0

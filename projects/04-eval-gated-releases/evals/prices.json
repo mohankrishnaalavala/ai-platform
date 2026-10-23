@@ -1,0 +1,11 @@
+{
+  "note": "USD per 1M tokens, keyed by the model name LiteLLM reports in the x-litellm-model-name header. Enter a price by hand from its source page, with the date it was read. null means not looked up yet: run.py then records the token cost as null, shown as [X]. Self-hosted targets are priced by GPU minutes instead (projects/01-gpu-serving/bench/prices.json).",
+  "tokens": {
+    "vertex_ai/gemini-3.5-flash-lite": {"input_per_1m": 0.30, "output_per_1m": 2.50,
+      "source": "https://cloud.google.com/vertex-ai/generative-ai/pricing (redirects to https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing), table Gemini 3, tab Standard, row Gemini 3.5 Flash-Lite, region Global (the gateway's vertex_location), <= 200K input tokens (the same price above 200K). Input: text, image, video, audio. Output: text, response and reasoning tokens alike. List price, before any credit or discount",
+      "date": "2026-10-22"},
+    "vertex_ai/gemini-3.5-flash": {"input_per_1m": 1.50, "output_per_1m": 9.00,
+      "source": "https://cloud.google.com/vertex-ai/generative-ai/pricing (redirects to https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing), table Gemini 3, tab Standard, row Gemini 3.5 Flash, region Global (the gateway's vertex_location), <= 200K input tokens (the same price above 200K). Input: text, image, video, audio. Output: text, response and reasoning tokens alike. List price, before any credit or discount",
+      "date": "2026-10-22"}
+  }
+}

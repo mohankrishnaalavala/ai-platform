@@ -1,0 +1,17 @@
+# P4's values on top of P2's gateway release (deploy.sh says how P2's values are kept).
+# - judge: the model that scores open Q&A answers (evals/judge.md), at temperature 0.
+# - store_model_in_db: LiteLLM can change a deployment's weight at runtime only when the deployment is
+#   stored in its database, not in this file. So promote.py adds the canary's two deployments of
+#   chat-hosted through the admin API and changes their weights with no restart (tests/test_canary_contract.py).
+extraModels:
+  - model_name: judge
+    litellm_params:
+      model: vertex_ai/gemini-3.5-flash
+      vertex_project: os.environ/VERTEX_PROJECT
+      vertex_location: global
+      temperature: 0
+      timeout: 60  # as chat-hosted (P2's values.yaml says why)
+      stream_timeout: 10
+config:
+  general_settings:
+    store_model_in_db: true

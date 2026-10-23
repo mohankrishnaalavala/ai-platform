@@ -1,0 +1,24 @@
+{
+  "name": "risky-02-prod-scale-2-to-4",
+  "group": "risky",
+  "description": "Scale checkout in prod from 2 to 4 replicas: the 'checkout is slow' fix. Any listed approver may approve it.",
+  "team": "payments",
+  "time": "2026-11-04T10:00:00-06:00",
+  "setup": [],
+  "call": {
+    "tool": "scale_deployment",
+    "arguments": {
+      "namespace": "prod",
+      "name": "checkout",
+      "replicas": 4
+    }
+  },
+  "expect": {
+    "decision": "needs_approval",
+    "reasons": [
+      "production",
+      "approval"
+    ],
+    "approver_team": ""
+  }
+}
