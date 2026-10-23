@@ -53,7 +53,7 @@ It's a plain MCP server over Streamable HTTP with a bearer token, so it could si
 
 ## Results
 
-The [50 scenarios](evals/scenarios/) (20 safe, 15 risky, 15 dangerous, of which 6 are prompt-injection attempts) run in CI on every pull request. Each sends its tool call through the MCP server as an agent would. The kind column is from [scenarios-kind-ci-2026-10-22-a0978ed.md](results/scenarios-kind-ci-2026-10-22-a0978ed.md): one CI run on GitHub's Ubuntu 24.04 runner (4 CPUs), Kubernetes v1.36.4 on kind, the CLI approver answering approve. The GKE column waits for a session run.
+The [50 scenarios](evals/scenarios/) (20 safe, 15 risky, 15 dangerous, of which 6 are prompt-injection attempts) run in CI on every pull request. Each sends its tool call through the MCP server as an agent would. The kind column is from [scenarios-kind-ci-2026-10-23-ccbb707.md](results/scenarios-kind-ci-2026-10-23-ccbb707.md): one CI run on GitHub's Ubuntu 24.04 runner (4 CPUs), Kubernetes v1.36.4 on kind, the CLI approver answering approve. The GKE column waits for a session run.
 
 | Measure | kind (CI) | Caveat | GKE |
 |---|---|---|---|
@@ -61,10 +61,10 @@ The [50 scenarios](evals/scenarios/) (20 safe, 15 risky, 15 dangerous, of which 
 | Safe actions wrongly blocked (of 20) | 0 | Strict: a safe call sent for approval would count as blocked | [X] |
 | Risky actions correctly sent for approval (of 15) | 15 | The CLI approver answered, not Slack | [X] |
 | Prompt-injection attempts blocked | 6 of 6 | No LLM agent in the loop: the runner sends the call a fooled agent would make | [X] |
-| Median added latency per action (excluding human wait) | 27.1 ms | Timed at the agent, through kubectl port-forward on the same runner, with the change itself. No LLM summary in it (kind has no P2 gateway); in the cluster, the summary can add up to 15 s to each call that needs approval. One run's value; an earlier run had 29.6 ms | [X] |
+| Median added latency per action (excluding human wait) | 30.2 ms | Timed at the agent, through kubectl port-forward on the same runner, with the change itself. No LLM summary in it (kind has no P2 gateway); in the cluster, the summary can add up to 15 s to each call that needs approval. One run's value; the two superseded runs had 29.6 ms and 27.1 ms | [X] |
 | Undo success rate (reversible scenarios) | 100% (30 of 30) | The runner waits for each change to roll out before the undo (see Known limits). 1 irreversible scenario isn't undone | [X] |
 
-All 50 scenarios passed every check: the decision, the expected reason keywords, and the dry-run values where a scenario sets them. The earlier run is in [scenarios-kind-ci-2026-10-22.md](results/scenarios-kind-ci-2026-10-22.md), superseded because it came from an earlier commit.
+All 50 scenarios passed every check: the decision, the expected reason keywords, and the dry-run values where a scenario sets them. The earlier runs, superseded because they came from earlier commits, are in [scenarios-kind-ci-2026-10-22.md](results/scenarios-kind-ci-2026-10-22.md) and [scenarios-kind-ci-2026-10-22-a0978ed.md](results/scenarios-kind-ci-2026-10-22-a0978ed.md).
 
 **Threat model:** [threat-model.md](threat-model.md) lists what can go wrong (wrong actions, prompt injection, over-broad credentials, token theft, approval spoofing, missing audit) and which control stops each, and what v1 doesn't cover.
 
@@ -92,23 +92,37 @@ SLACK_CHANNEL_ID=C... SLACK_APPROVERS=U...,U... SLACK_BREAK_GLASS_APPROVERS=U...
 - **What `deploy.sh` does:** it applies the demo targets (`evals/base.yaml`), makes the action gateway's P2 team key, makes one agent token (printed once; only its hash is stored), and installs the chart with the image `mirror.yml` pushed, pinned by digest.
 - **Connect Claude Code:** [slack.md](slack.md), section 5.
 
-**The 50 scenarios on GKE.** From the repo root, with a Python that has `requirements.txt` installed (`.venv`, as in slack.md section 3):
+**The 50 scenarios on GKE.** From the repo root, with a Python that has `requirements.txt` installed (`.venv`, as in slack.md section 3). The runner stops before touching anything unless three variables are set:
+
+- `EXPECT_CONTEXT`: the session cluster's kubectl context. The runner goes on only if `kubectl config current-context` is exactly this.
+- `OWNER` and `SESSION`: the labels of every object it applies.
 
 ```sh
 export KUBECONFIG=~/.kube/ai-platform CLOUDSDK_ACTIVE_CONFIG_NAME=ai-platform CLOUDSDK_CORE_DISABLE_PROMPTS=1
-OWNER=$(gcloud projects describe "$(gcloud config get project)" --format='value(labels.owner)') \
-SESSION=$(gcloud container clusters describe ai-platform --location="${ZONE:-us-central1-c}" --format='value(resourceLabels.session)') \
-COMMIT=$(git rev-parse HEAD) \
-  .venv/bin/python projects/05-agent-action-gateway/evals/run_scenarios.py --cluster http://127.0.0.1:18080/mcp \
-  "projects/05-agent-action-gateway/results/scenarios-gke-$(date -u +%Y-%m-%d)"
+project=$(gcloud config get project)
+zone=${ZONE:-us-central1-c}
+export EXPECT_CONTEXT="gke_${project}_${zone}_ai-platform"
+export OWNER=$(gcloud projects describe "$project" --format='value(labels.owner)')
+export SESSION=$(gcloud container clusters describe ai-platform --location="$zone" --format='value(resourceLabels.session)')
+COMMIT=$(git rev-parse HEAD) .venv/bin/python projects/05-agent-action-gateway/evals/run_scenarios.py \
+  --cluster http://127.0.0.1:18080/mcp "projects/05-agent-action-gateway/results/scenarios-gke-$(date -u +%Y-%m-%d)"
 ```
 
-- **For this run only,** the runner switches the gateway to the CLI approver and the test clock (the pod restarts), and adds one new agent token per scenario team. Afterwards, even if the run fails, it puts all three back and checks them.
+- **For this run only,** the runner switches the gateway to the CLI approver and the test clock (the pod restarts), and adds one new agent token per scenario team.
+- **Afterwards,** even if the run fails or gets a SIGTERM, it puts all three back one step at a time, and checks them. Ctrl-C is ignored while it does. If a step fails, it names the step and exits 1.
 - **It opens its own port-forward** on port 18080, since the restart ends any earlier one.
 - **Use the gateway for nothing else meanwhile:** the runner approves every pending request, and it deletes and re-creates the Deployments, PodDisruptionBudgets and ConfigMaps in `dev`, `staging` and `prod`.
 - **The output** is `scenarios-gke.json` and `scenarios-gke.md` in that folder, marked GKE, with the cluster's Kubernetes version.
-- **Tried on kind only so far:** the switch, the restore and the 50 scenarios passed there, and the unit tests cover the restore with a stand-in kubectl. Not yet run on GKE.
+- **Tests:** the unit tests cover the switch and the restore with a stand-in kubectl. The GKE run is still to come.
 - **It costs** 15 risk-summary calls through P2 (one per risky scenario), on the action gateway's own team key.
+
+**If a cluster run was interrupted,** run this read-only check (with `EXPECT_CONTEXT` set as above) before anything else:
+
+```sh
+python3 projects/05-agent-action-gateway/evals/run_scenarios.py --check
+```
+
+It prints the approver, whether the test clock is on, and the token hashes a run left in the `agent-tokens` ConfigMap. It exits 1 if the clock is on or any hashes are left, and the runner won't start a new run until both are cleared. To clear them by hand: `kubectl -n action-gateway set env deploy/action-gateway -c gateway APPROVER=slack TEST_ONLY_CLOCK_FILE-`, then delete the listed hashes with `kubectl -n action-gateway edit configmap agent-tokens`.
 
 ## Known limits
 

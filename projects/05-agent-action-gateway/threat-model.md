@@ -6,7 +6,7 @@ What can go wrong when an AI agent changes Kubernetes through this gateway, and 
 
 **Trust boundaries.** The agent controls only the tool name and its arguments. The gateway gets everything else itself: namespace labels and replica counts from the cluster, the time from its own clock, and the team from the agent's token. The LLM (large language model) only writes a summary for the human. It never decides.
 
-**Status.** *Built* means it's in this repo and tested in CI: unit tests, `opa test` on the OPA (Open Policy Agent) policy, and all 50 scenarios through the server on kind (Kubernetes in Docker; [results](results/scenarios-kind-ci-2026-10-22-a0978ed.md)). *Cluster run to come* names what only the GKE session can prove: Workload Identity, the Secret Manager mounts, Slack and the P2 gateway.
+**Status.** *Built* means it's in this repo and tested in CI: unit tests, `opa test` on the OPA (Open Policy Agent) policy, and all 50 scenarios through the server on kind (Kubernetes in Docker; [results](results/scenarios-kind-ci-2026-10-23-ccbb707.md)). *Cluster run to come* names what only the GKE session can prove: Workload Identity, the Secret Manager mounts, Slack and the P2 gateway.
 
 | # | What can go wrong | Example | Control that stops it | Status |
 |---|---|---|---|---|

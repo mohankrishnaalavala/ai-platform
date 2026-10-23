@@ -21,24 +21,41 @@ It's the same path CI (continuous integration) uses on every pull request (`test
 | Python | 3.13 | The example agent (`call.py`) and, on macOS, the 50 scenarios |
 | git, curl, openssl | any recent | Getting the code, tokens |
 
-kind, kubectl and Helm at those versions, each checked against the checksum its project publishes. This puts them in `~/.local/bin`; make sure that folder is on your `PATH`.
+kind, kubectl and Helm at those versions, each checked against a fixed sha256. The values come from the checksum files each project publishes, and were checked against the downloads on 2026-10-22. This puts the tools in `~/.local/bin`; make sure that folder is on your `PATH`.
 
 ```bash
 os=$(uname -s | tr '[:upper:]' '[:lower:]')                      # darwin or linux
 arch=$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')        # amd64 or arm64
+case "$os-$arch" in
+  darwin-amd64)
+    kind_sha=5a99f26f57246dc9319dd294803313197a0f34d33c525b3ea8b655db5916ece0
+    kubectl_sha=71a3aa7c2ee2c974d9fbb462cba0c5c04a4df2e8d85eee94714fd819ea3c4e63
+    helm_sha=347a784877e0e20eac865e8d1c36a80f6bb0861d6f29abd34defb6570ef95d92 ;;
+  darwin-arm64)
+    kind_sha=0c8c7dbe5e23594a198b786c4bc13dacc101fa6196b0cb0b23a1ca44e61f4b4f
+    kubectl_sha=c9e4f713d6fee0043a3d835cca13077cda2bc0973840eb9779360df0b5bdfc69
+    helm_sha=d3870437e1e95b67f8edbde964156c84a26503f560821d40c542441658934fba ;;
+  linux-amd64)
+    kind_sha=aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d
+    kubectl_sha=8b8f088da2dab964f853b38464033b1be15ede2839eca751482357c45abdd05a
+    helm_sha=86584a54def73570558f66f5111cc53dfed56689637ae32c1201205d494f54fb ;;
+  linux-arm64)
+    kind_sha=20022bee6cfcd5086cb7234d218e3454e6090022f2a8f55d1fa7fcf42c3867a2
+    kubectl_sha=0ecf44450ee6063bf19dd166a103ee6df4a9034455c2abce626e6eea657d73fb
+    helm_sha=31c5794dd55c66a51e6b7d2e2ac7a114ae8b1de41ff1d9ba51748ac973b06a08 ;;
+  *) echo "no checksums in this guide for $os-$arch" ;;
+esac
 mkdir -p ~/.local/bin && cd "$(mktemp -d)"
 curl -fsSLo kind "https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-$os-$arch"
 curl -fsSLo kubectl "https://dl.k8s.io/release/v1.36.4/bin/$os/$arch/kubectl"
 curl -fsSLo helm.tgz "https://get.helm.sh/helm-v4.3.0-$os-$arch.tar.gz"
-echo "$(curl -fsSL "https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-$os-$arch.sha256sum" | cut -d' ' -f1)  kind" | shasum -a 256 -c
-echo "$(curl -fsSL "https://dl.k8s.io/release/v1.36.4/bin/$os/$arch/kubectl.sha256")  kubectl" | shasum -a 256 -c
-echo "$(curl -fsSL "https://get.helm.sh/helm-v4.3.0-$os-$arch.tar.gz.sha256sum" | cut -d' ' -f1)  helm.tgz" | shasum -a 256 -c
+printf '%s  kind\n%s  kubectl\n%s  helm.tgz\n' "$kind_sha" "$kubectl_sha" "$helm_sha" | shasum -a 256 -c
 tar -xzf helm.tgz "$os-$arch/helm"
 chmod +x kind kubectl && mv kind kubectl "$os-$arch/helm" ~/.local/bin/
 cd - >/dev/null
 ```
 
-Each `shasum` line must print `OK`. On Linux, `sha256sum -c` works in place of `shasum -a 256 -c`.
+The `shasum` line must print `OK` three times. If it prints `FAILED`, stop: don't move the files. On Linux, `sha256sum -c` works in place of `shasum -a 256 -c`.
 
 ## 2. Get the code and a Python environment
 

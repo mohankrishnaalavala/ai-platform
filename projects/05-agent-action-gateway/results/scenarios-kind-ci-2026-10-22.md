@@ -1,4 +1,4 @@
-> **Superseded** by [scenarios-kind-ci-2026-10-22-a0978ed.md](scenarios-kind-ci-2026-10-22-a0978ed.md): the same 50 scenarios, run on the final code. Quote that file, not this one.
+> **Superseded** by [scenarios-kind-ci-2026-10-23-ccbb707.md](scenarios-kind-ci-2026-10-23-ccbb707.md): the same 50 scenarios, run on the final code. Quote that file, not this one.
 
 # P5 scenarios on kind: 2026-10-22T21:38:59Z
 

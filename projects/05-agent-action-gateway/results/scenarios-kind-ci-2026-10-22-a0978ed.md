@@ -1,3 +1,5 @@
+> **Superseded** by [scenarios-kind-ci-2026-10-23-ccbb707.md](scenarios-kind-ci-2026-10-23-ccbb707.md): the same 50 scenarios, run on the final code. Quote that file, not this one.
+
 # P5 scenarios on kind: 2026-10-22T23:34:08Z
 
 Source: CI run https://github.com/mohankrishnaalavala/ai-platform/actions/runs/39872186547 (job action-gateway, artifact p5-scenarios), on pull request #75 at commit `a0978ed`. Copied unchanged except this line, the Code line and the Caveats section; the raw output is `scenarios-kind-ci-2026-10-22-a0978ed.json`.
