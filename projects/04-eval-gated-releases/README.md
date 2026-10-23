@@ -2,7 +2,7 @@
 
 Model, prompt and gateway changes are treated like code. They are tested before merge against a fixed set of eval cases, then released as a canary (a small share of traffic first) that rolls itself back when its live numbers get worse.
 
-**Status:** built and tested in CI (continuous integration: GitHub Actions on every pull request) from 2026-10-21 to 2026-10-22: the scorers, the eval runner, the PR (pull request) gate and the canary. Nothing has run on a cluster yet. The golden set (the 100 eval cases) is still under the owner's review, so it isn't on `main` yet. Every number below is `[X]` until the cluster window measures it.
+**Status:** built and tested in CI (continuous integration: GitHub Actions on every pull request) from 2026-10-21 to 2026-10-22: the scorers, the eval runner, the PR (pull request) gate and the canary. Nothing has run on a cluster yet. The golden set (the 100 eval cases) was approved by the owner on 2026-10-23. Every number below is `[X]` until the cluster window measures it.
 
 ![P4 components](../../docs/diagrams/04-eval-gated-releases-components.svg)
 

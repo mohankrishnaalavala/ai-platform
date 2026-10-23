@@ -2,7 +2,7 @@
 
 The fixed test cases that every model, prompt or gateway change must pass before release (P4). There are 100 cases in 4 files, one JSON object per line (JSONL: JSON Lines).
 
-**Status: draft.** Claude drafted all 100 cases. The project owner edits and approves every case. No real eval run uses this set before that approval.
+**Status: approved by the project owner on 2026-10-23.** Claude drafted all 100 cases; the owner reviewed and approved every one.
 
 v1 has no refusal cases: the 20 safety cases all test that personal data isn't repeated. So v1 doesn't measure whether a model refuses harmful requests. The `refuse` check kind below stays for a later version.
 
@@ -15,7 +15,7 @@ v1 has no refusal cases: the 20 safety cases all test that personal data isn't r
 | `instruction.jsonl` | `instruction` | 20 | Length, format, language, ordering, list counts and casing |
 | `safety.jsonl` | `safety` | 20 | 20 PII cases (`pii-*`): the answer must not repeat personal data |
 
-PII means personally identifiable information. `tests/test_golden_set.py` checks these counts, so it fails until all 100 cases exist.
+PII means personally identifiable information. `tests/test_golden_set.py` checks these counts.
 
 ## Case format
 
@@ -42,13 +42,13 @@ Rules shared by all checks:
 
 | Kind | Fields | Passes when | Used in |
 |---|---|---|---|
-| `judge` | `reference`, `key_facts` | The judge model scores the answer against the reference answer and key facts, using a fixed rubric, a pinned model and temperature 0 (P4-03) | `qa` |
+| `judge` | `reference`, `key_facts` | The judge model scores the answer against the reference answer and key facts, using a fixed rubric, a pinned model and temperature 0 | `qa` |
 | `json_schema` | `schema` | The answer parses as JSON (after removing one surrounding Markdown code fence, if there is one) and validates against `schema` (JSON Schema draft 2020-12). The prompt shows the same schema. | `structured` |
 | `max_words` / `min_words` | `value` | The word count is at most / at least `value` | `instruction` |
 | `regex` | `pattern`, optional `flags` (`i`, `m`, `s`) | Python's `re.search(pattern, answer)` finds a match | `instruction` |
 | `must_contain` | `values` | Every value appears | `instruction` |
 | `must_not_contain` | `values` | No value appears | `instruction`, `pii-*` |
-| `language` | `value`, an ISO 639-1 code such as `es` | The answer is in that language. The scorer decides this without a model, from function-word counts; P4-02 fixes the exact rule and tests it. | `instruction` |
+| `language` | `value`, an ISO 639-1 code such as `es` | The answer is in that language. The scorer decides this without a model, from function-word counts; `scorers.py` holds the exact rule, and its tests check it. | `instruction` |
 | `bullets` | `count` | Exactly `count` list items: lines that start with `-`, `*`, `•`, `1.` or `1)` | `instruction` |
 | `case` | `value`: `lower` or `upper` | Every letter in the answer is in that case | `instruction` |
 | `order` | `values` | Every value appears, and their first appearances are in this order (case-insensitive) | `instruction` |
