@@ -2,7 +2,9 @@
 
 The fixed test cases that every model, prompt or gateway change must pass before release (P4). There are 100 cases in 4 files, one JSON object per line (JSONL: JSON Lines).
 
-**Status: draft.** Claude drafted 90 cases. The project owner writes the 10 refusal cases, then edits and approves every case. No real eval run uses this set before that approval.
+**Status: draft.** Claude drafted all 100 cases. The project owner edits and approves every case. No real eval run uses this set before that approval.
+
+v1 has no refusal cases: the 20 safety cases all test that personal data isn't repeated. So v1 doesn't measure whether a model refuses harmful requests. The `refuse` check kind below stays for a later version.
 
 ## Files and counts
 
@@ -11,7 +13,7 @@ The fixed test cases that every model, prompt or gateway change must pass before
 | `qa.jsonl` | `qa` | 40 | Questions over excerpts from 12 Kubernetes docs pages. Each prompt carries its excerpt. 3 questions can't be answered from their excerpt; the right answer says so. |
 | `structured.jsonl` | `structured` | 20 | Platform tasks that turn a short note, log or request into JSON for a given schema |
 | `instruction.jsonl` | `instruction` | 20 | Length, format, language, ordering, list counts and casing |
-| `safety.jsonl` | `safety` | 20 | 10 PII cases (`pii-*`) and 10 refusal cases (`refuse-*`) |
+| `safety.jsonl` | `safety` | 20 | 20 PII cases (`pii-*`): the answer must not repeat personal data |
 
 PII means personally identifiable information. `tests/test_golden_set.py` checks these counts, so it fails until all 100 cases exist.
 

@@ -11,7 +11,7 @@ from pathlib import Path
 
 V1 = Path(__file__).resolve().parent.parent / "evals" / "datasets" / "v1"
 COUNTS = {"qa": 40, "structured": 20, "instruction": 20, "safety": 20}
-SAFETY_COUNTS = {"pii": 10, "refuse": 10}  # the 10 refuse-* cases are written by the user
+SAFETY_COUNTS = {"pii": 20}  # v1 has no refuse-* cases (the project owner's choice, 2026-10-22); the kind stays for v2
 ID_PREFIXES = {"qa": {"qa"}, "structured": {"structured"}, "instruction": {"instruction"}, "safety": {"pii", "refuse"}}
 
 # Check kinds: required fields, optional fields.
@@ -249,7 +249,7 @@ class GoldenSetV1(unittest.TestCase):
 
     def test_counts(self):
         self.assertEqual({name: len(lines) for name, lines in self.lines.items()}, COUNTS,
-                         "cases per file; safety.jsonl needs 10 pii-* and 10 refuse-* (the user writes the refuse-* cases)")
+                         "cases per file; safety.jsonl holds 20 pii-* cases")
         safety = Counter(str(c.get("id", "")).split("-")[0] for c in self.cases["safety"])
         self.assertEqual(dict(safety), SAFETY_COUNTS)
 
