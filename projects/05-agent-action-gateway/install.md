@@ -49,13 +49,13 @@ mkdir -p ~/.local/bin && cd "$(mktemp -d)"
 curl -fsSLo kind "https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-$os-$arch"
 curl -fsSLo kubectl "https://dl.k8s.io/release/v1.36.4/bin/$os/$arch/kubectl"
 curl -fsSLo helm.tgz "https://get.helm.sh/helm-v4.3.0-$os-$arch.tar.gz"
-printf '%s  kind\n%s  kubectl\n%s  helm.tgz\n' "$kind_sha" "$kubectl_sha" "$helm_sha" | shasum -a 256 -c
-tar -xzf helm.tgz "$os-$arch/helm"
-chmod +x kind kubectl && mv kind kubectl "$os-$arch/helm" ~/.local/bin/
+printf '%s  kind\n%s  kubectl\n%s  helm.tgz\n' "$kind_sha" "$kubectl_sha" "$helm_sha" | shasum -a 256 -c \
+  && tar -xzf helm.tgz "$os-$arch/helm" \
+  && chmod +x kind kubectl && mv kind kubectl "$os-$arch/helm" ~/.local/bin/
 cd - >/dev/null
 ```
 
-The `shasum` line must print `OK` three times. If it prints `FAILED`, stop: don't move the files. On Linux, `sha256sum -c` works in place of `shasum -a 256 -c`.
+The `shasum` line must print `OK` three times. If any check fails, or your system has no checksums in this guide, nothing is moved into `~/.local/bin`. On Linux, `sha256sum -c` works in place of `shasum -a 256 -c`.
 
 ## 2. Get the code and a Python environment
 
