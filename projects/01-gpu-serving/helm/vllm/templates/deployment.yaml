@@ -56,7 +56,11 @@ spec:
             - {{ required "model.hfId is required" .Values.model.hfId }}
             - --revision={{ required "model.revision is required" .Values.model.revision }}
             {{- end }}
-            - --served-model-name={{ .Values.model.hfId }}
+            # Two names. The model's own comes first: vLLM's answers and metrics show it, and P1's bench calls it.
+            # The gateway's chat-default calls the fixed second one, so a model swap needs no gateway change.
+            - --served-model-name
+            - {{ .Values.model.hfId }}
+            - self-hosted
             - --max-model-len={{ .Values.vllm.maxModelLen }}
             - --gpu-memory-utilization={{ .Values.vllm.gpuMemoryUtilization }}
             {{- with .Values.vllm.quantization }}

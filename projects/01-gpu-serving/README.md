@@ -123,7 +123,7 @@ Unit tests for the bench scripts, which CI also runs: `python3 -m unittest disco
 
 | Path | What it is |
 |---|---|
-| `deploy.sh` | Installs Prometheus, KEDA and the vLLM chart for one model config |
+| `deploy.sh` | Installs Prometheus, KEDA and the vLLM chart for one model config. With `VLLM_ONLY=1` it upgrades only vLLM's release, so a model swap on a cluster with P3's monitoring leaves that monitoring alone (P4's offline evals) |
 | `helm/` | Values for Prometheus and KEDA, and the vLLM chart (`values-baseline.yaml` switches to the baseline path) |
 | `tests/` | `make test P=01`: smoke tests and the autoscaling checks; `charts.sh` for CI |
 | `bench/` | Benchmark, cold-start and scale-out scripts, the cost calculator, prices and unit tests |
