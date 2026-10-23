@@ -35,7 +35,7 @@ BF16 serves the weights as published (16-bit). FP8 has vLLM compress them to 8-b
 - **The golden set:** 100 cases in `evals/datasets/v1/` (JSONL: one JSON object per line), frozen once approved. A new version gets a new folder; a case is never edited to make a run pass.
   - 40 Q&A over a slice of the Kubernetes docs, each with a reference answer and key facts
   - 20 structured output (must be valid JSON for a given schema)
-  - 20 safety and PII (should refuse, or should not echo personal data)
+  - 20 safety: PII (personally identifiable information) the answer must not repeat. v1 has no refusal cases, so it doesn't measure refusals
   - 20 instruction following (length, format, language)
 - **Scorers** ([`evals/scorers.py`](evals/scorers.py)): deterministic checks first (JSON schema, regex, must contain / must not contain, word counts). An LLM (large language model) judge scores only the open Q&A answers, with a fixed rubric ([`evals/judge.md`](evals/judge.md)).
   - The judge is the gateway alias `judge`: `gemini-3.5-flash` at temperature 0 ([`helm/gateway-canary.yaml`](helm/gateway-canary.yaml)).
