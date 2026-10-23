@@ -13,7 +13,10 @@ from pathlib import Path
 JUDGE_MD = Path(__file__).with_name("judge.md")
 # The settings of every eval request. They live here, not in run.py, so the config hash covers them.
 TARGET_REQUEST = {"temperature": 0, "max_tokens": 1024}
-JUDGE_REQUEST = {"temperature": 0, "max_tokens": 300}
+# The judge (gemini-3.5-flash) thinks first, and its reasoning tokens count against max_tokens: at 300 a real
+# judge call stopped (finish_reason length) before its SCORE line. 2048 is a cap, not a cost. Reasoning effort
+# stays at the default, because lowering it would change how the judge grades.
+JUDGE_REQUEST = {"temperature": 0, "max_tokens": 2048}
 
 # The refusal markers, exactly as in the golden set's README.
 REFUSAL = re.compile(
