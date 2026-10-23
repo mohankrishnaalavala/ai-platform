@@ -27,19 +27,40 @@ The six published metrics, in OUT/scenarios.json (every response, raw) and OUT/s
                                     change itself (one API call) is included; the undo calls are not
   undo success                      executed, reversible scenarios whose undo ran and restored the target
 
-Usage: AGENT_TOKENS='{"payments": "...", "break-glass": "..."}' run_scenarios.py MCP_URL OUT_DIR
+Usage, on kind (tests/kind-smoke.sh): AGENT_TOKENS='{"payments": "...", "break-glass": "..."}' run_scenarios.py MCP_URL OUT_DIR
 Needs kubectl pointing at the kind cluster, and the MCP SDK (requirements.txt). COMMIT, NODE_IMAGE, IMAGE,
-IMAGE_ID and HOST_INFO, if set, are recorded. Exits 1 if any check fails."""
+IMAGE_ID and HOST_INFO, if set, are recorded. Exits 1 if any check fails.
+
+Usage, in the session cluster (GKE):
+  EXPECT_CONTEXT=... OWNER=... SESSION=... COMMIT=... run_scenarios.py --cluster http://127.0.0.1:18080/mcp OUT_DIR
+It stops before touching anything unless kubectl's current context is exactly EXPECT_CONTEXT, and OWNER and
+SESSION (the labels of the objects it applies) are set. For this run only (cluster_run), the gateway gets the
+CLI approver and the test clock (kubectl set env, so the pod restarts), and agent-tokens gets one new token's
+hash per scenario team (the runner makes the tokens; they are never printed). Afterwards, even on failure or
+SIGTERM, all three are put back, step by step, and checked; it exits 1 and names the step if any failed. It
+refuses to start if an earlier run left the test clock on or its hashes in. The runner opens its own
+port-forward on MCP_URL's port, since the restart ends any earlier one. It deletes and re-creates everything
+in dev, staging and prod, and approves every pending request, so use the gateway for nothing else while it runs. Output: OUT_DIR/scenarios-gke.json and scenarios-gke.md.
+
+Read-only check (after an interrupted run, say): EXPECT_CONTEXT=... run_scenarios.py --check prints the
+approver, whether the test clock is on, and how many token hashes a run left; it exits 1 if any are left."""
+import contextlib
 import datetime
 import hashlib
 import json
 import os
 import pathlib
+import platform
 import re
+import secrets
+import signal
 import statistics
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src"), str(ROOT / "tests")]
@@ -49,7 +70,11 @@ from test_scenarios import RESULT_FIELDS, load_base, load_scenarios
 BASE_NS = ("dev", "staging", "prod")
 MANAGED = ("Deployment", "ConfigMap", "PodDisruptionBudget")  # kinds the clean-up may delete
 EXEC = ["-n", "action-gateway", "exec", "deploy/action-gateway", "-c", "gateway", "--"]
-LABELS = {"owner": "kind", "session": "kind"}
+LABELS = {"owner": "kind", "session": "kind"}  # cluster mode: OWNER and SESSION (cluster_labels)
+GW = ["-n", "action-gateway"]
+CLOCK_FILE = "/data/clock"  # in the pod's emptyDir, so it goes with the pod
+RUN_HASHES = "ai-platform/scenario-run-token-hashes"  # agent-tokens annotation: the hashes a cluster run added
+CHECK = "EXPECT_CONTEXT=<context> python3 projects/05-agent-action-gateway/evals/run_scenarios.py --check"
 
 
 def kubectl(*args, stdin=None):
@@ -57,6 +82,159 @@ def kubectl(*args, stdin=None):
     if r.returncode:
         raise RuntimeError(f"kubectl {' '.join(args[:4])}: {r.stderr.strip()}")
     return r.stdout
+
+
+def cluster_labels():
+    missing = [k for k in ("OWNER", "SESSION") if not os.environ.get(k)]
+    if missing:
+        raise SystemExit(f"--cluster needs {' and '.join(missing)} set: the labels every object the runner applies gets")
+    return {"owner": os.environ["OWNER"], "session": os.environ["SESSION"]}
+
+
+def gateway_spec():
+    """The action gateway's gateway container, as the Deployment spec has it."""
+    d = json.loads(kubectl(*GW, "get", "deployment", "action-gateway", "-o", "json"))
+    return next(c for c in d["spec"]["template"]["spec"]["containers"] if c["name"] == "gateway")
+
+
+def gateway_env():
+    return {v["name"]: v.get("value") for v in gateway_spec().get("env", [])}
+
+
+def check_context():
+    """Cluster mode touches nothing unless kubectl points at the cluster EXPECT_CONTEXT names."""
+    want = os.environ.get("EXPECT_CONTEXT")
+    if not want:
+        raise SystemExit("--cluster and --check need EXPECT_CONTEXT: the kubectl context of the cluster to use")
+    have = kubectl("config", "current-context").strip()
+    if have != want:
+        raise SystemExit(f"kubectl points at {have!r}, not EXPECT_CONTEXT {want!r}: stopping before touching anything")
+
+
+def tokens_configmap():
+    return json.loads(kubectl(*GW, "get", "configmap", "agent-tokens", "-o", "json"))
+
+
+def patch_tokens(tokens, run_hashes):
+    """agent-tokens' tokens.json (hash -> team), and the list of this run's hashes (None: removed), in one patch."""
+    kubectl(*GW, "patch", "configmap", "agent-tokens", "--type=merge", "-p", json.dumps({
+        "metadata": {"annotations": {RUN_HASHES: None if run_hashes is None else json.dumps(sorted(run_hashes))}},
+        "data": {"tokens.json": json.dumps(tokens)}}))
+
+
+def set_env(env):
+    """name -> value, or None to remove it. The pod restarts; this waits for the new one."""
+    kubectl(*GW, "set", "env", "deploy/action-gateway", "-c", "gateway",
+            *(f"{k}-" if v is None else f"{k}={v}" for k, v in env.items()))
+    kubectl(*GW, "rollout", "status", "deploy/action-gateway", "--timeout=180s")
+
+
+def leftovers():
+    """(approver, test clock file, token hashes) as the cluster has them now. The hashes are those a cluster run
+    added (its RUN_HASHES annotation) and are still in tokens.json: none once a run has put everything back."""
+    env, cm = gateway_env(), tokens_configmap()
+    added = json.loads((cm["metadata"].get("annotations") or {}).get(RUN_HASHES) or "[]")
+    return env.get("APPROVER") or "cli (the default)", env.get("TEST_ONLY_CLOCK_FILE"), \
+        sorted(set(added) & json.loads(cm["data"]["tokens.json"]).keys())
+
+
+def check_cluster():
+    """--check, read-only: prints the approver, the test clock and any token hashes a cluster run left. 1 if
+    an interrupted run left the clock on or its tokens in."""
+    approver, clock, left = leftovers()
+    print(f"approver: {approver}\ntest clock: {clock or 'off'}\ntoken hashes left by a scenario run: {len(left)}"
+          + "".join(f"\n  {h}" for h in left))  # one-way hashes, not tokens
+    return 1 if clock or left else 0
+
+
+def _terminate(signum, frame):
+    raise SystemExit(128 + signum)  # so cluster_run's finally puts the gateway back
+
+
+@contextlib.contextmanager
+def cluster_run(tokens):
+    """Cluster mode, for this run only: the CLI approver, the test clock, and the run's tokens (team -> token;
+    only their hashes go in). Put back afterwards, even on failure or SIGTERM, and checked. Refuses to start
+    if an earlier run left any of it behind."""
+    _, clock, left = leftovers()
+    if clock or left:
+        raise SystemExit(f"an earlier cluster run wasn't put back (test clock: {clock or 'off'}, its token hashes "
+                         f"left: {len(left)}). See it with: {CHECK}")
+    env_before = gateway_env()
+    run_hashes = {hashlib.sha256(t.encode()).hexdigest(): team for team, t in tokens.items()}
+    old_term = signal.signal(signal.SIGTERM, _terminate)
+    try:
+        patch_tokens(json.loads(tokens_configmap()["data"]["tokens.json"]) | run_hashes, run_hashes)
+        set_env({"APPROVER": "cli", "TEST_ONLY_CLOCK_FILE": CLOCK_FILE})
+        yield
+    finally:
+        old_int = signal.signal(signal.SIGINT, signal.SIG_IGN)  # Ctrl-C or a TERM mustn't cut the restore short
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        try:
+            failed = restore(env_before, run_hashes)
+        finally:
+            signal.signal(signal.SIGINT, old_int)
+            signal.signal(signal.SIGTERM, old_term)
+        if failed:
+            for step, err in failed:
+                print(f"putting the gateway back: {step} FAILED: {err}", file=sys.stderr, flush=True)
+            print(f"Fix it by hand, then check with: {CHECK}", file=sys.stderr, flush=True)
+            raise SystemExit(1)
+        print(f"gateway put back: APPROVER={env_before.get('APPROVER')}, test clock "
+              f"{'off' if env_before.get('TEST_ONLY_CLOCK_FILE') is None else 'as before'}, this run's tokens removed", flush=True)
+
+
+def restore(env_before, run_hashes):
+    """Each step on its own: one failing (kubectl missing, bad JSON, a timeout...) skips none of the others.
+    Returns [(step, error)] for the ones that failed."""
+    def remove_tokens():
+        tokens = json.loads(tokens_configmap()["data"]["tokens.json"])
+        patch_tokens({h: team for h, team in tokens.items() if h not in run_hashes}, None)
+
+    def check_env():
+        if gateway_env() != env_before:
+            raise RuntimeError(f"the env is {gateway_env()}, not {env_before} as before the run")
+
+    def check_tokens():
+        if run_hashes.keys() & json.loads(tokens_configmap()["data"]["tokens.json"]).keys():
+            raise RuntimeError("this run's token hashes are still in agent-tokens")
+
+    failed = []
+    for step, do in (("remove this run's agent tokens", remove_tokens),
+                     ("put the approver and the clock back",
+                      lambda: set_env({k: env_before.get(k) for k in ("APPROVER", "TEST_ONLY_CLOCK_FILE")})),
+                     ("check the gateway's env", check_env), ("check agent-tokens", check_tokens)):
+        try:
+            do()
+        except Exception as err:  # noqa: BLE001 - every step runs, whatever the one before raised
+            failed.append((step, f"{type(err).__name__}: {err}"))
+    return failed
+
+
+@contextlib.contextmanager
+def port_forward(url):
+    """Cluster mode: a port-forward to the restarted pod, on url's port, once its server listens."""
+    kubectl(*EXEC, "python", "-c", "import socket, time\nfor _ in range(60):\n    try:\n"
+            "        socket.create_connection(('127.0.0.1', 8080), 1).close()\n        break\n"
+            "    except OSError:\n        time.sleep(1)\nelse:\n    raise SystemExit('the server never listened')")
+    pf = subprocess.Popen(["kubectl", *GW, "port-forward", "deploy/action-gateway", f"{urllib.parse.urlsplit(url).port}:8080"],
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        for _ in range(30):
+            try:
+                urllib.request.urlopen(urllib.request.Request(url, method="POST"), timeout=2)
+            except urllib.error.HTTPError as err:
+                if err.code == 401:  # the gateway, refusing a call without a token
+                    break
+            except OSError:
+                pass
+            time.sleep(1)
+        else:
+            raise RuntimeError(f"no answer from the gateway through port-forward on {url}")
+        yield
+    finally:
+        pf.terminate()
+        pf.wait()
 
 
 def apply(objects):
@@ -183,11 +361,15 @@ def config_hash():
 
 def markdown(report):
     m, e = report["metrics"], report["environment"]
-    lines = [f"# P5 scenarios on kind: {report['date']}", "",
+    gke = e.get("cluster") == "gke"
+    lines = [f"# P5 scenarios on {'GKE' if gke else 'kind'}: {report['date']}", "",
              (f"Commit `{e['commit']}` · config hash `{report['config_hash'][:16]}` · Kubernetes {e['kubernetes']} "
-              f"(kind node `{e['node_image']}`) · image `{e['image']}` ({e['image_id']}) · host: {e['host']}"), "",
-             ("Each scenario's tool call went through the MCP server as an agent's call would, on a kind cluster, with "
-              "the CLI approver answering approve. Method: `evals/run_scenarios.py`. Raw output: `scenarios.json`."), "",
+              + ("(GKE) " if gke else f"(kind node `{e['node_image']}`) ")
+              + f"· image `{e['image']}` ({e['image_id']}) · host: {e['host']}"), "",
+             ("Each scenario's tool call went through the MCP server as an agent's call would, on "
+              + ("GKE, through kubectl port-forward" if gke else "a kind cluster")
+              + ", with the CLI approver answering approve. Method: `evals/run_scenarios.py`. Raw output: "
+              + f"`{'scenarios-gke.json' if gke else 'scenarios.json'}`."), "",
              "| Measure | Value |", "|---|---|",
              f"| Unsafe actions allowed (of {m['dangerous']}) | {m['unsafe_actions_allowed']} |",
              f"| Safe actions wrongly blocked (of {m['safe']}) | {m['safe_actions_wrongly_blocked']} |",
@@ -204,17 +386,20 @@ def markdown(report):
     return "\n".join(lines) + "\n"
 
 
-async def run(url, out_dir):
-    import contextlib
-
+async def run(url, out_dir, cluster=False):
     import anyio
     import httpx2
     from mcp import Client
     from mcp.client.streamable_http import streamable_http_client
 
-    tokens = json.loads(os.environ["AGENT_TOKENS"])
     base = {key(o): o for o in load_base()}
     scenarios = [s for _, s in sorted(load_scenarios().items())]
+    if cluster:
+        LABELS.update(cluster_labels())
+        check_context()
+        tokens = {team: secrets.token_hex(32) for team in sorted({s["team"] for s in scenarios})}
+    else:
+        tokens = json.loads(os.environ["AGENT_TOKENS"])
 
     def answer_pending():
         for action_id in set(re.findall(r'"action_id": "([^"]+)"', kubectl(*EXEC, "python", "approval.py", "list"))):
@@ -228,6 +413,10 @@ async def run(url, out_dir):
             await anyio.sleep(0.5)
 
     async with contextlib.AsyncExitStack() as stack:
+        if cluster:
+            stack.enter_context(cluster_run(tokens))
+            stack.enter_context(port_forward(url))
+            image = gateway_spec()["image"]
         clients = {}
         for team, token in tokens.items():
             http = httpx2.AsyncClient(headers={"Authorization": f"Bearer {token}"}, timeout=300)
@@ -285,24 +474,32 @@ async def run(url, out_dir):
                   flush=True)
             clean_up(s, base)
 
-    e = os.environ.get
-    report = {"date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-              "config_hash": config_hash(), "metrics": metrics(rows),
-              "environment": {"commit": e("COMMIT", "unknown"), "node_image": e("NODE_IMAGE", "unknown"),
-                              "kubernetes": json.loads(kubectl("version", "-o", "json"))["serverVersion"]["gitVersion"],
-                              "image": e("IMAGE", "unknown"), "image_id": e("IMAGE_ID", "unknown"), "host": e("HOST_INFO", "unknown")},
-              "scenarios": rows}
-    out = pathlib.Path(out_dir)
-    out.mkdir(parents=True, exist_ok=True)
-    (out / "scenarios.json").write_text(json.dumps(report, indent=2) + "\n")
-    (out / "scenarios.md").write_text(markdown(report))
-    print(json.dumps(report["metrics"], indent=2))
+        # Written before cluster_run puts the gateway back, so a failed restore doesn't lose the results.
+        e = os.environ.get
+        environment = {"commit": e("COMMIT", "unknown"), "node_image": e("NODE_IMAGE", "unknown"),
+                       "kubernetes": json.loads(kubectl("version", "-o", "json"))["serverVersion"]["gitVersion"],
+                       "image": e("IMAGE", "unknown"), "image_id": e("IMAGE_ID", "unknown"), "host": e("HOST_INFO", "unknown")}
+        if cluster:
+            environment |= {"cluster": "gke", "node_image": None, "image": image, "image_id": image.partition("@")[2] or "not pinned",
+                            "host": e("HOST_INFO") or f"{platform.system()} {platform.machine()}, {os.cpu_count()} CPUs (the runner)"}
+        report = {"date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                  "config_hash": config_hash(), "metrics": metrics(rows), "environment": environment, "scenarios": rows}
+        out, name = pathlib.Path(out_dir), "scenarios-gke" if cluster else "scenarios"
+        out.mkdir(parents=True, exist_ok=True)
+        (out / f"{name}.json").write_text(json.dumps(report, indent=2) + "\n")
+        (out / f"{name}.md").write_text(markdown(report))
+        print(json.dumps(report["metrics"], indent=2))
     m = report["metrics"]
     return 0 if m["scenarios_passed"] == m["scenarios"] and m["unsafe_actions_allowed"] == 0 else 1
 
 
 if __name__ == "__main__":
+    argv = sys.argv[1:]
+    if argv == ["--check"]:  # read-only, standard library only
+        check_context()
+        sys.exit(check_cluster())
     import anyio
-    if len(sys.argv) != 3:
+    cluster = argv[:1] == ["--cluster"]
+    if len(argv) != 2 + cluster:
         sys.exit(__doc__)
-    sys.exit(anyio.run(run, sys.argv[1], sys.argv[2]))
+    sys.exit(anyio.run(run, *argv[cluster:], cluster))
