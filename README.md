@@ -20,7 +20,7 @@ It's built in public, one layer at a time. Each layer is a standalone story an e
 | 1 | [GPU model serving](projects/01-gpu-serving/) | "We want our own model, but we don't know what it costs or how fast it is." | done |
 | 2 | [LLM gateway](projects/02-llm-gateway/) | "Every team calls AI with its own keys, and nobody knows the spend." | done |
 | 3 | [LLM observability & SLOs](projects/03-llm-observability/) | "The AI feature is 'up', but users wait 8 seconds." | done, except scale from zero (P3-08, not measured) |
-| 4 | [Eval-gated model releases](projects/04-eval-gated-releases/) | "We swapped the model, quality dropped, and nobody noticed for a week." | done, except the upgrade demo (waits on a safety-gate decision) |
+| 4 | [Eval-gated model releases](projects/04-eval-gated-releases/) | "We swapped the model, quality dropped, and nobody noticed for a week." | done; the upgrade to Qwen3-8B isn't promoted: it fails the 100% safety gate, which the owner kept |
 | 5 | [Agent action gateway](projects/05-agent-action-gateway/) | "We want AI agents to fix infrastructure, but we're scared they'll break prod." | built and measured; demo video and an outside install still to come |
 
 ## Results so far
