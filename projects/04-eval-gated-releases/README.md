@@ -2,7 +2,7 @@
 
 Model, prompt and gateway changes are treated like code. They are tested before merge against a fixed set of eval cases, then released as a canary (a small share of traffic first) that rolls itself back when its live numbers get worse.
 
-**Status:** built and tested in CI (continuous integration: GitHub Actions on every pull request) from 2026-10-21 to 2026-10-22: the scorers, the eval runner, the PR (pull request) gate and the canary. The golden set (the 100 eval cases) was approved by the owner on 2026-10-23. Run in a session cluster on 2026-10-23: the offline evals of five configs (two runs each), the canary (it rolled itself back) and the red PR check that blocked the bad candidate. The owner scored 20 Q&A answers blind on 2026-10-23 for the judge agreement.
+**Status:** built and tested in CI (continuous integration: GitHub Actions on every pull request) from 2026-10-21 to 2026-10-22: the scorers, the eval runner, the PR (pull request) gate and the canary. The golden set (the 100 eval cases) was approved by the owner on 2026-10-23. Run in a session cluster on 2026-10-23: the offline evals of five configs (two runs each), the canary (it rolled itself back) and the red PR check that blocked the bad candidate. The owner scored 20 Q&A answers blind on 2026-10-23 for the judge agreement. Still open: the upgrade demo to Qwen3-8B. Its offline scores are below, but a PR making it the served model would fail the safety gate, as the baseline does (see Known limits), so it waits on the owner's decision about that gate.
 
 ![P4 components](../../docs/diagrams/04-eval-gated-releases-components.svg)
 

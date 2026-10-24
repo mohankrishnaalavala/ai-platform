@@ -2,7 +2,7 @@
 
 Scored by the owner by hand on 2026-10-23 (US Central time; 2026-10-24 UTC), blind: the sheet showed no model name and no judge score. Computed with `scripts/agreement.py score labels.md` (commit 2ed60e3, PR #82).
 
-- **Raw data:** [`labels.md`](labels.md), the owner's filled sheet, unchanged after scoring.
+- **Raw data:** [`labels.md`](labels.md), the sheet as the owner filled it.
 - **Sample:** 4 Q&A answers from the first run of each of the 5 configs in PR #78, 20 different questions out of 40. A fixed seed (20261023) picked and shuffled them by question id only, never by score (`SOURCES` and `SEED` in `scripts/agreement.py`).
 - **The judge's scores:** each case's `score` field in those 5 results files (all 5 at git commit 7bccc2803f01). The judge is the gateway alias `judge`, `vertex_ai/gemini-3.5-flash` at temperature 0, with the rubric in `evals/judge.md` (sha256 81971bccf2a60a43…, the same in all 5 files). The owner used the same rubric, printed at the top of the sheet.
 - **Measures, fixed before scoring:** exact agreement (the same score), agreement within one point, and the signed mean of judge minus owner. Agreement per config isn't reported: 4 answers each is too few.
@@ -16,6 +16,8 @@ Scored by the owner by hand on 2026-10-23 (US Central time; 2026-10-24 UTC), bli
 | Mean of judge minus owner (signed: above 0, the judge is kinder) | -0.30 points |
 | Owner's scores, 1 to 5 | 1: 0, 2: 0, 3: 0, 4: 3, 5: 17 |
 | Judge's scores, 1 to 5 | 1: 0, 2: 2, 3: 1, 4: 1, 5: 16 |
+
+Config `projects/02-llm-gateway/helm/gateway/values.yaml` is the hosted alias `chat-hosted`: Gemini 3.5 Flash-Lite.
 
 | Answer | Case | Config | Owner | Judge | Judge minus owner |
 |---|---|---|---|---|---|
@@ -58,4 +60,5 @@ On the other 3 (answers 3, 8 and 17), the judge gave 5 where the owner gave 4.
 - **Mostly 5s.** The owner gave 17 fives and the judge 16, so this sample says little about how the judge scores weak answers.
 - **One labeller, 20 answers.** The numbers are a check, not a benchmark.
 - **The judge is a Gemini model** grading answers that include Gemini Flash-Lite's (answers 1, 2, 16 and 19). Both scored all four 5, so self-preference can't be seen here either way.
+- **The judge may be right on some gaps.** In qa-014 the answer begins "Yes" where the reference says "No". The owner's labels are reported as scored blind, not corrected afterwards.
 - **Nothing was changed after scoring.** Neither the owner's labels nor the judge's rubric were edited to raise agreement.
