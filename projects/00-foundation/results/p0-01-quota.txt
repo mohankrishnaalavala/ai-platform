@@ -1,0 +1,7 @@
+# P0-01 GPU quota, 2026-10-15 (Cloud Quotas API, as the project owner)
+Before: GPUS_ALL_REGIONS 0; NVIDIA_L4_GPUS 1 and PREEMPTIBLE_NVIDIA_L4_GPUS 1 in us-central1.
+After the billing upgrade: GPUS-ALL-REGIONS-per-project quotaIncreaseEligibility.isEligible = true.
+Request 1: GPUS-ALL-REGIONS-per-project 0 -> 2                         => "Quota request denied" (minutes later)
+Request 2: PREEMPTIBLE-NVIDIA-L4-GPUS-per-project-region us-central1 1 -> 2 => "Quota request denied"
+Request 3: GPUS-ALL-REGIONS-per-project 0 -> 1                         => "Quota request approved to 1" (about 1 minute)
+Now: GPUS_ALL_REGIONS 1; NVIDIA_L4_GPUS 1; PREEMPTIBLE_NVIDIA_L4_GPUS 1 (us-central1). One L4 at a time, spot or on demand.

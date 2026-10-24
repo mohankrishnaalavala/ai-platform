@@ -1,0 +1,29 @@
+## session state
+terraform state list: 0 resources
+## everything, unfiltered
+container clusters:                  
+compute instances:                   
+compute disks:                       
+compute forwarding-rules:            
+compute addresses:                   
+compute target-pools:                
+compute backend-services:            
+compute instance-groups:             
+compute instance-templates:          
+compute network-endpoint-groups:     
+## firewall rules on ai-platform
+(end)
+## foundation re-plan
+foundation plan exit=0
+Terraform has compared your real infrastructure against your configuration
+and found no differences, so no changes are needed.
+container clusters:                  none
+compute instances:                   none
+compute disks:                       none
+compute forwarding-rules:            none
+compute addresses:                   none
+compute target-pools:                none
+compute backend-services:            none
+compute instance-groups:             none
+compute instance-templates:          none
+compute network-endpoint-groups:     none

@@ -1,0 +1,44 @@
+# P0-04 checks after the first apply, 2026-10-15T02:49:23Z
+
+## No user-managed keys
+terraform: 0 keys
+deployer: 0 keys
+gke-nodes: 0 keys
+
+## Project roles per service account
+deployer: roles/container.admin
+gke-nodes: roles/container.defaultNodeServiceAccount
+terraform: roles/artifactregistry.admin, roles/compute.networkAdmin, roles/iam.serviceAccountAdmin, roles/resourcemanager.projectIamAdmin, roles/storage.admin
+
+## Who may act as the deployer
+roles/iam.serviceAccountTokenCreator: user:<you>
+roles/iam.workloadIdentityUser: principalSet://iam.googleapis.com/projects/<number>/locations/global/workloadIdentityPools/github/attribute.workflow/<owner>/<repo>/.github/workflows/cost-guard.yml
+roles/iam.workloadIdentityUser: principalSet://iam.googleapis.com/projects/<number>/locations/global/workloadIdentityPools/github/attribute.workflow/<owner>/<repo>/.github/workflows/gpu-session.yml
+
+## Network
+firewall rules: 0
+10.10.0.0/20	True	pods,services	10.20.0.0/16,10.30.0.0/20
+
+## Labels
+models: {"app":"ai-platform","goog-terraform-provisioned":"true","layer":"00","owner":"mohan"}
+results: {"app":"ai-platform","goog-terraform-provisioned":"true","layer":"00","owner":"mohan"}
+audit: {"app":"ai-platform","goog-terraform-provisioned":"true","layer":"00","owner":"mohan"}
+Encryption: Google-managed key
+Repository Size: 0.000MB
+images repo: {"app":"ai-platform","goog-terraform-provisioned":"true","layer":"00","owner":"mohan"}
+
+## Budget
+{"name":"ai-platform","amount":"50","thresholds":[0.2,0.4,0.6],"credits":"EXCLUDE_ALL_CREDITS"}
+
+## Billable resources
+clusters: 0
+instances: 0
+disks: 0
+forwarding-rules: 0
+addresses: 0
+
+## Acting as the deployer (least privilege)
+state bucket list: exit 0 (0 = allowed)
+list clusters: exit 0 (0 = allowed)
+models bucket: does not have
+list networks: exit 1 (non-zero = refused; the deployer has no compute role)

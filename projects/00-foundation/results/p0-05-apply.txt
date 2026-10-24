@@ -1,0 +1,290 @@
+up1 start_utc=2026-10-15T20:13:06Z
+up1 end_utc=2026-10-15T20:25:02Z rc=0 seconds=716
+export GOOGLE_OAUTH_ACCESS_TOKEN="$(gcloud auth print-access-token --impersonate-service-account=deployer@<project>.iam.gserviceaccount.com)" && [ -n "$GOOGLE_OAUTH_ACCESS_TOKEN" ] && terraform -chdir=infra/session init -input=false -reconfigure -backend-config="bucket=<project>-tfstate" >/dev/null && terraform -chdir=infra/session apply -input=false -auto-approve -var="project_id=<project>" -var="owner=mohan" -var="session=20261015t2013z" -var="zone=us-central1-a"
+WARNING: This command is using service account impersonation. All API calls will be executed as [deployer@<project>.iam.gserviceaccount.com].
+data.terraform_remote_state.foundation: Reading...
+data.terraform_remote_state.foundation: Read complete after 0s
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # module.cluster.google_container_cluster.this will be created
+  + resource "google_container_cluster" "this" {
+      + autopilot_privileged_admission           = (known after apply)
+      + cluster_ipv4_cidr                        = (known after apply)
+      + datapath_provider                        = (known after apply)
+      + default_max_pods_per_node                = (known after apply)
+      + deletion_policy                          = "DELETE"
+      + deletion_protection                      = false
+      + disable_l4_lb_firewall_reconciliation    = false
+      + effective_labels                         = {
+          + "app"                        = "ai-platform"
+          + "goog-terraform-provisioned" = "true"
+          + "layer"                      = "00"
+          + "owner"                      = "mohan"
+          + "session"                    = "20261015t2013z"
+        }
+      + emulated_version                         = (known after apply)
+      + enable_cilium_clusterwide_network_policy = false
+      + enable_fqdn_network_policy               = false
+      + enable_intranode_visibility              = (known after apply)
+      + enable_kubernetes_alpha                  = false
+      + enable_l4_ilb_subsetting                 = (known after apply)
+      + enable_legacy_abac                       = false
+      + enable_multi_networking                  = false
+      + enable_shielded_nodes                    = true
+      + endpoint                                 = (known after apply)
+      + id                                       = (known after apply)
+      + initial_node_count                       = 1
+      + label_fingerprint                        = (known after apply)
+      + location                                 = "us-central1-a"
+      + logging_service                          = (known after apply)
+      + master_version                           = (known after apply)
+      + min_master_version                       = "1.36.4-gke.1391002"
+      + monitoring_service                       = (known after apply)
+      + name                                     = "ai-platform"
+      + network                                  = "projects/<project>/global/networks/ai-platform"
+      + networking_mode                          = (known after apply)
+      + node_locations                           = (known after apply)
+      + node_version                             = (known after apply)
+      + operation                                = (known after apply)
+      + private_ipv6_google_access               = (known after apply)
+      + project                                  = (known after apply)
+      + remove_default_node_pool                 = true
+      + self_link                                = (known after apply)
+      + services_ipv4_cidr                       = (known after apply)
+      + subnetwork                               = "projects/<project>/regions/us-central1/subnetworks/ai-platform-us-central1"
+      + terraform_labels                         = {
+          + "app"                        = "ai-platform"
+          + "goog-terraform-provisioned" = "true"
+          + "layer"                      = "00"
+          + "owner"                      = "mohan"
+          + "session"                    = "20261015t2013z"
+        }
+      + tpu_ipv4_cidr_block                      = (known after apply)
+
+      + addons_config {
+          + gcs_fuse_csi_driver_config {
+              + enabled = true
+            }
+        }
+
+      + control_plane_endpoints_config {
+          + dns_endpoint_config {
+              + allow_external_traffic = true
+              + endpoint               = (known after apply)
+            }
+          + ip_endpoints_config {
+              + enabled = false
+            }
+        }
+
+      + ip_allocation_policy {
+          + cluster_ipv4_cidr_block       = (known after apply)
+          + cluster_secondary_range_name  = "pods"
+          + services_ipv4_cidr_block      = (known after apply)
+          + services_secondary_range_name = "services"
+          + stack_type                    = "IPV4"
+        }
+
+      + node_config {
+          + disk_size_gb       = (known after apply)
+          + disk_type          = (known after apply)
+          + effective_taints   = (known after apply)
+          + gpudirect_strategy = (known after apply)
+          + image_type         = (known after apply)
+          + labels             = (known after apply)
+          + local_ssd_count    = (known after apply)
+          + logging_variant    = (known after apply)
+          + machine_type       = (known after apply)
+          + metadata           = (known after apply)
+          + min_cpu_platform   = (known after apply)
+          + oauth_scopes       = [
+              + "https://www.googleapis.com/auth/cloud-platform",
+            ]
+          + preemptible        = false
+          + service_account    = "gke-nodes@<project>.iam.gserviceaccount.com"
+          + spot               = false
+        }
+
+      + private_cluster_config {
+          + enable_private_nodes   = true
+          + master_ipv4_cidr_block = (known after apply)
+          + peering_name           = (known after apply)
+          + private_endpoint       = (known after apply)
+          + public_endpoint        = (known after apply)
+        }
+
+      + release_channel {
+          + channel = "REGULAR"
+        }
+
+      + secret_manager_config {
+          + enabled = true
+        }
+
+      + workload_identity_config {
+          + workload_pool = "<project>.svc.id.goog"
+        }
+    }
+
+  # module.cluster.google_container_node_pool.system will be created
+  + resource "google_container_node_pool" "system" {
+      + cluster                     = "ai-platform"
+      + deletion_policy             = "DELETE"
+      + id                          = (known after apply)
+      + initial_node_count          = (known after apply)
+      + instance_group_urls         = (known after apply)
+      + location                    = "us-central1-a"
+      + managed_instance_group_urls = (known after apply)
+      + max_pods_per_node           = (known after apply)
+      + name                        = "system"
+      + name_prefix                 = (known after apply)
+      + node_count                  = 1
+      + node_locations              = (known after apply)
+      + operation                   = (known after apply)
+      + project                     = "<project>"
+      + version                     = (known after apply)
+
+      + management {
+          + auto_repair  = true
+          + auto_upgrade = true
+        }
+
+      + node_config {
+          + disk_size_gb       = (known after apply)
+          + disk_type          = (known after apply)
+          + effective_taints   = (known after apply)
+          + gpudirect_strategy = (known after apply)
+          + image_type         = (known after apply)
+          + labels             = (known after apply)
+          + local_ssd_count    = (known after apply)
+          + logging_variant    = (known after apply)
+          + machine_type       = "e2-standard-4"
+          + metadata           = (known after apply)
+          + min_cpu_platform   = (known after apply)
+          + oauth_scopes       = [
+              + "https://www.googleapis.com/auth/cloud-platform",
+            ]
+          + preemptible        = false
+          + resource_labels    = {
+              + "app"     = "ai-platform"
+              + "layer"   = "00"
+              + "owner"   = "mohan"
+              + "session" = "20261015t2013z"
+            }
+          + service_account    = "gke-nodes@<project>.iam.gserviceaccount.com"
+          + spot               = false
+
+          + gcfs_config {
+              + enabled = true
+            }
+
+          + workload_metadata_config {
+              + mode = "GKE_METADATA"
+            }
+        }
+    }
+
+  # module.gpu_pool.google_container_node_pool.this will be created
+  + resource "google_container_node_pool" "this" {
+      + cluster                     = "ai-platform"
+      + deletion_policy             = "DELETE"
+      + id                          = (known after apply)
+      + initial_node_count          = 0
+      + instance_group_urls         = (known after apply)
+      + location                    = "us-central1-a"
+      + managed_instance_group_urls = (known after apply)
+      + max_pods_per_node           = (known after apply)
+      + name                        = "gpu"
+      + name_prefix                 = (known after apply)
+      + node_count                  = (known after apply)
+      + node_locations              = (known after apply)
+      + operation                   = (known after apply)
+      + project                     = "<project>"
+      + version                     = (known after apply)
+
+      + autoscaling {
+          + location_policy = (known after apply)
+          + max_node_count  = 2
+          + min_node_count  = 0
+        }
+
+      + management {
+          + auto_repair  = true
+          + auto_upgrade = true
+        }
+
+      + node_config {
+          + disk_size_gb       = (known after apply)
+          + disk_type          = (known after apply)
+          + effective_taints   = (known after apply)
+          + gpudirect_strategy = (known after apply)
+          + image_type         = (known after apply)
+          + labels             = (known after apply)
+          + local_ssd_count    = (known after apply)
+          + logging_variant    = (known after apply)
+          + machine_type       = "g2-standard-8"
+          + metadata           = (known after apply)
+          + min_cpu_platform   = (known after apply)
+          + oauth_scopes       = [
+              + "https://www.googleapis.com/auth/cloud-platform",
+            ]
+          + preemptible        = false
+          + resource_labels    = {
+              + "app"     = "ai-platform"
+              + "layer"   = "00"
+              + "owner"   = "mohan"
+              + "session" = "20261015t2013z"
+            }
+          + service_account    = "gke-nodes@<project>.iam.gserviceaccount.com"
+          + spot               = true
+
+          + gcfs_config {
+              + enabled = true
+            }
+
+          + guest_accelerator {
+              + count = 1
+              + type  = "nvidia-l4"
+
+              + gpu_driver_installation_config {
+                  + gpu_driver_version = "DEFAULT"
+                }
+            }
+
+          + workload_metadata_config {
+              + mode = "GKE_METADATA"
+            }
+        }
+    }
+
+Plan: 3 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + cluster_name = "ai-platform"
+  + dns_endpoint = (known after apply)
+  + zone         = "us-central1-a"
+module.cluster.google_container_cluster.this: Creating...
+module.cluster.google_container_cluster.this: Creation complete after 10m37s [id=projects/<project>/locations/us-central1-a/clusters/ai-platform]
+module.gpu_pool.google_container_node_pool.this: Creating...
+module.cluster.google_container_node_pool.system: Creating...
+module.gpu_pool.google_container_node_pool.this: Creation complete after 22s [id=projects/<project>/locations/us-central1-a/clusters/ai-platform/nodePools/gpu]
+module.cluster.google_container_node_pool.system: Creation complete after 1m2s [id=projects/<project>/locations/us-central1-a/clusters/ai-platform/nodePools/system]
+
+Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+cluster_name = "ai-platform"
+dns_endpoint = "<dns-endpoint>"
+zone = "us-central1-a"
+gcloud container clusters get-credentials ai-platform --location=us-central1-a --dns-endpoint
+Fetching cluster endpoint and auth data.
+kubeconfig entry generated for ai-platform.
+kubectl get nodes
+NAME                                   STATUS   ROLES    AGE   VERSION
+gke-ai-platform-system-e434b478-t49x   Ready    <none>   12s   v1.36.4-gke.1391002

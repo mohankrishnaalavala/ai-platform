@@ -1,0 +1,60 @@
+# P0 final session, 2026-10-15/16, us-central1-c: laptop make up -> checks -> GPU probe -> cost-guard destroys it
+# Note: the Mac slept 00:01-01:24 UTC (lid closed) between the checks and the probe; the cluster stayed up.
+
+[2026-10-15T23:39:51Z] make up ZONE=us-central1-c
+[2026-10-15T23:52:23Z] make up rc=0 seconds=752
+[2026-10-15T23:53:32Z] make test P=00 rc=0
+[2026-10-15T23:53:40Z] re-plan exit=0 (0 = no changes)
+[2026-10-15T23:53:44Z] GPU group target size before probe: 0
+[2026-10-15T23:53:46Z] autoscaler scale-ups before the probe: 0
+[2026-10-15T23:53:47Z] probe image: null
+The Pod "gpu-probe" is invalid: spec.containers[0].image: Required value
+[2026-10-16T01:25:19Z] resume after laptop sleep (caffeinate for the whole rest)
+[2026-10-16T01:25:26Z] probe image: gke.gcr.io/kube-proxy-amd64:v1.36.4-gke.400
+pod/gpu-probe created
+[2026-10-16T01:27:22Z] GPU probe: allocatable nvidia.com/gpu=1, pod Running after 115s
+[2026-10-16T01:27:31Z] dispatch cost-guard max_age_hours=0
+https://github.com/mohankrishnaalavala/ai-platform/actions/runs/38835221119
+[2026-10-16T01:39:44Z] cost-guard run 38835221119 rc=0 seconds=720
+[2026-10-16T01:39:55Z] make status rc=0
+[2026-10-16T01:40:10Z] done
+
+## make test P=00
+PASS: at least one node
+PASS: every node is Ready
+PASS: every kube-system pod is Running or Completed
+PASS: no VM has an external IP
+PASS: control plane: IP endpoints off
+PASS: no user-managed service account keys
+all P0 checks passed
+
+## re-plan (same session label), tail
+
+Terraform has compared your real infrastructure against your configuration
+and found no differences, so no changes are needed.
+
+## GPU pool taint (declared)
+config:
+  taints:
+  - effect: NO_SCHEDULE
+    key: nvidia.com/gpu
+    value: present
+
+## autoscaler scale-ups before the probe
+0 (file empty = none)
+
+## final make status
+container clusters:        none
+compute instances:         none
+compute disks:             none
+compute forwarding-rules:  none
+compute addresses:         none
+nothing billable is running
+container clusters:                none
+compute instances:                 none
+compute disks:                     none
+compute forwarding-rules:          none
+compute addresses:                 none
+compute instance-groups:           none
+compute instance-templates:        none
+compute network-endpoint-groups:   none

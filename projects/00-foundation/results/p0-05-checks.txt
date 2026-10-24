@@ -1,0 +1,121 @@
+## make test P=00 (right after up: system pods still starting)
+PASS: at least one node
+PASS: every node is Ready
+FAIL: every kube-system pod is Running or Completed: csi-secrets-store-gke-rk2qs ContainerCreating
+csi-secrets-store-provider-gke-pj4nm PodInitializing
+event-exporter-gke-68b8d546d7-h5flw PodInitializing
+filestore-lock-release-controller-5bdd5448d8-wmsbz PodInitializing
+filestore-node-9k4l4 PodInitializing
+fluentbit-gke-55f8k PodInitializing
+gcsfusecsi-node-6hb5j PodInitializing
+konnectivity-agent-569b479d56-498f6 PodInitializing
+kube-dns-7467c49c47-wswjh PodInitializing
+node-local-dns-ptq82 PodInitializing
+pdcsi-node-cd426 ContainerCreating
+PASS: no VM has an external IP
+PASS: control plane: IP endpoints off
+PASS: no user-managed service account keys
+some P0 checks failed
+make: *** [test] Error 1
+
+## make test P=00 (10 s later)
+PASS: at least one node
+PASS: every node is Ready
+PASS: every kube-system pod is Running or Completed
+PASS: no VM has an external IP
+PASS: control plane: IP endpoints off
+PASS: no user-managed service account keys
+all P0 checks passed
+
+## cluster
+{
+  "currentMasterVersion": "1.36.4-gke.1391002",
+  "privateNodes": true,
+  "dns": true,
+  "ipEndpoints": false,
+  "workloadPool": "<project>.svc.id.goog",
+  "gcsFuse": true,
+  "secretManager": true,
+  "channel": "REGULAR",
+  "labels": {
+    "app": "ai-platform",
+    "goog-terraform-provisioned": "true",
+    "layer": "00",
+    "owner": "mohan",
+    "session": "20261015t2013z"
+  },
+  "network": "ai-platform",
+  "subnetwork": "ai-platform-us-central1"
+}
+## node pools
+{
+  "name": "gpu",
+  "machine": "g2-standard-8",
+  "sa": "gke-nodes@<project>.iam.gserviceaccount.com",
+  "spot": true,
+  "gcfs": true,
+  "accel": [
+    {
+      "acceleratorCount": "1",
+      "acceleratorType": "nvidia-l4",
+      "gpuDriverInstallationConfig": {
+        "gpuDriverVersion": "DEFAULT"
+      }
+    }
+  ],
+  "autoscaling": {
+    "enabled": true,
+    "locationPolicy": "ANY",
+    "maxNodeCount": 2
+  },
+  "nodeCount": null,
+  "diskSizeGb": 100,
+  "diskType": "pd-balanced",
+  "labels": {
+    "app": "ai-platform",
+    "goog-gke-accelerator-type": "nvidia-l4",
+    "goog-gke-node-pool-provisioning-model": "spot",
+    "layer": "00",
+    "owner": "mohan",
+    "session": "20261015t2013z"
+  }
+}
+{
+  "name": "system",
+  "machine": "e2-standard-4",
+  "sa": "gke-nodes@<project>.iam.gserviceaccount.com",
+  "spot": null,
+  "gcfs": true,
+  "accel": null,
+  "autoscaling": null,
+  "nodeCount": 1,
+  "diskSizeGb": 100,
+  "diskType": "pd-balanced",
+  "labels": {
+    "app": "ai-platform",
+    "goog-gke-node-pool-provisioning-model": "on-demand",
+    "layer": "00",
+    "owner": "mohan",
+    "session": "20261015t2013z"
+  }
+}
+## kubectl as you
+<you>
+## kubectl as the deployer
+<you>
+
+## labeled VMs and disks
+NAME                                  ZONE           APP          LAYER  SESSION         EXTERNAL_IP
+gke-ai-platform-system-e434b478-t49x  us-central1-a  ai-platform  00     20261015t2013z
+NAME                                  SIZE_GB  TYPE         APP          SESSION
+gke-ai-platform-system-e434b478-t49x  100      pd-balanced  ai-platform  20261015t2013z
+## pods
+   1 gke-managed-cim Running
+   2 gmp-system Running
+  20 kube-system Running
+deployer@<project>.iam.gserviceaccount.com
+
+## re-plan with the same session label
+
+Terraform has compared your real infrastructure against your configuration
+and found no differences, so no changes are needed.

@@ -1,0 +1,372 @@
+$ terraform plan -out=foundation.tfplan   # as the terraform service account (impersonated token)
+data.google_project.this: Reading...
+data.google_project.this: Read complete after 0s [id=projects/<project>]
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # google_artifact_registry_repository.images will be created
+  + resource "google_artifact_registry_repository" "images" {
+      + create_time      = (known after apply)
+      + deletion_policy  = "DELETE"
+      + description      = "Mirrored third-party images and our own images."
+      + effective_labels = {
+          + "app"                        = "ai-platform"
+          + "goog-terraform-provisioned" = "true"
+          + "layer"                      = "00"
+          + "owner"                      = "mohan"
+        }
+      + format           = "DOCKER"
+      + id               = (known after apply)
+      + location         = "us-central1"
+      + mode             = "STANDARD_REPOSITORY"
+      + name             = (known after apply)
+      + project          = "<project>"
+      + registry_uri     = (known after apply)
+      + repository_id    = "images"
+      + terraform_labels = {
+          + "app"                        = "ai-platform"
+          + "goog-terraform-provisioned" = "true"
+          + "layer"                      = "00"
+          + "owner"                      = "mohan"
+        }
+      + update_time      = (known after apply)
+    }
+
+  # google_artifact_registry_repository_iam_member.gke_nodes_pull will be created
+  + resource "google_artifact_registry_repository_iam_member" "gke_nodes_pull" {
+      + etag       = (known after apply)
+      + id         = (known after apply)
+      + location   = "us-central1"
+      + member     = "serviceAccount:gke-nodes@<project>.iam.gserviceaccount.com"
+      + project    = (known after apply)
+      + repository = (known after apply)
+      + role       = "roles/artifactregistry.reader"
+    }
+
+  # google_project_iam_member.deployer_gke will be created
+  + resource "google_project_iam_member" "deployer_gke" {
+      + etag    = (known after apply)
+      + id      = (known after apply)
+      + member  = "serviceAccount:deployer@<project>.iam.gserviceaccount.com"
+      + project = "<project>"
+      + role    = "roles/container.admin"
+    }
+
+  # google_project_iam_member.gke_nodes_default will be created
+  + resource "google_project_iam_member" "gke_nodes_default" {
+      + etag    = (known after apply)
+      + id      = (known after apply)
+      + member  = "serviceAccount:gke-nodes@<project>.iam.gserviceaccount.com"
+      + project = "<project>"
+      + role    = "roles/container.defaultNodeServiceAccount"
+    }
+
+  # google_service_account.deployer will be created
+  + resource "google_service_account" "deployer" {
+      + account_id      = "deployer"
+      + deletion_policy = "DELETE"
+      + description     = "Creates and deletes the session cluster. No keys: workflows log in through WIF, the owner impersonates it."
+      + disabled        = false
+      + display_name    = "Deployer (sessions)"
+      + email           = "deployer@<project>.iam.gserviceaccount.com"
+      + id              = (known after apply)
+      + member          = "serviceAccount:deployer@<project>.iam.gserviceaccount.com"
+      + name            = (known after apply)
+      + project         = "<project>"
+      + unique_id       = (known after apply)
+    }
+
+  # google_service_account.gke_nodes will be created
+  + resource "google_service_account" "gke_nodes" {
+      + account_id      = "gke-nodes"
+      + deletion_policy = "DELETE"
+      + description     = "Node pools of the session cluster: write logs and metrics, pull images from Artifact Registry."
+      + disabled        = false
+      + display_name    = "GKE nodes"
+      + email           = "gke-nodes@<project>.iam.gserviceaccount.com"
+      + id              = (known after apply)
+      + member          = "serviceAccount:gke-nodes@<project>.iam.gserviceaccount.com"
+      + name            = (known after apply)
+      + project         = "<project>"
+      + unique_id       = (known after apply)
+    }
+
+  # google_service_account_iam_member.deployer_runs_nodes will be created
+  + resource "google_service_account_iam_member" "deployer_runs_nodes" {
+      + etag               = (known after apply)
+      + id                 = (known after apply)
+      + member             = "serviceAccount:deployer@<project>.iam.gserviceaccount.com"
+      + role               = "roles/iam.serviceAccountUser"
+      + service_account_id = (known after apply)
+    }
+
+  # google_service_account_iam_member.owner_impersonates_deployer will be created
+  + resource "google_service_account_iam_member" "owner_impersonates_deployer" {
+      + etag               = (known after apply)
+      + id                 = (known after apply)
+      + member             = "user:<you>"
+      + role               = "roles/iam.serviceAccountTokenCreator"
+      + service_account_id = (known after apply)
+    }
+
+  # google_storage_bucket_iam_member.deployer_state will be created
+  + resource "google_storage_bucket_iam_member" "deployer_state" {
+      + bucket = "<project>-tfstate"
+      + etag   = (known after apply)
+      + id     = (known after apply)
+      + member = "serviceAccount:deployer@<project>.iam.gserviceaccount.com"
+      + role   = "roles/storage.objectAdmin"
+    }
+
+  # module.buckets.google_storage_bucket.this["<project>-audit"] will be created
+  + resource "google_storage_bucket" "this" {
+      + deletion_policy             = "DELETE"
+      + effective_labels            = {
+          + "app"                        = "ai-platform"
+          + "goog-terraform-provisioned" = "true"
+          + "layer"                      = "00"
+          + "owner"                      = "mohan"
+        }
+      + force_destroy               = false
+      + id                          = (known after apply)
+      + location                    = "US-CENTRAL1"
+      + name                        = "<project>-audit"
+      + project                     = (known after apply)
+      + project_number              = (known after apply)
+      + public_access_prevention    = "enforced"
+      + rpo                         = (known after apply)
+      + self_link                   = (known after apply)
+      + storage_class               = "STANDARD"
+      + terraform_labels            = {
+          + "app"                        = "ai-platform"
+          + "goog-terraform-provisioned" = "true"
+          + "layer"                      = "00"
+          + "owner"                      = "mohan"
+        }
+      + time_created                = (known after apply)
+      + uniform_bucket_level_access = true
+      + updated                     = (known after apply)
+      + url                         = (known after apply)
+
+      + retention_policy {
+          + is_locked        = false
+          + retention_period = "86400"
+        }
+
+      + soft_delete_policy {
+          + effective_time             = (known after apply)
+          + retention_duration_seconds = 604800
+        }
+    }
+
+  # module.buckets.google_storage_bucket.this["<project>-models"] will be created
+  + resource "google_storage_bucket" "this" {
+      + deletion_policy             = "DELETE"
+      + effective_labels            = {
+          + "app"                        = "ai-platform"
+          + "goog-terraform-provisioned" = "true"
+          + "layer"                      = "00"
+          + "owner"                      = "mohan"
+        }
+      + force_destroy               = false
+      + id                          = (known after apply)
+      + location                    = "US-CENTRAL1"
+      + name                        = "<project>-models"
+      + project                     = (known after apply)
+      + project_number              = (known after apply)
+      + public_access_prevention    = "enforced"
+      + rpo                         = (known after apply)
+      + self_link                   = (known after apply)
+      + storage_class               = "STANDARD"
+      + terraform_labels            = {
+          + "app"                        = "ai-platform"
+          + "goog-terraform-provisioned" = "true"
+          + "layer"                      = "00"
+          + "owner"                      = "mohan"
+        }
+      + time_created                = (known after apply)
+      + uniform_bucket_level_access = true
+      + updated                     = (known after apply)
+      + url                         = (known after apply)
+
+      + soft_delete_policy {
+          + effective_time             = (known after apply)
+          + retention_duration_seconds = 0
+        }
+    }
+
+  # module.buckets.google_storage_bucket.this["<project>-results"] will be created
+  + resource "google_storage_bucket" "this" {
+      + deletion_policy             = "DELETE"
+      + effective_labels            = {
+          + "app"                        = "ai-platform"
+          + "goog-terraform-provisioned" = "true"
+          + "layer"                      = "00"
+          + "owner"                      = "mohan"
+        }
+      + force_destroy               = false
+      + id                          = (known after apply)
+      + location                    = "US-CENTRAL1"
+      + name                        = "<project>-results"
+      + project                     = (known after apply)
+      + project_number              = (known after apply)
+      + public_access_prevention    = "enforced"
+      + rpo                         = (known after apply)
+      + self_link                   = (known after apply)
+      + storage_class               = "STANDARD"
+      + terraform_labels            = {
+          + "app"                        = "ai-platform"
+          + "goog-terraform-provisioned" = "true"
+          + "layer"                      = "00"
+          + "owner"                      = "mohan"
+        }
+      + time_created                = (known after apply)
+      + uniform_bucket_level_access = true
+      + updated                     = (known after apply)
+      + url                         = (known after apply)
+
+      + soft_delete_policy {
+          + effective_time             = (known after apply)
+          + retention_duration_seconds = 604800
+        }
+    }
+
+  # module.budget.google_billing_budget.this will be created
+  + resource "google_billing_budget" "this" {
+      + billing_account = "<billing>"
+      + deletion_policy = (known after apply)
+      + display_name    = "ai-platform"
+      + id              = (known after apply)
+      + name            = (known after apply)
+
+      + amount {
+          + specified_amount {
+              + currency_code = "USD"
+              + units         = "50"
+            }
+        }
+
+      + budget_filter {
+          + credit_types_treatment = "EXCLUDE_ALL_CREDITS"
+          + labels                 = (known after apply)
+          + projects               = [
+              + "projects/<number>",
+            ]
+          + services               = (known after apply)
+        }
+
+      + threshold_rules {
+          + spend_basis       = "CURRENT_SPEND"
+          + threshold_percent = 0.2
+        }
+      + threshold_rules {
+          + spend_basis       = "CURRENT_SPEND"
+          + threshold_percent = 0.4
+        }
+      + threshold_rules {
+          + spend_basis       = "CURRENT_SPEND"
+          + threshold_percent = 0.6
+        }
+    }
+
+  # module.deployer_wif.google_service_account_iam_member.workflow["cost-guard.yml"] will be created
+  + resource "google_service_account_iam_member" "workflow" {
+      + etag               = (known after apply)
+      + id                 = (known after apply)
+      + member             = "principalSet://iam.googleapis.com/projects/<number>/locations/global/workloadIdentityPools/github/attribute.workflow/<owner>/<repo>/.github/workflows/cost-guard.yml"
+      + role               = "roles/iam.workloadIdentityUser"
+      + service_account_id = (known after apply)
+    }
+
+  # module.deployer_wif.google_service_account_iam_member.workflow["gpu-session.yml"] will be created
+  + resource "google_service_account_iam_member" "workflow" {
+      + etag               = (known after apply)
+      + id                 = (known after apply)
+      + member             = "principalSet://iam.googleapis.com/projects/<number>/locations/global/workloadIdentityPools/github/attribute.workflow/<owner>/<repo>/.github/workflows/gpu-session.yml"
+      + role               = "roles/iam.workloadIdentityUser"
+      + service_account_id = (known after apply)
+    }
+
+  # module.network.google_compute_network.this will be created
+  + resource "google_compute_network" "this" {
+      + auto_create_subnetworks                   = false
+      + bgp_always_compare_med                    = (known after apply)
+      + bgp_best_path_selection_mode              = (known after apply)
+      + bgp_inter_region_cost                     = (known after apply)
+      + delete_bgp_always_compare_med             = false
+      + delete_default_routes_on_create           = false
+      + deletion_policy                           = "DELETE"
+      + gateway_ipv4                              = (known after apply)
+      + id                                        = (known after apply)
+      + internal_ipv6_range                       = (known after apply)
+      + mtu                                       = (known after apply)
+      + name                                      = "ai-platform"
+      + network_firewall_policy_enforcement_order = "AFTER_CLASSIC_FIREWALL"
+      + network_id                                = (known after apply)
+      + numeric_id                                = (known after apply)
+      + project                                   = "<project>"
+      + routing_mode                              = "REGIONAL"
+      + self_link                                 = (known after apply)
+    }
+
+  # module.network.google_compute_subnetwork.this will be created
+  + resource "google_compute_subnetwork" "this" {
+      + allow_subnet_cidr_routes_overlap = (known after apply)
+      + creation_timestamp               = (known after apply)
+      + deletion_policy                  = "DELETE"
+      + external_ipv6_prefix             = (known after apply)
+      + fingerprint                      = (known after apply)
+      + gateway_address                  = (known after apply)
+      + id                               = (known after apply)
+      + internal_ipv6_prefix             = (known after apply)
+      + ip_cidr_range                    = "10.10.0.0/20"
+      + ipv6_cidr_range                  = (known after apply)
+      + ipv6_gce_endpoint                = (known after apply)
+      + name                             = "ai-platform-us-central1"
+      + network                          = (known after apply)
+      + private_ip_google_access         = true
+      + private_ipv6_google_access       = (known after apply)
+      + project                          = "<project>"
+      + purpose                          = (known after apply)
+      + region                           = "us-central1"
+      + self_link                        = (known after apply)
+      + stack_type                       = (known after apply)
+      + state                            = (known after apply)
+      + subnetwork_id                    = (known after apply)
+
+      + secondary_ip_range {
+          + ip_cidr_range = "10.20.0.0/16"
+          + range_name    = "pods"
+        }
+      + secondary_ip_range {
+          + ip_cidr_range = "10.30.0.0/20"
+          + range_name    = "services"
+        }
+    }
+
+Plan: 17 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + buckets             = [
+      + "<project>-audit",
+      + "<project>-models",
+      + "<project>-results",
+    ]
+  + deployer_email      = "deployer@<project>.iam.gserviceaccount.com"
+  + gke_nodes_email     = "gke-nodes@<project>.iam.gserviceaccount.com"
+  + images_repository   = "us-central1-docker.pkg.dev/<project>/images"
+  + network_id          = (known after apply)
+  + pods_range_name     = "pods"
+  + services_range_name = "services"
+  + subnet_id           = (known after apply)
+
+─────────────────────────────────────────────────────────────────────────────
+
+Saved the plan to: foundation.tfplan
+
+To perform exactly these actions, run the following command to apply:
+    terraform apply "foundation.tfplan"
