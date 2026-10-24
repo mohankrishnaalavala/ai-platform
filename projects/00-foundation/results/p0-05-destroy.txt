@@ -1,0 +1,876 @@
+down1 start_utc=2026-10-15T20:31:04Z
+down1 end_utc=2026-10-15T20:41:22Z rc=0 seconds=618
+Fetching cluster endpoint and auth data.
+kubeconfig entry generated for ai-platform.
+No resources found
+WARNING: This command is using service account impersonation. All API calls will be executed as [deployer@<project>.iam.gserviceaccount.com].
+data.terraform_remote_state.foundation: Reading...
+data.terraform_remote_state.foundation: Read complete after 0s
+module.cluster.google_container_cluster.this: Refreshing state... [id=projects/<project>/locations/us-central1-a/clusters/ai-platform]
+module.cluster.google_container_node_pool.system: Refreshing state... [id=projects/<project>/locations/us-central1-a/clusters/ai-platform/nodePools/system]
+module.gpu_pool.google_container_node_pool.this: Refreshing state... [id=projects/<project>/locations/us-central1-a/clusters/ai-platform/nodePools/gpu]
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  - destroy
+
+Terraform will perform the following actions:
+
+  # module.cluster.google_container_cluster.this will be destroyed
+  - resource "google_container_cluster" "this" {
+      - autopilot_privileged_admission           = [] -> null
+      - cluster_ipv4_cidr                        = "10.20.0.0/16" -> null
+      - default_max_pods_per_node                = 110 -> null
+      - deletion_policy                          = "DELETE" -> null
+      - deletion_protection                      = false -> null
+      - disable_l4_lb_firewall_reconciliation    = false -> null
+      - effective_labels                         = {
+          - "app"                        = "ai-platform"
+          - "goog-terraform-provisioned" = "true"
+          - "layer"                      = "00"
+          - "owner"                      = "mohan"
+          - "session"                    = "20261015t2013z"
+        } -> null
+      - enable_autopilot                         = false -> null
+      - enable_cilium_clusterwide_network_policy = false -> null
+      - enable_fqdn_network_policy               = false -> null
+      - enable_intranode_visibility              = false -> null
+      - enable_kubernetes_alpha                  = false -> null
+      - enable_l4_ilb_subsetting                 = false -> null
+      - enable_legacy_abac                       = false -> null
+      - enable_multi_networking                  = false -> null
+      - enable_shielded_nodes                    = true -> null
+      - enable_tpu                               = false -> null
+      - endpoint                                 = "<dns-endpoint>" -> null
+      - id                                       = "projects/<project>/locations/us-central1-a/clusters/ai-platform" -> null
+      - initial_node_count                       = 1 -> null
+      - label_fingerprint                        = "e7eba374" -> null
+      - location                                 = "us-central1-a" -> null
+      - logging_service                          = "logging.googleapis.com/kubernetes" -> null
+      - master_version                           = "1.36.4-gke.1391002" -> null
+      - min_master_version                       = "1.36.4-gke.1391002" -> null
+      - monitoring_service                       = "monitoring.googleapis.com/kubernetes" -> null
+      - name                                     = "ai-platform" -> null
+      - network                                  = "projects/<project>/global/networks/ai-platform" -> null
+      - networking_mode                          = "VPC_NATIVE" -> null
+      - node_locations                           = [] -> null
+      - node_version                             = "1.36.4-gke.1391002" -> null
+      - project                                  = "<project>" -> null
+      - remove_default_node_pool                 = true -> null
+      - resource_labels                          = {} -> null
+      - self_link                                = "https://container.googleapis.com/v1/projects/<project>/zones/us-central1-a/clusters/ai-platform" -> null
+      - services_ipv4_cidr                       = "10.30.0.0/20" -> null
+      - subnetwork                               = "projects/<project>/regions/us-central1/subnetworks/ai-platform-us-central1" -> null
+      - terraform_labels                         = {
+          - "app"                        = "ai-platform"
+          - "goog-terraform-provisioned" = "true"
+          - "layer"                      = "00"
+          - "owner"                      = "mohan"
+          - "session"                    = "20261015t2013z"
+        } -> null
+
+      - addons_config {
+          - dns_cache_config {
+              - enabled = true -> null
+            }
+          - gce_persistent_disk_csi_driver_config {
+              - enabled = true -> null
+            }
+          - gcp_filestore_csi_driver_config {
+              - enabled = true -> null
+            }
+          - gcs_fuse_csi_driver_config {
+              - enabled = true -> null
+            }
+          - network_policy_config {
+              - disabled = true -> null
+            }
+          - node_readiness_config {
+              - enabled = false -> null
+            }
+        }
+
+      - anonymous_authentication_config {
+          - mode = "LIMITED" -> null
+        }
+
+      - binary_authorization {
+          - enabled = false -> null
+        }
+
+      - cluster_autoscaling {
+          - auto_provisioning_locations   = [] -> null
+          - autoscaling_profile           = "BALANCED" -> null
+          - default_compute_class_enabled = false -> null
+          - enabled                       = false -> null
+
+          - auto_provisioning_defaults {
+              - disk_size       = 0 -> null
+              - image_type      = "COS_CONTAINERD" -> null
+              - oauth_scopes    = [
+                  - "https://www.googleapis.com/auth/devstorage.read_only",
+                  - "https://www.googleapis.com/auth/logging.write",
+                  - "https://www.googleapis.com/auth/monitoring",
+                  - "https://www.googleapis.com/auth/service.management.readonly",
+                  - "https://www.googleapis.com/auth/servicecontrol",
+                  - "https://www.googleapis.com/auth/trace.append",
+                ] -> null
+              - service_account = "default" -> null
+
+              - management {
+                  - auto_repair     = true -> null
+                  - auto_upgrade    = true -> null
+                  - upgrade_options = [] -> null
+                }
+            }
+        }
+
+      - control_plane_endpoints_config {
+          - dns_endpoint_config {
+              - allow_external_traffic    = true -> null
+              - enable_k8s_certs_via_dns  = false -> null
+              - enable_k8s_tokens_via_dns = false -> null
+              - endpoint                  = "<dns-endpoint>" -> null
+            }
+          - ip_endpoints_config {
+              - enabled = false -> null
+            }
+        }
+
+      - database_encryption {
+          - state = "DECRYPTED" -> null
+        }
+
+      - default_snat_status {
+          - disabled = false -> null
+        }
+
+      - enterprise_config {
+          - cluster_tier = "STANDARD" -> null
+        }
+
+      - ip_allocation_policy {
+          - cluster_ipv4_cidr_block       = "10.20.0.0/16" -> null
+          - cluster_secondary_range_name  = "pods" -> null
+          - services_ipv4_cidr_block      = "10.30.0.0/20" -> null
+          - services_secondary_range_name = "services" -> null
+          - stack_type                    = "IPV4" -> null
+
+          - network_tier_config {
+              - network_tier = "NETWORK_TIER_DEFAULT" -> null
+            }
+
+          - pod_cidr_overprovision_config {
+              - disabled = false -> null
+            }
+        }
+
+      - logging_config {
+          - enable_components = [
+              - "SYSTEM_COMPONENTS",
+              - "WORKLOADS",
+            ] -> null
+        }
+
+      - master_auth {
+          - cluster_ca_certificate = "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUVMRENDQXBTZ0F3SUJBZ0lRUTNRSVhuTE8yZk9vRmRZOEpKLzQvakFOQmdrcWhraUc5dzBCQVFzRkFEQXYKTVMwd0t3WURWUVFERXlReU4yUmlaR0l4TnkweFpqVmlMVFJsWVRZdE9UQTRaQzA1TUdZNFpqQTFPV001WXpNdwpJQmNOTWpZeE1ERTFNVGt4TXpJeFdoZ1BNakExTmpFd01EY3lNREV6TWpGYU1DOHhMVEFyQmdOVkJBTVRKREkzClpHSmtZakUzTFRGbU5XSXROR1ZoTmkwNU1EaGtMVGt3WmpobU1EVTVZemxqTXpDQ0FhSXdEUVlKS29aSWh2Y04KQVFFQkJRQURnZ0dQQURDQ0FZb0NnZ0dCQUtydDZQZFZjUkN5TjZTOU0rc1NMRUJTV0dIZVNma21MbE1tZmFJQQpheTBVWE55UEp0RStjQWxKZjgvOUxpSHVyemZ1RkVlWVZEcktQV3E5SzhGcEpwYXNlRlQ4MEk2OWZQa2J2MXJrCk9aaHdTLzZMNzhFQUcrSmhsbFQzUUE0YUIzN3JNNXE5ejUzTHFTY2F0SDcvUEJQUHVUaWNYcm1OV1plbG5DbDAKN2xESFlIMU1WOC9LNk1uT3hvdGhxNE14a2h3Z3V0YU9xenNlRTNtUjFHWERnT0x3OURIaEFabUFjOUN3OXdmWQpib2VHb04rOEQxalIzYkE3VGlFOUpBZFdTQTJMR0FvTEVtUE5yNEUyN0YwZU5pRmxYOGZzUXplYnc2eDhKTlRnCldNKzA3cUpkTUs3cEs4V3NyKzFQaXFwWUIzbEZrT1ZOK1FtTXE5NVE0a2FxZHE2VWdRV2s4SEVYWFRZM1pnQWYKdHp3Qlo5UTlmMWpXMk41dDljdXpidUdoZS9TSkRUaFZ4R0hIYzVZZTE0aUxRYmp1NWpTSHhCNmV5d2hXL0tMSwozc0pOc05EYjNYRVNjTnNMdGJwNVVKV3Z5Z1VQQThKek9ZZ3NVc1BiUWlWakRpNEg0UThQeGUzR21mRjVoUXROCmtoU05raTZyUnRXTnhwZUlxY3F4UURhd253SURBUUFCbzBJd1FEQU9CZ05WSFE4QkFmOEVCQU1DQWdRd0R3WUQKVlIwVEFRSC9CQVV3QXdFQi96QWRCZ05WSFE0RUZnUVUrVUVIa0ZYVnU5RUFybnNFUDRjamJtckg5NkF3RFFZSgpLb1pJaHZjTkFRRUxCUUFEZ2dHQkFCazlZeHJDV09Fa2VYSnBZRS9mekJUdEtkK1A4SklIQ1ExRVNrV3V2MEJZCkkrWXlwVGpxUUdZcjJNaGFhKzZjZmRaZDQwdEFkclN1c1VOR1lnK3dhaHdZSSt1cEF1aHdXYVliaWgzUmpoT0QKNGdNWlFGSFFoTUNGZWgwZDJ1ZHE4Ti93RUd6RDZrRldZYS9qNHRDeVUyUHZQTHBQMk91YlJ5MUpMM0dtN0dSUwpYTDJmUWhJVGlzRUZGSmlSRDZpUFlyTWNMSGdhOUVTVVdPUmlHTzJ1VVVkRUNDREd3ZW10UHdhTDBIZ1pTU3ZpCkp0VFFhY1VPejBiaGhza016Qm01Y3JZdjJLWVRPTjhrcDNMb3dlcThNalFqei8wWFRJUHRVc2tXLzJ3SEhDSjIKREhnNSt0WWlDT2tUSURJaXlkRWgrQ0dKS2txZlJJV1BiUzZ1OVRHSXFrUEswOXhtcGxDbEVPbS93bWsyNGwwOQpONUJuYjhEYmdFditMT3NZVGdPdXZFS0JuL0RpUHFrR3pPQXVpOGpTaitJeis3eG1lc3FRR2JiR2UvenFtQVYwCjd6emVjaFVPV0tXWWhmenhxbTQyd09DMW9CalUreUZHblN0THVWVUpuT2krNHFLcTJEWTFNbXAyUjdCMzl5bHcKbE00RzQ5UjUrdVRNeGhOSUFYeU9hdz09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K" -> null
+
+          - client_certificate_config {
+              - issue_client_certificate = false -> null
+            }
+        }
+
+      - monitoring_config {
+          - enable_components = [
+              - "CADVISOR",
+              - "DAEMONSET",
+              - "DCGM",
+              - "DEPLOYMENT",
+              - "HPA",
+              - "JOBSET",
+              - "KUBELET",
+              - "POD",
+              - "STATEFULSET",
+              - "STORAGE",
+              - "SYSTEM_COMPONENTS",
+            ] -> null
+
+          - advanced_datapath_observability_config {
+              - enable_metrics = false -> null
+              - enable_relay   = false -> null
+            }
+
+          - managed_prometheus {
+              - enabled = true -> null
+            }
+        }
+
+      - network_policy {
+          - enabled  = false -> null
+          - provider = "PROVIDER_UNSPECIFIED" -> null
+        }
+
+      - node_config {
+          - disk_size_gb                = 100 -> null
+          - disk_type                   = "pd-balanced" -> null
+          - effective_taints            = [] -> null
+          - enable_confidential_storage = false -> null
+          - flex_start                  = false -> null
+          - image_type                  = "COS_CONTAINERD" -> null
+          - labels                      = {} -> null
+          - local_ssd_count             = 0 -> null
+          - logging_variant             = "DEFAULT" -> null
+          - machine_type                = "g2-standard-8" -> null
+          - metadata                    = {
+              - "disable-legacy-endpoints" = "true"
+            } -> null
+          - oauth_scopes                = [
+              - "https://www.googleapis.com/auth/cloud-platform",
+            ] -> null
+          - preemptible                 = false -> null
+          - resource_labels             = {
+              - "app"                                   = "ai-platform"
+              - "goog-gke-accelerator-type"             = "nvidia-l4"
+              - "goog-gke-node-pool-provisioning-model" = "spot"
+              - "layer"                                 = "00"
+              - "owner"                                 = "mohan"
+              - "session"                               = "20261015t2013z"
+            } -> null
+          - resource_manager_tags       = {} -> null
+          - service_account             = "gke-nodes@<project>.iam.gserviceaccount.com" -> null
+          - spot                        = true -> null
+          - storage_pools               = [] -> null
+          - tags                        = [] -> null
+
+          - boot_disk {
+              - disk_type              = "pd-balanced" -> null
+              - provisioned_iops       = 0 -> null
+              - provisioned_throughput = 0 -> null
+              - size_gb                = 100 -> null
+            }
+
+          - gcfs_config {
+              - enabled = true -> null
+            }
+
+          - guest_accelerator {
+              - count = 1 -> null
+              - type  = "nvidia-l4" -> null
+
+              - gpu_driver_installation_config {
+                  - gpu_driver_version = "DEFAULT" -> null
+                }
+            }
+
+          - kubelet_config {
+              - allowed_unsafe_sysctls                      = [] -> null
+              - container_log_max_files                     = 0 -> null
+              - cpu_cfs_quota                               = false -> null
+              - eviction_max_pod_grace_period_seconds       = 0 -> null
+              - image_gc_high_threshold_percent             = 0 -> null
+              - image_gc_low_threshold_percent              = 0 -> null
+              - insecure_kubelet_readonly_port_enabled      = "FALSE" -> null
+              - max_parallel_image_pulls                    = 2 -> null
+              - pod_pids_limit                              = 0 -> null
+              - shutdown_grace_period_critical_pods_seconds = 0 -> null
+              - shutdown_grace_period_seconds               = 0 -> null
+              - single_process_oom_kill                     = false -> null
+            }
+
+          - node_image_config {
+              - image         = "gke-1364-gke1391002-cos-129-19506-448-8-c-nvda" -> null
+              - image_project = "gke-node-images" -> null
+            }
+
+          - shielded_instance_config {
+              - enable_integrity_monitoring = true -> null
+              - enable_secure_boot          = false -> null
+            }
+
+          - windows_node_config {}
+
+          - workload_metadata_config {
+              - mode = "GKE_METADATA" -> null
+            }
+        }
+
+      - node_creation_config {
+          - node_creation_mode = "VIA_KUBELET" -> null
+        }
+
+      - node_pool {
+          - ignore_node_count_changes   = false -> null
+          - initial_node_count          = 1 -> null
+          - instance_group_urls         = [
+              - "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instanceGroupManagers/gke-ai-platform-gpu-4eadc59e-grp",
+            ] -> null
+          - managed_instance_group_urls = [
+              - "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instanceGroups/gke-ai-platform-gpu-4eadc59e-grp",
+            ] -> null
+          - max_pods_per_node           = 110 -> null
+          - name                        = "gpu" -> null
+          - node_count                  = 0 -> null
+          - node_locations              = [
+              - "us-central1-a",
+            ] -> null
+          - version                     = "1.36.4-gke.1391002" -> null
+
+          - autoscaling {
+              - location_policy      = "ANY" -> null
+              - max_node_count       = 2 -> null
+              - min_node_count       = 0 -> null
+              - total_max_node_count = 0 -> null
+              - total_min_node_count = 0 -> null
+            }
+
+          - management {
+              - auto_repair  = true -> null
+              - auto_upgrade = true -> null
+            }
+
+          - network_config {
+              - create_pod_range     = false -> null
+              - enable_private_nodes = true -> null
+              - pod_ipv4_cidr_block  = "10.20.0.0/16" -> null
+              - pod_range            = "pods" -> null
+              - subnetwork           = "projects/<project>/regions/us-central1/subnetworks/ai-platform-us-central1" -> null
+            }
+
+          - node_config {
+              - disk_size_gb                = 100 -> null
+              - disk_type                   = "pd-balanced" -> null
+              - effective_taints            = [] -> null
+              - enable_confidential_storage = false -> null
+              - flex_start                  = false -> null
+              - image_type                  = "COS_CONTAINERD" -> null
+              - labels                      = {} -> null
+              - local_ssd_count             = 0 -> null
+              - logging_variant             = "DEFAULT" -> null
+              - machine_type                = "g2-standard-8" -> null
+              - metadata                    = {
+                  - "disable-legacy-endpoints" = "true"
+                } -> null
+              - oauth_scopes                = [
+                  - "https://www.googleapis.com/auth/cloud-platform",
+                ] -> null
+              - preemptible                 = false -> null
+              - resource_labels             = {
+                  - "app"                                   = "ai-platform"
+                  - "goog-gke-accelerator-type"             = "nvidia-l4"
+                  - "goog-gke-node-pool-provisioning-model" = "spot"
+                  - "layer"                                 = "00"
+                  - "owner"                                 = "mohan"
+                  - "session"                               = "20261015t2013z"
+                } -> null
+              - resource_manager_tags       = {} -> null
+              - service_account             = "gke-nodes@<project>.iam.gserviceaccount.com" -> null
+              - spot                        = true -> null
+              - storage_pools               = [] -> null
+              - tags                        = [] -> null
+
+              - boot_disk {
+                  - disk_type              = "pd-balanced" -> null
+                  - provisioned_iops       = 0 -> null
+                  - provisioned_throughput = 0 -> null
+                  - size_gb                = 100 -> null
+                }
+
+              - gcfs_config {
+                  - enabled = true -> null
+                }
+
+              - guest_accelerator {
+                  - count = 1 -> null
+                  - type  = "nvidia-l4" -> null
+
+                  - gpu_driver_installation_config {
+                      - gpu_driver_version = "DEFAULT" -> null
+                    }
+                }
+
+              - kubelet_config {
+                  - allowed_unsafe_sysctls                      = [] -> null
+                  - container_log_max_files                     = 0 -> null
+                  - cpu_cfs_quota                               = false -> null
+                  - eviction_max_pod_grace_period_seconds       = 0 -> null
+                  - image_gc_high_threshold_percent             = 0 -> null
+                  - image_gc_low_threshold_percent              = 0 -> null
+                  - insecure_kubelet_readonly_port_enabled      = "FALSE" -> null
+                  - max_parallel_image_pulls                    = 2 -> null
+                  - pod_pids_limit                              = 0 -> null
+                  - shutdown_grace_period_critical_pods_seconds = 0 -> null
+                  - shutdown_grace_period_seconds               = 0 -> null
+                  - single_process_oom_kill                     = false -> null
+                }
+
+              - node_image_config {
+                  - image         = "gke-1364-gke1391002-cos-129-19506-448-8-c-nvda" -> null
+                  - image_project = "gke-node-images" -> null
+                }
+
+              - shielded_instance_config {
+                  - enable_integrity_monitoring = true -> null
+                  - enable_secure_boot          = false -> null
+                }
+
+              - windows_node_config {}
+
+              - workload_metadata_config {
+                  - mode = "GKE_METADATA" -> null
+                }
+            }
+
+          - upgrade_settings {
+              - max_surge       = 1 -> null
+              - max_unavailable = 0 -> null
+              - strategy        = "SURGE" -> null
+            }
+        }
+      - node_pool {
+          - ignore_node_count_changes   = false -> null
+          - initial_node_count          = 1 -> null
+          - instance_group_urls         = [
+              - "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instanceGroupManagers/gke-ai-platform-system-e434b478-grp",
+            ] -> null
+          - managed_instance_group_urls = [
+              - "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instanceGroups/gke-ai-platform-system-e434b478-grp",
+            ] -> null
+          - max_pods_per_node           = 110 -> null
+          - name                        = "system" -> null
+          - node_count                  = 1 -> null
+          - node_locations              = [
+              - "us-central1-a",
+            ] -> null
+          - version                     = "1.36.4-gke.1391002" -> null
+
+          - management {
+              - auto_repair  = true -> null
+              - auto_upgrade = true -> null
+            }
+
+          - network_config {
+              - create_pod_range     = false -> null
+              - enable_private_nodes = true -> null
+              - pod_ipv4_cidr_block  = "10.20.0.0/16" -> null
+              - pod_range            = "pods" -> null
+              - subnetwork           = "projects/<project>/regions/us-central1/subnetworks/ai-platform-us-central1" -> null
+            }
+
+          - node_config {
+              - disk_size_gb                = 100 -> null
+              - disk_type                   = "pd-balanced" -> null
+              - effective_taints            = [] -> null
+              - enable_confidential_storage = false -> null
+              - flex_start                  = false -> null
+              - image_type                  = "COS_CONTAINERD" -> null
+              - labels                      = {} -> null
+              - local_ssd_count             = 0 -> null
+              - logging_variant             = "DEFAULT" -> null
+              - machine_type                = "e2-standard-4" -> null
+              - metadata                    = {
+                  - "disable-legacy-endpoints" = "true"
+                } -> null
+              - oauth_scopes                = [
+                  - "https://www.googleapis.com/auth/cloud-platform",
+                ] -> null
+              - preemptible                 = false -> null
+              - resource_labels             = {
+                  - "app"                                   = "ai-platform"
+                  - "goog-gke-node-pool-provisioning-model" = "on-demand"
+                  - "layer"                                 = "00"
+                  - "owner"                                 = "mohan"
+                  - "session"                               = "20261015t2013z"
+                } -> null
+              - resource_manager_tags       = {} -> null
+              - service_account             = "gke-nodes@<project>.iam.gserviceaccount.com" -> null
+              - spot                        = false -> null
+              - storage_pools               = [] -> null
+              - tags                        = [] -> null
+
+              - boot_disk {
+                  - disk_type              = "pd-balanced" -> null
+                  - provisioned_iops       = 0 -> null
+                  - provisioned_throughput = 0 -> null
+                  - size_gb                = 100 -> null
+                }
+
+              - gcfs_config {
+                  - enabled = true -> null
+                }
+
+              - kubelet_config {
+                  - allowed_unsafe_sysctls                      = [] -> null
+                  - container_log_max_files                     = 0 -> null
+                  - cpu_cfs_quota                               = false -> null
+                  - eviction_max_pod_grace_period_seconds       = 0 -> null
+                  - image_gc_high_threshold_percent             = 0 -> null
+                  - image_gc_low_threshold_percent              = 0 -> null
+                  - insecure_kubelet_readonly_port_enabled      = "FALSE" -> null
+                  - max_parallel_image_pulls                    = 2 -> null
+                  - pod_pids_limit                              = 0 -> null
+                  - shutdown_grace_period_critical_pods_seconds = 0 -> null
+                  - shutdown_grace_period_seconds               = 0 -> null
+                  - single_process_oom_kill                     = false -> null
+                }
+
+              - node_image_config {
+                  - image         = "gke-1364-gke1391002-cos-129-19506-448-8-c-pre" -> null
+                  - image_project = "gke-node-images" -> null
+                }
+
+              - shielded_instance_config {
+                  - enable_integrity_monitoring = true -> null
+                  - enable_secure_boot          = false -> null
+                }
+
+              - windows_node_config {}
+
+              - workload_metadata_config {
+                  - mode = "GKE_METADATA" -> null
+                }
+            }
+
+          - upgrade_settings {
+              - max_surge       = 1 -> null
+              - max_unavailable = 0 -> null
+              - strategy        = "SURGE" -> null
+            }
+        }
+
+      - node_pool_auto_config {
+          - resource_manager_tags = {} -> null
+
+          - node_kubelet_config {
+              - insecure_kubelet_readonly_port_enabled = "FALSE" -> null
+            }
+        }
+
+      - node_pool_defaults {
+          - node_config_defaults {
+              - insecure_kubelet_readonly_port_enabled = "FALSE" -> null
+              - logging_variant                        = "DEFAULT" -> null
+            }
+        }
+
+      - notification_config {
+          - pubsub {
+              - enabled = false -> null
+            }
+        }
+
+      - pod_autoscaling {
+          - hpa_profile = "PERFORMANCE" -> null
+        }
+
+      - private_cluster_config {
+          - enable_private_endpoint = true -> null
+          - enable_private_nodes    = true -> null
+
+          - master_global_access_config {
+              - enabled = false -> null
+            }
+        }
+
+      - rbac_binding_config {
+          - enable_insecure_binding_system_authenticated   = true -> null
+          - enable_insecure_binding_system_unauthenticated = true -> null
+        }
+
+      - release_channel {
+          - channel = "REGULAR" -> null
+        }
+
+      - secret_manager_config {
+          - enabled = true -> null
+        }
+
+      - secret_sync_config {
+          - enabled = false -> null
+        }
+
+      - security_posture_config {
+          - mode               = "BASIC" -> null
+          - vulnerability_mode = "VULNERABILITY_MODE_UNSPECIFIED" -> null
+        }
+
+      - service_external_ips_config {
+          - enabled = false -> null
+        }
+
+      - workload_identity_config {
+          - workload_pool = "<project>.svc.id.goog" -> null
+        }
+    }
+
+  # module.cluster.google_container_node_pool.system will be destroyed
+  - resource "google_container_node_pool" "system" {
+      - cluster                     = "ai-platform" -> null
+      - deletion_policy             = "DELETE" -> null
+      - id                          = "projects/<project>/locations/us-central1-a/clusters/ai-platform/nodePools/system" -> null
+      - ignore_node_count_changes   = false -> null
+      - initial_node_count          = 1 -> null
+      - instance_group_urls         = [
+          - "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instanceGroupManagers/gke-ai-platform-system-e434b478-grp",
+        ] -> null
+      - location                    = "us-central1-a" -> null
+      - managed_instance_group_urls = [
+          - "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instanceGroups/gke-ai-platform-system-e434b478-grp",
+        ] -> null
+      - max_pods_per_node           = 110 -> null
+      - name                        = "system" -> null
+      - node_count                  = 1 -> null
+      - node_locations              = [
+          - "us-central1-a",
+        ] -> null
+      - project                     = "<project>" -> null
+      - version                     = "1.36.4-gke.1391002" -> null
+
+      - management {
+          - auto_repair  = true -> null
+          - auto_upgrade = true -> null
+        }
+
+      - network_config {
+          - create_pod_range     = false -> null
+          - enable_private_nodes = true -> null
+          - pod_ipv4_cidr_block  = "10.20.0.0/16" -> null
+          - pod_range            = "pods" -> null
+          - subnetwork           = "projects/<project>/regions/us-central1/subnetworks/ai-platform-us-central1" -> null
+        }
+
+      - node_config {
+          - disk_size_gb                = 100 -> null
+          - disk_type                   = "pd-balanced" -> null
+          - effective_taints            = [] -> null
+          - enable_confidential_storage = false -> null
+          - flex_start                  = false -> null
+          - image_type                  = "COS_CONTAINERD" -> null
+          - labels                      = {} -> null
+          - local_ssd_count             = 0 -> null
+          - logging_variant             = "DEFAULT" -> null
+          - machine_type                = "e2-standard-4" -> null
+          - metadata                    = {
+              - "disable-legacy-endpoints" = "true"
+            } -> null
+          - oauth_scopes                = [
+              - "https://www.googleapis.com/auth/cloud-platform",
+            ] -> null
+          - preemptible                 = false -> null
+          - resource_labels             = {
+              - "app"                                   = "ai-platform"
+              - "goog-gke-node-pool-provisioning-model" = "on-demand"
+              - "layer"                                 = "00"
+              - "owner"                                 = "mohan"
+              - "session"                               = "20261015t2013z"
+            } -> null
+          - resource_manager_tags       = {} -> null
+          - service_account             = "gke-nodes@<project>.iam.gserviceaccount.com" -> null
+          - spot                        = false -> null
+          - storage_pools               = [] -> null
+          - tags                        = [] -> null
+
+          - boot_disk {
+              - disk_type              = "pd-balanced" -> null
+              - provisioned_iops       = 0 -> null
+              - provisioned_throughput = 0 -> null
+              - size_gb                = 100 -> null
+            }
+
+          - gcfs_config {
+              - enabled = true -> null
+            }
+
+          - kubelet_config {
+              - allowed_unsafe_sysctls                      = [] -> null
+              - container_log_max_files                     = 0 -> null
+              - cpu_cfs_quota                               = false -> null
+              - eviction_max_pod_grace_period_seconds       = 0 -> null
+              - image_gc_high_threshold_percent             = 0 -> null
+              - image_gc_low_threshold_percent              = 0 -> null
+              - insecure_kubelet_readonly_port_enabled      = "FALSE" -> null
+              - max_parallel_image_pulls                    = 2 -> null
+              - pod_pids_limit                              = 0 -> null
+              - shutdown_grace_period_critical_pods_seconds = 0 -> null
+              - shutdown_grace_period_seconds               = 0 -> null
+              - single_process_oom_kill                     = false -> null
+            }
+
+          - node_image_config {
+              - image         = "gke-1364-gke1391002-cos-129-19506-448-8-c-pre" -> null
+              - image_project = "gke-node-images" -> null
+            }
+
+          - shielded_instance_config {
+              - enable_integrity_monitoring = true -> null
+              - enable_secure_boot          = false -> null
+            }
+
+          - windows_node_config {}
+
+          - workload_metadata_config {
+              - mode = "GKE_METADATA" -> null
+            }
+        }
+
+      - upgrade_settings {
+          - max_surge       = 1 -> null
+          - max_unavailable = 0 -> null
+          - strategy        = "SURGE" -> null
+        }
+    }
+
+  # module.gpu_pool.google_container_node_pool.this will be destroyed
+  - resource "google_container_node_pool" "this" {
+      - cluster                     = "ai-platform" -> null
+      - deletion_policy             = "DELETE" -> null
+      - id                          = "projects/<project>/locations/us-central1-a/clusters/ai-platform/nodePools/gpu" -> null
+      - ignore_node_count_changes   = false -> null
+      - initial_node_count          = 1 -> null
+      - instance_group_urls         = [
+          - "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instanceGroupManagers/gke-ai-platform-gpu-4eadc59e-grp",
+        ] -> null
+      - location                    = "us-central1-a" -> null
+      - managed_instance_group_urls = [
+          - "https://www.googleapis.com/compute/v1/projects/<project>/zones/us-central1-a/instanceGroups/gke-ai-platform-gpu-4eadc59e-grp",
+        ] -> null
+      - max_pods_per_node           = 110 -> null
+      - name                        = "gpu" -> null
+      - node_count                  = 0 -> null
+      - node_locations              = [
+          - "us-central1-a",
+        ] -> null
+      - project                     = "<project>" -> null
+      - version                     = "1.36.4-gke.1391002" -> null
+
+      - autoscaling {
+          - location_policy      = "ANY" -> null
+          - max_node_count       = 2 -> null
+          - min_node_count       = 0 -> null
+          - total_max_node_count = 0 -> null
+          - total_min_node_count = 0 -> null
+        }
+
+      - management {
+          - auto_repair  = true -> null
+          - auto_upgrade = true -> null
+        }
+
+      - network_config {
+          - create_pod_range     = false -> null
+          - enable_private_nodes = true -> null
+          - pod_ipv4_cidr_block  = "10.20.0.0/16" -> null
+          - pod_range            = "pods" -> null
+          - subnetwork           = "projects/<project>/regions/us-central1/subnetworks/ai-platform-us-central1" -> null
+        }
+
+      - node_config {
+          - disk_size_gb                = 100 -> null
+          - disk_type                   = "pd-balanced" -> null
+          - effective_taints            = [] -> null
+          - enable_confidential_storage = false -> null
+          - flex_start                  = false -> null
+          - image_type                  = "COS_CONTAINERD" -> null
+          - labels                      = {} -> null
+          - local_ssd_count             = 0 -> null
+          - logging_variant             = "DEFAULT" -> null
+          - machine_type                = "g2-standard-8" -> null
+          - metadata                    = {
+              - "disable-legacy-endpoints" = "true"
+            } -> null
+          - oauth_scopes                = [
+              - "https://www.googleapis.com/auth/cloud-platform",
+            ] -> null
+          - preemptible                 = false -> null
+          - resource_labels             = {
+              - "app"                                   = "ai-platform"
+              - "goog-gke-accelerator-type"             = "nvidia-l4"
+              - "goog-gke-node-pool-provisioning-model" = "spot"
+              - "layer"                                 = "00"
+              - "owner"                                 = "mohan"
+              - "session"                               = "20261015t2013z"
+            } -> null
+          - resource_manager_tags       = {} -> null
+          - service_account             = "gke-nodes@<project>.iam.gserviceaccount.com" -> null
+          - spot                        = true -> null
+          - storage_pools               = [] -> null
+          - tags                        = [] -> null
+
+          - boot_disk {
+              - disk_type              = "pd-balanced" -> null
+              - provisioned_iops       = 0 -> null
+              - provisioned_throughput = 0 -> null
+              - size_gb                = 100 -> null
+            }
+
+          - gcfs_config {
+              - enabled = true -> null
+            }
+
+          - guest_accelerator {
+              - count = 1 -> null
+              - type  = "nvidia-l4" -> null
+
+              - gpu_driver_installation_config {
+                  - gpu_driver_version = "DEFAULT" -> null
+                }
+            }
+
+          - kubelet_config {
+              - allowed_unsafe_sysctls                      = [] -> null
+              - container_log_max_files                     = 0 -> null
+              - cpu_cfs_quota                               = false -> null
+              - eviction_max_pod_grace_period_seconds       = 0 -> null
+              - image_gc_high_threshold_percent             = 0 -> null
+              - image_gc_low_threshold_percent              = 0 -> null
+              - insecure_kubelet_readonly_port_enabled      = "FALSE" -> null
+              - max_parallel_image_pulls                    = 2 -> null
+              - pod_pids_limit                              = 0 -> null
+              - shutdown_grace_period_critical_pods_seconds = 0 -> null
+              - shutdown_grace_period_seconds               = 0 -> null
+              - single_process_oom_kill                     = false -> null
+            }
+
+          - node_image_config {
+              - image         = "gke-1364-gke1391002-cos-129-19506-448-8-c-nvda" -> null
+              - image_project = "gke-node-images" -> null
+            }
+
+          - shielded_instance_config {
+              - enable_integrity_monitoring = true -> null
+              - enable_secure_boot          = false -> null
+            }
+
+          - windows_node_config {}
+
+          - workload_metadata_config {
+              - mode = "GKE_METADATA" -> null
+            }
+        }
+
+      - upgrade_settings {
+          - max_surge       = 1 -> null
+          - max_unavailable = 0 -> null
+          - strategy        = "SURGE" -> null
+        }
+    }
+
+Plan: 0 to add, 0 to change, 3 to destroy.
+
+Changes to Outputs:
+  - cluster_name = "ai-platform" -> null
+  - dns_endpoint = "<dns-endpoint>" -> null
+  - zone         = "us-central1-a" -> null
+module.gpu_pool.google_container_node_pool.this: Destroying... [id=projects/<project>/locations/us-central1-a/clusters/ai-platform/nodePools/gpu]
+module.cluster.google_container_node_pool.system: Destroying... [id=projects/<project>/locations/us-central1-a/clusters/ai-platform/nodePools/system]
+module.gpu_pool.google_container_node_pool.this: Destruction complete after 21s
+module.cluster.google_container_node_pool.system: Destruction complete after 4m34s
+module.cluster.google_container_cluster.this: Destroying... [id=projects/<project>/locations/us-central1-a/clusters/ai-platform]
+module.cluster.google_container_cluster.this: Destruction complete after 5m15s
+
+Destroy complete! Resources: 3 destroyed.
+container clusters:        none
+compute instances:         none
+compute disks:             none
+compute forwarding-rules:  none
+compute addresses:         none
+nothing billable is running

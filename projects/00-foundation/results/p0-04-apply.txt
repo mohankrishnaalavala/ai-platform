@@ -1,0 +1,66 @@
+$ terraform apply foundation.tfplan
+google_service_account.gke_nodes: Creating...
+google_service_account.deployer: Creating...
+module.network.google_compute_network.this: Creating...
+module.budget.google_billing_budget.this: Creating...
+google_artifact_registry_repository.images: Creating...
+module.buckets.google_storage_bucket.this["<project>-models"]: Creating...
+module.buckets.google_storage_bucket.this["<project>-audit"]: Creating...
+module.buckets.google_storage_bucket.this["<project>-results"]: Creating...
+module.budget.google_billing_budget.this: Creation complete after 0s [id=billingAccounts/<billing>/budgets/f8cc66bb-0c54-4bcf-87bf-870ec71515db]
+module.buckets.google_storage_bucket.this["<project>-results"]: Creation complete after 1s [id=<project>-results]
+module.buckets.google_storage_bucket.this["<project>-audit"]: Creation complete after 3s [id=<project>-audit]
+module.buckets.google_storage_bucket.this["<project>-models"]: Creation complete after 3s [id=<project>-models]
+module.network.google_compute_network.this: Still creating... [10s elapsed]
+google_service_account.deployer: Still creating... [10s elapsed]
+google_service_account.gke_nodes: Still creating... [10s elapsed]
+google_artifact_registry_repository.images: Still creating... [10s elapsed]
+google_artifact_registry_repository.images: Creation complete after 11s [id=projects/<project>/locations/us-central1/repositories/images]
+google_service_account.gke_nodes: Still creating... [20s elapsed]
+google_service_account.deployer: Still creating... [20s elapsed]
+module.network.google_compute_network.this: Still creating... [20s elapsed]
+module.network.google_compute_network.this: Creation complete after 21s [id=projects/<project>/global/networks/ai-platform]
+module.network.google_compute_subnetwork.this: Creating...
+google_service_account.deployer: Creation complete after 27s [id=projects/<project>/serviceAccounts/deployer@<project>.iam.gserviceaccount.com]
+google_project_iam_member.deployer_gke: Creating...
+google_service_account_iam_member.owner_impersonates_deployer: Creating...
+google_storage_bucket_iam_member.deployer_state: Creating...
+module.deployer_wif.google_service_account_iam_member.workflow["gpu-session.yml"]: Creating...
+module.deployer_wif.google_service_account_iam_member.workflow["cost-guard.yml"]: Creating...
+google_service_account.gke_nodes: Creation complete after 28s [id=projects/<project>/serviceAccounts/gke-nodes@<project>.iam.gserviceaccount.com]
+google_project_iam_member.gke_nodes_default: Creating...
+google_service_account_iam_member.deployer_runs_nodes: Creating...
+google_artifact_registry_repository_iam_member.gke_nodes_pull: Creating...
+google_service_account_iam_member.owner_impersonates_deployer: Creation complete after 4s [id=projects/<project>/serviceAccounts/deployer@<project>.iam.gserviceaccount.com/roles/iam.serviceAccountTokenCreator/user:<you>]
+module.network.google_compute_subnetwork.this: Still creating... [10s elapsed]
+google_storage_bucket_iam_member.deployer_state: Creation complete after 5s [id=b/<project>-tfstate/roles/storage.objectAdmin/serviceAccount:deployer@<project>.iam.gserviceaccount.com]
+google_service_account_iam_member.deployer_runs_nodes: Creation complete after 4s [id=projects/<project>/serviceAccounts/gke-nodes@<project>.iam.gserviceaccount.com/roles/iam.serviceAccountUser/serviceAccount:deployer@<project>.iam.gserviceaccount.com]
+google_artifact_registry_repository_iam_member.gke_nodes_pull: Creation complete after 5s [id=projects/<project>/locations/us-central1/repositories/images/roles/artifactregistry.reader/serviceAccount:gke-nodes@<project>.iam.gserviceaccount.com]
+google_project_iam_member.gke_nodes_default: Creation complete after 7s [id=<project>/roles/container.defaultNodeServiceAccount/serviceAccount:gke-nodes@<project>.iam.gserviceaccount.com]
+google_project_iam_member.deployer_gke: Creation complete after 8s [id=<project>/roles/container.admin/serviceAccount:deployer@<project>.iam.gserviceaccount.com]
+module.deployer_wif.google_service_account_iam_member.workflow["gpu-session.yml"]: Still creating... [10s elapsed]
+module.deployer_wif.google_service_account_iam_member.workflow["cost-guard.yml"]: Still creating... [10s elapsed]
+module.deployer_wif.google_service_account_iam_member.workflow["gpu-session.yml"]: Creation complete after 11s [id=projects/<project>/serviceAccounts/deployer@<project>.iam.gserviceaccount.com/roles/iam.workloadIdentityUser/principalSet://iam.googleapis.com/projects/<number>/locations/global/workloadIdentityPools/github/attribute.workflow/<owner>/<repo>/.github/workflows/gpu-session.yml]
+module.deployer_wif.google_service_account_iam_member.workflow["cost-guard.yml"]: Creation complete after 12s [id=projects/<project>/serviceAccounts/deployer@<project>.iam.gserviceaccount.com/roles/iam.workloadIdentityUser/principalSet://iam.googleapis.com/projects/<number>/locations/global/workloadIdentityPools/github/attribute.workflow/<owner>/<repo>/.github/workflows/cost-guard.yml]
+module.network.google_compute_subnetwork.this: Still creating... [20s elapsed]
+module.network.google_compute_subnetwork.this: Creation complete after 23s [id=projects/<project>/regions/us-central1/subnetworks/ai-platform-us-central1]
+
+Apply complete! Resources: 17 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+buckets = [
+  "<project>-audit",
+  "<project>-models",
+  "<project>-results",
+]
+deployer_email = "deployer@<project>.iam.gserviceaccount.com"
+gke_nodes_email = "gke-nodes@<project>.iam.gserviceaccount.com"
+images_repository = "us-central1-docker.pkg.dev/<project>/images"
+network_id = "projects/<project>/global/networks/ai-platform"
+pods_range_name = "pods"
+services_range_name = "services"
+subnet_id = "projects/<project>/regions/us-central1/subnetworks/ai-platform-us-central1"
+terraform apply -input=false -no-color foundation.tfplan  2.31s user 0.57s system 6% cpu 47.220 total
+
+# IAM grants before apply: 23; removed by apply: 0

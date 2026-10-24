@@ -1,0 +1,19 @@
+# P0-02 checks after bootstrap, 2026-10-15 (UTC)
+
+$ gcloud iam service-accounts keys list --iam-account=terraform@<project>.iam.gserviceaccount.com --managed-by=user
+Listed 0 items.
+
+$ gcloud storage ls gs://<project>-tfstate --impersonate-service-account=terraform@<project>.iam.gserviceaccount.com
+First try, about 2 minutes after the Token Creator grant: PERMISSION_DENIED (iam.serviceAccounts.getAccessToken).
+The grant was in the service account policy; IAM changes take a few minutes to apply.
+Retry at 01:06:43Z: exit 0 (the bucket is empty). The laptop can act as the terraform service account without a key.
+
+$ billable resources
+container clusters: 0
+compute instances: 0
+compute disks: 0
+compute forwarding-rules: 0
+compute addresses: 0
+
+$ gcloud compute networks list; gcloud compute firewall-rules list
+networks: 0, firewall rules: 0   (the default network and its 4 rules were deleted in run 1)

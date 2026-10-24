@@ -1,0 +1,26 @@
+$ terraform plan -detailed-exitcode   # second plan after apply
+data.google_project.this: Reading...
+google_service_account.gke_nodes: Refreshing state... [id=projects/<project>/serviceAccounts/gke-nodes@<project>.iam.gserviceaccount.com]
+google_service_account.deployer: Refreshing state... [id=projects/<project>/serviceAccounts/deployer@<project>.iam.gserviceaccount.com]
+module.network.google_compute_network.this: Refreshing state... [id=projects/<project>/global/networks/ai-platform]
+google_artifact_registry_repository.images: Refreshing state... [id=projects/<project>/locations/us-central1/repositories/images]
+module.buckets.google_storage_bucket.this["<project>-results"]: Refreshing state... [id=<project>-results]
+module.buckets.google_storage_bucket.this["<project>-audit"]: Refreshing state... [id=<project>-audit]
+module.buckets.google_storage_bucket.this["<project>-models"]: Refreshing state... [id=<project>-models]
+google_project_iam_member.deployer_gke: Refreshing state... [id=<project>/roles/container.admin/serviceAccount:deployer@<project>.iam.gserviceaccount.com]
+google_service_account_iam_member.deployer_runs_nodes: Refreshing state... [id=projects/<project>/serviceAccounts/gke-nodes@<project>.iam.gserviceaccount.com/roles/iam.serviceAccountUser/serviceAccount:deployer@<project>.iam.gserviceaccount.com]
+google_service_account_iam_member.owner_impersonates_deployer: Refreshing state... [id=projects/<project>/serviceAccounts/deployer@<project>.iam.gserviceaccount.com/roles/iam.serviceAccountTokenCreator/user:<you>]
+google_storage_bucket_iam_member.deployer_state: Refreshing state... [id=b/<project>-tfstate/roles/storage.objectAdmin/serviceAccount:deployer@<project>.iam.gserviceaccount.com]
+google_project_iam_member.gke_nodes_default: Refreshing state... [id=<project>/roles/container.defaultNodeServiceAccount/serviceAccount:gke-nodes@<project>.iam.gserviceaccount.com]
+module.network.google_compute_subnetwork.this: Refreshing state... [id=projects/<project>/regions/us-central1/subnetworks/ai-platform-us-central1]
+google_artifact_registry_repository_iam_member.gke_nodes_pull: Refreshing state... [id=projects/<project>/locations/us-central1/repositories/images/roles/artifactregistry.reader/serviceAccount:gke-nodes@<project>.iam.gserviceaccount.com]
+data.google_project.this: Read complete after 1s [id=projects/<project>]
+module.deployer_wif.google_service_account_iam_member.workflow["cost-guard.yml"]: Refreshing state... [id=projects/<project>/serviceAccounts/deployer@<project>.iam.gserviceaccount.com/roles/iam.workloadIdentityUser/principalSet://iam.googleapis.com/projects/<number>/locations/global/workloadIdentityPools/github/attribute.workflow/<owner>/<repo>/.github/workflows/cost-guard.yml]
+module.deployer_wif.google_service_account_iam_member.workflow["gpu-session.yml"]: Refreshing state... [id=projects/<project>/serviceAccounts/deployer@<project>.iam.gserviceaccount.com/roles/iam.workloadIdentityUser/principalSet://iam.googleapis.com/projects/<number>/locations/global/workloadIdentityPools/github/attribute.workflow/<owner>/<repo>/.github/workflows/gpu-session.yml]
+module.budget.google_billing_budget.this: Refreshing state... [id=billingAccounts/<billing>/budgets/f8cc66bb-0c54-4bcf-87bf-870ec71515db]
+
+No changes. Your infrastructure matches the configuration.
+
+Terraform has compared your real infrastructure against your configuration
+and found no differences, so no changes are needed.
+exit 0 = no changes

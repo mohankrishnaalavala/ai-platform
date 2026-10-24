@@ -1,0 +1,26 @@
+$ infra/bootstrap/bootstrap.sh   # run 2, 2026-10-15T01:05:07Z
+project <project>, repo <owner>/<repo>
+APIs: all enabled, skipped
+default network: absent, skipped
+state bucket: exists, skipped
+terraform service account: exists, skipped
+project roles/resourcemanager.projectIamAdmin: granted, skipped
+project roles/iam.serviceAccountAdmin: granted, skipped
+project roles/compute.networkAdmin: granted, skipped
+project roles/storage.admin: granted, skipped
+project roles/artifactregistry.admin: granted, skipped
+project roles/iam.workloadIdentityPoolAdmin: granted, skipped
+billing roles/billing.costsManager: granted, skipped
+WIF pool: exists, skipped
+WIF provider: exists, skipped
+foundation.yml may act as terraform: granted, skipped
+Token Creator for <you>: granted, skipped
+
+Done. Next steps need these:
+  terraform service account: terraform@<project>.iam.gserviceaccount.com
+  WIF provider: projects/<number>/locations/global/workloadIdentityPools/github/providers/github-actions
+  state bucket: gs://<project>-tfstate
+infra/bootstrap/bootstrap.sh  11.48s user 3.01s system 67% cpu 21.519 total
+
+# Snapshot before and after run 2: services, project/service-account/billing IAM policies (with etags),
+# bucket, WIF pool, WIF provider, networks, firewall rules. diff: identical (212 lines).

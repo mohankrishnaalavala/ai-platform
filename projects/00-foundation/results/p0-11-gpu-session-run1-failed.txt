@@ -1,0 +1,132 @@
+# gpu-session.yml run 1 (2026-10-15, run 38809416835): FAILED. Cluster left up; destroyed from the laptop with make down (628 s).
+
+make up | make up
+make up | shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+make up | env:
+make up | ##[endgroup]
+make up | export GOOGLE_OAUTH_ACCESS_TOKEN="$(gcloud auth print-access-token )" && [ -n "$GOOGLE_OAUTH_ACCESS_TOKEN" ] && terraform -chdir=infra/session init -input=false -reconfigure -backend-config="bucket=***-tfstate" >/dev/null && terraform -chdir=infra/session apply -input=false -auto-approve -var="project_id=***" -var="owner=mohan" -var="session=20261015t2123z" -var="zone=us-central1-a"
+make up | data.terraform_remote_state.foundation: Reading...
+make up | data.terraform_remote_state.foundation: Read complete after 0s
+make up | Terraform used the selected providers to generate the following execution
+make up | plan. Resource actions are indicated with the following symbols:
+make up | Terraform will perform the following actions:
+make up |   # module.cluster.google_container_cluster.this will be created
+make up |         }
+make up |         }
+make up |             }
+make up |         }
+make up |             }
+make up |             }
+make up |         }
+make up |         }
+make up |             ]
+make up |         }
+make up |         }
+make up |         }
+make up |         }
+make up |         }
+make up |     }
+make up |   # module.cluster.google_container_node_pool.system will be created
+make up |         }
+make up |             ]
+make up |             }
+make up |             }
+make up |             }
+make up |         }
+make up |     }
+make up |   # module.gpu_pool.google_container_node_pool.this will be created
+make up |         }
+make up |         }
+make up |             ]
+make up |             }
+make up |             }
+make up |                 }
+make up |             }
+make up |             }
+make up |         }
+make up |     }
+make up | Plan: 3 to add, 0 to change, 0 to destroy.
+make up | 
+make up | Changes to Outputs:
+make up | module.cluster.google_container_cluster.this: Creating...
+make up | module.cluster.google_container_cluster.this: Creation complete after 10m22s [id=projects/***/locations/us-central1-a/clusters/ai-platform]
+make up | module.cluster.google_container_node_pool.system: Creating...
+make up | module.gpu_pool.google_container_node_pool.this: Creating...
+make up | module.gpu_pool.google_container_node_pool.this: Creation complete after 22s [id=projects/***/locations/us-central1-a/clusters/ai-platform/nodePools/gpu]
+make up | module.cluster.google_container_node_pool.system: Creation complete after 1m2s [id=projects/***/locations/us-central1-a/clusters/ai-platform/nodePools/system]
+make up | 
+make up | Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
+make up | 
+make up | Outputs:
+make up | cluster_name = "ai-platform"
+make up | dns_endpoint = "<dns-endpoint>"
+make up | zone = "us-central1-a"
+make up | gcloud container clusters get-credentials ai-platform --location=us-central1-a --dns-endpoint
+make up | Fetching cluster endpoint and auth data.
+make up | kubeconfig entry generated for ai-platform.
+make up | kubectl get nodes
+make up | F1015 21:35:42.631681    2539 cred.go:166] print credential failed with error: failed to retrieve access token: failure while executing gcloud, with args [config config-helper --format=json]: exit status 1 (err: ERROR: (gcloud.config.config-helper) You do not currently have an active account selected.
+make up | Please run:
+make up |   $ gcloud auth login
+make up | to obtain new credentials.
+make up | If you have already logged in with a different account, run:
+make up |   $ gcloud config set account ACCOUNT
+make up | to select an already authenticated account to use.
+make up | )
+make up | E1015 21:35:42.651784    2532 memcache.go:381] "Couldn't get current server API group list" err="Get \"https://<dns-endpoint>/api?timeout=32s\": getting credentials: exec: executable gke-gcloud-auth-plugin failed with exit code 1"
+make up | F1015 21:35:43.222809    2554 cred.go:166] print credential failed with error: failed to retrieve access token: failure while executing gcloud, with args [config config-helper --format=json]: exit status 1 (err: ERROR: (gcloud.config.config-helper) You do not currently have an active account selected.
+make up | Please run:
+make up |   $ gcloud auth login
+make up | to obtain new credentials.
+make up | If you have already logged in with a different account, run:
+make up |   $ gcloud config set account ACCOUNT
+make up | to select an already authenticated account to use.
+make up | )
+make up | E1015 21:35:43.223993    2532 memcache.go:381] "Couldn't get current server API group list" err="Get \"https://<dns-endpoint>/api?timeout=32s\": getting credentials: exec: executable gke-gcloud-auth-plugin failed with exit code 1"
+make up | F1015 21:35:43.802432    2569 cred.go:166] print credential failed with error: failed to retrieve access token: failure while executing gcloud, with args [config config-helper --format=json]: exit status 1 (err: ERROR: (gcloud.config.config-helper) You do not currently have an active account selected.
+make up | Please run:
+make up |   $ gcloud auth login
+make up | to obtain new credentials.
+make up | If you have already logged in with a different account, run:
+make up |   $ gcloud config set account ACCOUNT
+make up | to select an already authenticated account to use.
+make up | )
+make up | E1015 21:35:43.803451    2532 memcache.go:381] "Couldn't get current server API group list" err="Get \"https://<dns-endpoint>/api?timeout=32s\": getting credentials: exec: executable gke-gcloud-auth-plugin failed with exit code 1"
+make up | F1015 21:35:44.362316    2583 cred.go:166] print credential failed with error: failed to retrieve access token: failure while executing gcloud, with args [config config-helper --format=json]: exit status 1 (err: ERROR: (gcloud.config.config-helper) You do not currently have an active account selected.
+make up | Please run:
+make up |   $ gcloud auth login
+make up | to obtain new credentials.
+make up | If you have already logged in with a different account, run:
+make up |   $ gcloud config set account ACCOUNT
+make up | to select an already authenticated account to use.
+make up | )
+make up | E1015 21:35:44.363737    2532 memcache.go:381] "Couldn't get current server API group list" err="Get \"https://<dns-endpoint>/api?timeout=32s\": getting credentials: exec: executable gke-gcloud-auth-plugin failed with exit code 1"
+make up | F1015 21:35:44.940505    2597 cred.go:166] print credential failed with error: failed to retrieve access token: failure while executing gcloud, with args [config config-helper --format=json]: exit status 1 (err: ERROR: (gcloud.config.config-helper) You do not currently have an active account selected.
+make up | Please run:
+make up |   $ gcloud auth login
+make up | to obtain new credentials.
+make up | If you have already logged in with a different account, run:
+make up |   $ gcloud config set account ACCOUNT
+make up | to select an already authenticated account to use.
+make up | )
+make up | E1015 21:35:44.940999    2532 memcache.go:381] "Couldn't get current server API group list" err="Get \"https://<dns-endpoint>/api?timeout=32s\": getting credentials: exec: executable gke-gcloud-auth-plugin failed with exit code 1"
+make up | Unable to connect to the server: getting credentials: exec: executable gke-gcloud-auth-plugin failed with exit code 1
+make up | make: *** [Makefile:50: up] Error 1
+make up | ##[error]Process completed with exit code 2.
+make down | make down
+make down | shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+make down | env:
+make down | ##[endgroup]
+make down | Fetching cluster endpoint and auth data.
+make down | kubeconfig entry generated for ai-platform.
+make down | F1015 21:35:53.744644    2675 cred.go:166] print credential failed with error: failed to retrieve access token: failure while executing gcloud, with args [config config-helper --format=json]: exit status 1 (err: ERROR: (gcloud.config.config-helper) You do not currently have an active account selected.
+make down | Please run:
+make down |   $ gcloud auth login
+make down | to obtain new credentials.
+make down | If you have already logged in with a different account, run:
+make down |   $ gcloud config set account ACCOUNT
+make down | to select an already authenticated account to use.
+make down | )
+make down | Error: Kubernetes cluster unreachable: Get "https://<dns-endpoint>/version": getting credentials: exec: executable gke-gcloud-auth-plugin failed with exit code 1
+make down | make: *** [Makefile:55: down] Error 1
+make down | ##[error]Process completed with exit code 2.

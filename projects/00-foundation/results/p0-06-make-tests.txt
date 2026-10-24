@@ -1,0 +1,51 @@
+# P0-06 Makefile tests after review fixes, 2026-10-15 (UTC). make up not run: it creates the cluster (session 1, postponed).
+
+$ make status
+container clusters:        none
+compute instances:         none
+compute disks:             none
+compute forwarding-rules:  none
+compute addresses:         none
+nothing billable is running
+exit 0
+
+$ make foundation-plan
+No changes. Your infrastructure matches the configuration.
+
+$ make park
+park deletes all images and bucket objects; run: make park CONFIRM=yes
+
+$ make park CONFIRM=yes   (everything already empty)
+models: already empty
+results: already empty
+audit: already empty
+Listing items under project <project>, location us-central1, repository images.
+
+Listing items under project <project>, location us-central1, repository images.
+
+parked: buckets and images are empty
+exit 0
+
+$ make down   (no cluster)
+no cluster: nothing to uninstall
+WARNING: This command is using service account impersonation. All API calls will be executed as [deployer@<project>.iam.gserviceaccount.com].
+No changes. No objects need to be destroyed.
+Either you have not created any objects yet or the existing objects were
+already deleted outside of Terraform.
+Destroy complete! Resources: 0 destroyed.
+container clusters:        none
+compute instances:         none
+compute disks:             none
+compute forwarding-rules:  none
+compute addresses:         none
+nothing billable is running
+
+$ make status PROJECT=some-other-project
+ERROR: (gcloud.projects.describe) [<email>] does not have permission to access projects instance [some-other-project] (or it may not exist): The caller does not have permission. This command is authenticated as <email> which is the active account specified by the [core/account] property
+the ai-platform gcloud configuration does not point at the platform project
+
+$ make test P=00
+no tests for P=00 yet
+
+$ empty-token guard
+lines printed by the guarded command: 0

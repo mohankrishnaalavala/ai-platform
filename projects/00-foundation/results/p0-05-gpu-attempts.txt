@@ -1,0 +1,35 @@
+## us-central1-a, spot
+resize start_utc=2026-10-15T20:26:51Z
+Resizing ai-platform...
+.................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................done.
+Updated [https://container.googleapis.com/v1/projects/<project>/zones/us-central1-a/clusters/ai-platform].
+resize rc=0 after 127s
+retry start_utc=2026-10-15T20:29:33Z
+resize rc=0
+retry: gpu=none after 84s
+2026-10-15T13:30:05.099-07:00	ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS
+2026-10-15T13:29:46.207-07:00	ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS
+2026-10-15T13:27:18.839-07:00	ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS
+allocatable nvidia.com/gpu=none after 1067s end_utc=2026-10-15T20:44:38Z
+
+## us-central1-b spot resize start_utc=2026-10-15T20:54:39Z
+resize rc=0 after 94s
+gpu=none after 96s end_utc=2026-10-15T20:56:15Z
+2026-10-15T13:54:58.556-07:00	ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS
+2026-10-15T13:54:48.782-07:00	ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS
+## us-central1-b on-demand resize start_utc=2026-10-15T20:57:34Z
+resize rc=0 after 159s
+gpu=none after 162s end_utc=2026-10-15T21:00:16Z
+2026-10-15T13:59:50.179-07:00	ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS
+2026-10-15T13:58:05.269-07:00	ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS
+2026-10-15T13:57:49.672-07:00	ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS
+
+## switch the GPU pool to on demand (gpu_spot=false)
+data.terraform_remote_state.foundation: Read complete after 1s
+  # module.gpu_pool.google_container_node_pool.this must be replaced
+      ~ initial_node_count          = 1 -> 0 # forces replacement
+          ~ spot                        = true -> false # forces replacement
+Plan: 1 to add, 0 to change, 1 to destroy.
+module.gpu_pool.google_container_node_pool.this: Destruction complete after 21s
+module.gpu_pool.google_container_node_pool.this: Creation complete after 22s [id=projects/<project>/locations/us-central1-b/clusters/ai-platform/nodePools/gpu]
+Apply complete! Resources: 1 added, 0 changed, 1 destroyed.

@@ -1,0 +1,37 @@
+# P0-05 GPU-driver check without NAT, 2026-10-16, us-central1-c (spot L4)
+
+## nodes
+NAME                                   STATUS   ROLES    AGE   VERSION               GKE-NODEPOOL   GKE-SPOT   GKE-GPU-DRIVER-VERSION
+gke-ai-platform-gpu-50d0f195-t2pq      Ready    <none>   61s   v1.36.4-gke.1495002   gpu            true       default
+gke-ai-platform-system-c91bed5d-vj0b   Ready    <none>   95m   v1.36.4-gke.1495002   system                    
+## GPU node allocatable
+gke-ai-platform-gpu-50d0f195-t2pq gpu=1 taints=[{"effect":"NoSchedule","key":"nvidia.com/gpu","value":"present"}]
+## GPU pods in kube-system
+csi-secrets-store-gke-wpp2j                          3/3     Running   0          58s   10.20.1.2    gke-ai-platform-gpu-50d0f195-t2pq      <none>           <none>
+csi-secrets-store-provider-gke-c878r                 1/1     Running   0          58s   10.20.1.3    gke-ai-platform-gpu-50d0f195-t2pq      <none>           <none>
+filestore-node-sdfhv                                 4/4     Running   0          60s   10.10.0.22   gke-ai-platform-gpu-50d0f195-t2pq      <none>           <none>
+fluentbit-gke-98pgv                                  3/3     Running   0          57s   10.10.0.22   gke-ai-platform-gpu-50d0f195-t2pq      <none>           <none>
+gcsfusecsi-node-4kt84                                3/3     Running   0          58s   10.10.0.22   gke-ai-platform-gpu-50d0f195-t2pq      <none>           <none>
+gke-metadata-server-vvfmf                            1/1     Running   0          60s   10.10.0.22   gke-ai-platform-gpu-50d0f195-t2pq      <none>           <none>
+gke-metrics-agent-g5tlg                              3/3     Running   0          59s   10.10.0.22   gke-ai-platform-gpu-50d0f195-t2pq      <none>           <none>
+kube-proxy-gke-ai-platform-gpu-50d0f195-t2pq         1/1     Running   0          60s   <none>       gke-ai-platform-gpu-50d0f195-t2pq      <none>           <none>
+maintenance-handler-vvcht                            1/1     Running   0          56s   10.20.1.5    gke-ai-platform-gpu-50d0f195-t2pq      <none>           <none>
+netd-tdfbv                                           3/3     Running   0          56s   10.10.0.22   gke-ai-platform-gpu-50d0f195-t2pq      <none>           <none>
+node-local-dns-m4mms                                 2/2     Running   0          58s   10.10.0.22   gke-ai-platform-gpu-50d0f195-t2pq      <none>           <none>
+nvidia-gpu-device-plugin-small-cos-mrp7g             3/3     Running   0          57s   10.10.0.22   gke-ai-platform-gpu-50d0f195-t2pq      <none>           <none>
+pdcsi-node-5fnf4                                     3/3     Running   0          58s   10.10.0.22   gke-ai-platform-gpu-50d0f195-t2pq      <none>           <none>
+## probe pod
+NAME        READY   STATUS    RESTARTS   AGE    IP          NODE                                NOMINATED NODE   READINESS GATES
+gpu-probe   1/1     Running   0          117s   10.20.1.7   gke-ai-platform-gpu-50d0f195-t2pq   <none>           <none>
+52s    Warning   FailedScheduling   pod/gpu-probe   0/2 nodes are available: 2 Insufficient nvidia.com/gpu. no new claims to deallocate, preemption: 0/2 nodes are available: 2 Preemption is not helpful for scheduling.
+10s    Normal    Scheduled          pod/gpu-probe   Successfully assigned default/gpu-probe to gke-ai-platform-gpu-50d0f195-t2pq
+9s     Normal    Pulled             pod/gpu-probe   Container image "gke.gcr.io/kube-proxy-amd64:v1.36.4-gke.400" already present on machine and can be accessed by the pod
+9s     Normal    Created            pod/gpu-probe   Container created
+9s     Normal    Started            pod/gpu-probe   Container started
+## VMs (no external IP expected)
+NAME                                  STATUS   EXTERNAL_IP
+gke-ai-platform-gpu-50d0f195-t2pq     RUNNING
+gke-ai-platform-system-c91bed5d-vj0b  RUNNING
+## GPU group errors
+## autoscaler scale-ups (last hour)
+2026-10-16T01:25:30.775282564Z	gpu-probe	gpu

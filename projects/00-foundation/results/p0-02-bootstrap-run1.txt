@@ -1,0 +1,46 @@
+$ infra/bootstrap/bootstrap.sh   # run 1, 2026-10-15T01:01:26Z
+project <project>, repo <owner>/<repo>
+enabling iam.googleapis.com iamcredentials.googleapis.com sts.googleapis.com cloudresourcemanager.googleapis.com cloudbilling.googleapis.com compute.googleapis.com artifactregistry.googleapis.com billingbudgets.googleapis.com container.googleapis.com containerfilesystem.googleapis.com secretmanager.googleapis.com cloudquotas.googleapis.com
+Operation "operations/acf.p2-<number>-47e54d5b-9872-4f40-b65b-89f420389d03" finished successfully.
+deleting firewall rules on default: default-allow-icmp default-allow-internal default-allow-rdp default-allow-ssh
+Deleted [https://www.googleapis.com/compute/v1/projects/<project>/global/firewalls/default-allow-icmp].
+Deleted [https://www.googleapis.com/compute/v1/projects/<project>/global/firewalls/default-allow-internal].
+Deleted [https://www.googleapis.com/compute/v1/projects/<project>/global/firewalls/default-allow-rdp].
+Deleted [https://www.googleapis.com/compute/v1/projects/<project>/global/firewalls/default-allow-ssh].
+deleting the default network
+Deleted [https://www.googleapis.com/compute/v1/projects/<project>/global/networks/default].
+creating gs://<project>-tfstate
+Creating gs://<project>-tfstate/...
+  
+Updating gs://<project>-tfstate/...
+..........
+creating terraform@<project>.iam.gserviceaccount.com
+Created service account [terraform].
+granting roles/resourcemanager.projectIamAdmin on the project
+Updated IAM policy for project [<project>].
+granting roles/iam.serviceAccountAdmin on the project
+Updated IAM policy for project [<project>].
+granting roles/compute.networkAdmin on the project
+Updated IAM policy for project [<project>].
+granting roles/storage.admin on the project
+Updated IAM policy for project [<project>].
+granting roles/artifactregistry.admin on the project
+Updated IAM policy for project [<project>].
+granting roles/iam.workloadIdentityPoolAdmin on the project
+Updated IAM policy for project [<project>].
+granting roles/billing.costsManager on the billing account (budgets)
+Updated IAM policy for account [<billing>].
+creating WIF pool github
+Created workload identity pool [github].
+creating WIF provider github-actions
+Created workload identity pool provider [github-actions].
+letting foundation.yml act as the terraform service account
+Updated IAM policy for serviceAccount [terraform@<project>.iam.gserviceaccount.com].
+granting Token Creator on the terraform service account to <you>
+Updated IAM policy for serviceAccount [terraform@<project>.iam.gserviceaccount.com].
+
+Done. Next steps need these:
+  terraform service account: terraform@<project>.iam.gserviceaccount.com
+  WIF provider: projects/<number>/locations/global/workloadIdentityPools/github/providers/github-actions
+  state bucket: gs://<project>-tfstate
+infra/bootstrap/bootstrap.sh  32.50s user 8.46s system 22% cpu 3:01.96 total

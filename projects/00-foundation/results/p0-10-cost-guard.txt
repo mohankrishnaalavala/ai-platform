@@ -1,0 +1,30 @@
+# P0-10 cost-guard destroyed a deliberately forgotten cluster (run 38835221119, max_age_hours=0, 720 s)
+
+conclusion: success
+  Set up job: success
+  Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1: success
+  Run google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093: success
+  Run google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db: success
+  Run hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e: success
+  gcloud configuration: success
+  destroy old clusters: success
+  make status: success
+  open an issue: success
+  Post Run google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093: success
+  Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1: success
+  Complete job: success
+
+## issue #6 body
+- `ai-platform` in us-central1-c, 1h old: destroyed with make down
+
+`make status` afterwards:
+```
+container clusters:        none
+compute instances:         none
+compute disks:             none
+compute forwarding-rules:  none
+compute addresses:         none
+nothing billable is running
+```
+Run: https://github.com/mohankrishnaalavala/ai-platform/actions/runs/38835221119
+
