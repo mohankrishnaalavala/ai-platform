@@ -79,6 +79,12 @@ def labels(text):
     return found
 
 
+def counts(scores):
+    """How many of each score, 1 to 5: a sample of mostly 5s can't show whether the judge catches bad answers."""
+    scores = list(scores)
+    return ", ".join(f"{n}: {scores.count(n)}" for n in range(1, 6))
+
+
 def score(text):
     human = labels(text)
     rows, exact, near, diff = [], 0, 0, 0
@@ -92,7 +98,9 @@ def score(text):
         "| Measure | Value |", "|---|---|",
         f"| Same score (exact agreement) | {exact} of {total} ({100 * exact / total:.0f}%) |",
         f"| Within one point | {near} of {total} ({100 * near / total:.0f}%) |",
-        f"| Mean of judge minus owner | {diff / total:+.2f} points |", "",
+        f"| Mean of judge minus owner (signed: above 0, the judge is kinder) | {diff / total:+.2f} points |",
+        f"| Owner's scores, 1 to 5 | {counts(human.values())} |",
+        f"| Judge's scores, 1 to 5 | {counts(c['score'] for _, c, _ in sample())} |", "",
         "| Answer | Case | Config | Owner | Judge | Judge minus owner |", "|---|---|---|---|---|---|", *rows])
 
 
