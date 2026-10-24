@@ -36,7 +36,7 @@ Each number is copied from the project's README, which links the results file wi
 
 ## How to run it
 
-Cloud work happens in a session: a GKE zonal cluster plus one NVIDIA L4 GPU (spot or on-demand), at $[X] per session (not measured yet). A session can run unattended from GitHub Actions ([`gpu-session.yml`](.github/workflows/gpu-session.yml)). First-time setup is in [Project 0](projects/00-foundation/).
+Cloud work happens in a session: a GKE zonal cluster plus one NVIDIA L4 GPU (spot or on-demand), at $1.07 to $7.33 per day with a session and $0.03 per idle day, at list price ([billing](projects/00-foundation/results/costs.md)). A session can run unattended from GitHub Actions ([`gpu-session.yml`](.github/workflows/gpu-session.yml)). First-time setup is in [Project 0](projects/00-foundation/).
 
 ```bash
 # One session = create, test, destroy
