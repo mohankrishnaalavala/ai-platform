@@ -31,7 +31,7 @@ Terms used below:
 | $ per 1M output tokens, GPU node only, chat: spot / on-demand | $0.45 / $0.75 | $0.22 / $0.36 |
 | $ per 1M output tokens, GPU node only, rag: spot / on-demand | $1.41 / $2.36 | $0.89 / $1.49 |
 | Highest tested concurrency with p95 TTFT ≤ 2 s: chat / rag | 16 / 1 | 32 (the highest level tested) / 1 |
-| Quality change vs BF16, P4's 100 eval cases, run 1 / run 2 | Q&A judge 4.625 / 4.625; structured 100% / 100%; safety 85% / 85%; instructions 85% / 85% | Q&A judge 4.65 / 4.575; structured 100% / 100%; safety 85% / 80%; instructions 85% / 85%: no change beyond the noise band ([P4 results](../04-eval-gated-releases/README.md#results)) |
+| Quality change vs BF16, P4's 100 eval cases, run 1 / run 2 | Q&A judge 4.625 / 4.625; structured 100% / 100%; safety 85% / 85%; instructions 85% / 85% | Q&A judge 4.65 / 4.575; structured 100% / 100%; safety 85% / 80%; instructions 85% / 85%: no change beyond the noise band, two runs each ([P4 results](../04-eval-gated-releases/README.md#results)) |
 
 | Cold start, median of 3 runs | Baseline | Optimized |
 |---|---|---|
