@@ -133,7 +133,7 @@ class Gate(unittest.TestCase):
 
     def test_which_configs_are_checked(self):
         served = gate.served((run.ROOT / gate.SERVES).read_text())
-        self.assertEqual(served, "config/models/qwen2.5-7b-bf16.yaml")
+        self.assertTrue((run.ROOT / served).is_file(), served)  # whichever model is served, not a fixed one
         self.assertEqual(gate.served("x\nconfig=${CONFIG:-config/models/new.yaml}\n"), "config/models/new.yaml")
         self.assertEqual(gate.enforced(["config/models/qwen3-8b.yaml"], served, served), {})  # a new, unserved config
         self.assertEqual(gate.enforced([gate.SERVES], "config/models/new.yaml", served),
@@ -235,7 +235,7 @@ class Gate(unittest.TestCase):
 
     def test_main_reads_the_base_commit_from_git(self):
         base_limits = run.parse_thresholds((run.ROOT / gate.THRESHOLDS).read_text().replace("value: 100", "value: 77"))
-        files = {gate.SERVES: (run.ROOT / gate.SERVES).read_bytes(),
+        files = {gate.SERVES: b"x\nconfig=${CONFIG:-config/models/base.yaml}\n",  # differs from the working tree's
                  gate.THRESHOLDS: (run.ROOT / gate.THRESHOLDS).read_text().replace("value: 100", "value: 77").encode(),
                  f"{gate.RESULTS}abc/old.json": b'{"target": "chat-default", "config": "x"}'}
         calls = []
@@ -258,7 +258,7 @@ class Gate(unittest.TestCase):
         self.assertEqual(kw["thresholds"], base_limits)  # the base commit's file, not the working tree's
         self.assertEqual(kw["thresholds"]["safety"]["value"], 77)
         self.assertEqual(kw["base_results"], {f"{gate.RESULTS}abc/old.json": {"target": "chat-default", "config": "x"}})
-        self.assertEqual(kw["base_served"], "config/models/qwen2.5-7b-bf16.yaml")
+        self.assertEqual(kw["base_served"], "config/models/base.yaml")
         self.assertIn(("diff", "--name-only", "--no-renames", "--diff-filter=DM", "BASE...HEAD"), calls)
         self.assertIn(("ls-tree", "-r", "--name-only", "BASE", "--", gate.RESULTS), calls)
 
