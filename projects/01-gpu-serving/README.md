@@ -2,7 +2,7 @@
 
 Qwen2.5-7B-Instruct served by vLLM on one NVIDIA L4 GPU (graphics processing unit) in the session cluster on GKE (Google Kubernetes Engine). The project measures its speed and cost, how fast a GPU replica starts from nothing, and whether it scales out under load.
 
-**Status:** built and measured on 2026-10-17 in five `gpu-session.yml` runs from GitHub Actions: three short shakedown runs, then session 2 (the full run) and session 3 (a BF16 re-run). Four of the five session jobs ended red; the causes are listed in the teardown file. The numbers below come from the third shakedown run, session 2 and session 3. Every run ended with `make status` reporting "nothing billable is running" ([teardown output](results/teardown-2026-10-17.txt)). The quality cost of FP8 against BF16 is measured in P4: [X].
+**Status:** built and measured on 2026-10-17 in five `gpu-session.yml` runs from GitHub Actions: three short shakedown runs, then session 2 (the full run) and session 3 (a BF16 re-run). Four of the five session jobs ended red; the causes are listed in the teardown file. The numbers below come from the third shakedown run, session 2 and session 3. Every run ended with `make status` reporting "nothing billable is running" ([teardown output](results/teardown-2026-10-17.txt)). P4 measured FP8's answer quality against BF16 on 2026-10-23: no change beyond the run-to-run noise.
 
 ## What it runs
 
@@ -31,7 +31,7 @@ Terms used below:
 | $ per 1M output tokens, GPU node only, chat: spot / on-demand | $0.45 / $0.75 | $0.22 / $0.36 |
 | $ per 1M output tokens, GPU node only, rag: spot / on-demand | $1.41 / $2.36 | $0.89 / $1.49 |
 | Highest tested concurrency with p95 TTFT ≤ 2 s: chat / rag | 16 / 1 | 32 (the highest level tested) / 1 |
-| Quality change vs BF16 | — | measured in P4: [X] |
+| Quality change vs BF16, P4's 100 eval cases, run 1 / run 2 | Q&A judge 4.625 / 4.625; structured 100% / 100%; safety 85% / 85%; instructions 85% / 85% | Q&A judge 4.65 / 4.575; structured 100% / 100%; safety 85% / 80%; instructions 85% / 85%: no change beyond the noise band, two runs each ([P4 results](../04-eval-gated-releases/README.md#results)) |
 
 | Cold start, median of 3 runs | Baseline | Optimized |
 |---|---|---|

@@ -2,7 +2,7 @@
 
 AI agents can now do real operations work: restart a stuck service, scale up before a sale, roll back a bad deploy. Giving one `kubectl` access to production is frightening: it can be wrong, it can be tricked by text it reads (prompt injection), and afterwards nobody can say exactly what it did. This project puts a gate between agents and Kubernetes: written rules decide, a person approves the risky calls, and every change is recorded and can be undone.
 
-**Status:** built and tested on kind (Kubernetes in Docker) in CI (continuous integration): the policy, the MCP (Model Context Protocol) server, the CLI approver, the Helm chart and all 50 scenarios. The Slack approver is unit-tested, with Slack faked. Not yet run on GKE (Google Kubernetes Engine): Workload Identity, the audit bucket, the Secret Manager mounts, Slack, the LLM (large language model) risk summary, and the end-to-end demo with Claude Code as the agent.
+**Status:** built and tested on kind (Kubernetes in Docker) in CI (continuous integration): the policy, the MCP (Model Context Protocol) server, the CLI approver, the Helm chart and all 50 scenarios. The Slack approver is unit-tested, with Slack faked. Run on GKE (Google Kubernetes Engine) in a session on 2026-10-23: all 50 scenarios passed there too, with the LLM (large language model) risk summary on every call that needed approval. The end-to-end demo, with Claude Code as the agent and approvals in Slack, was run and recorded in the same session; the video and its audit records aren't saved in `results/` yet, so no demo numbers are published.
 
 ![P5 components](../../docs/diagrams/05-agent-action-gateway-components.svg)
 
@@ -53,18 +53,20 @@ It's a plain MCP server over Streamable HTTP with a bearer token, so it could si
 
 ## Results
 
-The [50 scenarios](evals/scenarios/) (20 safe, 15 risky, 15 dangerous, of which 6 are prompt-injection attempts) run in CI on every pull request. Each sends its tool call through the MCP server as an agent would. The kind column is from [scenarios-kind-ci-2026-10-23-ccbb707.md](results/scenarios-kind-ci-2026-10-23-ccbb707.md): one CI run on GitHub's Ubuntu 24.04 runner (4 CPUs), Kubernetes v1.36.4 on kind, the CLI approver answering approve. The GKE column waits for a session run.
+The [50 scenarios](evals/scenarios/) (20 safe, 15 risky, 15 dangerous, of which 6 are prompt-injection attempts) run in CI on every pull request. Each sends its tool call through the MCP server as an agent would. The kind column is from [scenarios-kind-ci-2026-10-23-ccbb707.md](results/scenarios-kind-ci-2026-10-23-ccbb707.md): one CI run on GitHub's Ubuntu 24.04 runner (4 CPUs), Kubernetes v1.36.4 on kind, the CLI approver answering approve. The GKE column is from [scenarios-gke.md](results/scenarios-gke-2026-10-23/scenarios-gke.md): one run on 2026-10-23 on the session cluster (Kubernetes v1.36.4-gke.1495002), from the laptop through kubectl port-forward, the CLI approver answering approve.
 
 | Measure | kind (CI) | Caveat | GKE |
 |---|---|---|---|
-| Unsafe actions allowed (of 15) | 0 | Strict: a dangerous call sent for approval would count as allowed | [X] |
-| Safe actions wrongly blocked (of 20) | 0 | Strict: a safe call sent for approval would count as blocked | [X] |
-| Risky actions correctly sent for approval (of 15) | 15 | The CLI approver answered, not Slack | [X] |
-| Prompt-injection attempts blocked | 6 of 6 | No LLM agent in the loop: the runner sends the call a fooled agent would make | [X] |
-| Median added latency per action (excluding human wait) | 30.2 ms | Timed at the agent, through kubectl port-forward on the same runner, with the change itself. No LLM summary in it (kind has no P2 gateway); in the cluster, the summary can add up to 15 s to each call that needs approval. One run's value; the two superseded runs had 29.6 ms and 27.1 ms | [X] |
-| Undo success rate (reversible scenarios) | 100% (30 of 30) | The runner waits for each change to roll out before the undo (see Known limits). 1 irreversible scenario isn't undone | [X] |
+| Unsafe actions allowed (of 15) | 0 | Strict: a dangerous call sent for approval would count as allowed | 0 |
+| Safe actions wrongly blocked (of 20) | 0 | Strict: a safe call sent for approval would count as blocked | 0 |
+| Risky actions correctly sent for approval (of 15) | 15 | The CLI approver answered, not Slack | 15 |
+| Prompt-injection attempts blocked | 6 of 6 | No LLM agent in the loop: the runner sends the call a fooled agent would make | 6 of 6 |
+| Median added latency per action (excluding human wait) | 30.2 ms | Timed at the agent, through kubectl port-forward on the same runner, with the change itself. No LLM summary in it (kind has no P2 gateway); in the cluster, the summary can add up to 15 s to each call that needs approval. One run's value; the two superseded runs had 29.6 ms and 27.1 ms | 1479.2 ms (see below) |
+| Undo success rate (reversible scenarios) | 100% (30 of 30) | The runner waits for each change to roll out before the undo (see Known limits). 1 irreversible scenario isn't undone | 100% (30 of 30) |
 
 All 50 scenarios passed every check: the decision, the expected reason keywords, and the dry-run values where a scenario sets them. The earlier runs, superseded because they came from earlier commits, are in [scenarios-kind-ci-2026-10-22.md](results/scenarios-kind-ci-2026-10-22.md) and [scenarios-kind-ci-2026-10-22-a0978ed.md](results/scenarios-kind-ci-2026-10-22-a0978ed.md).
+
+On GKE, all 50 passed every check as well. The GKE latency isn't comparable to kind's 30.2 ms: it was timed on the laptop, through a port-forward to the cluster in us-central1, and the 15 calls that need approval also wait for the LLM risk summary through the P2 gateway (a summary came back on all 15; kind has no P2 gateway). The medians by group, from [scenarios-gke.json](results/scenarios-gke-2026-10-23/scenarios-gke.json): safe 1378.4 ms, risky 2456.6 ms, dangerous 933.1 ms.
 
 **Threat model:** [threat-model.md](threat-model.md) lists what can go wrong (wrong actions, prompt injection, over-broad credentials, token theft, approval spoofing, missing audit) and which control stops each, and what v1 doesn't cover.
 
@@ -113,7 +115,7 @@ COMMIT=$(git rev-parse HEAD) .venv/bin/python projects/05-agent-action-gateway/e
 - **It opens its own port-forward** on port 18080, since the restart ends any earlier one.
 - **Use the gateway for nothing else meanwhile:** the runner approves every pending request, and it deletes and re-creates the Deployments, PodDisruptionBudgets and ConfigMaps in `dev`, `staging` and `prod`.
 - **The output** is `scenarios-gke.json` and `scenarios-gke.md` in that folder, marked GKE, with the cluster's Kubernetes version.
-- **Tests:** the unit tests cover the switch and the restore with a stand-in kubectl. The GKE run is still to come.
+- **Tests:** the unit tests cover the switch and the restore with a stand-in kubectl. It ran on GKE on 2026-10-23 (Results, above).
 - **It costs** 15 risk-summary calls through P2 (one per risky scenario), on the action gateway's own team key.
 
 **If a cluster run was interrupted,** run this read-only check (with `EXPECT_CONTEXT` set as above) before anything else:

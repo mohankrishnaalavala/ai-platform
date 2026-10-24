@@ -2,33 +2,37 @@
 
 Model, prompt and gateway changes are treated like code. They are tested before merge against a fixed set of eval cases, then released as a canary (a small share of traffic first) that rolls itself back when its live numbers get worse.
 
-**Status:** built and tested in CI (continuous integration: GitHub Actions on every pull request) from 2026-10-21 to 2026-10-22: the scorers, the eval runner, the PR (pull request) gate and the canary. Nothing has run on a cluster yet. The golden set (the 100 eval cases) was approved by the owner on 2026-10-23. Every number below is `[X]` until the cluster window measures it.
+**Status:** built and tested in CI (continuous integration: GitHub Actions on every pull request) from 2026-10-21 to 2026-10-22: the scorers, the eval runner, the PR (pull request) gate and the canary. The golden set (the 100 eval cases) was approved by the owner on 2026-10-23. Run in a session cluster on 2026-10-23: the offline evals of five configs (two runs each), the canary (it rolled itself back) and the red PR check that blocked the bad candidate. Still open: judge agreement, which waits for the owner's labels.
 
 ![P4 components](../../docs/diagrams/04-eval-gated-releases-components.svg)
 
 ## Results
 
-Not measured yet. Each value will link to its results file in [`results/`](results/), which records the method, the config hash, the date and the raw output.
+Measured on 2026-10-23. Each value links to its results file in [`results/`](results/), which records the method, the config hash, the date and the raw output.
 
 | Measure | Value | Source |
 |---|---|---|
-| Quality drop of the deliberately bad candidate (Qwen2.5-1.5B-Instruct), and the red PR check that blocked it | [X] | not run yet |
-| FP8 against BF16 quality change (P1's open question) | [X] | not run yet |
-| Judge agreement with the owner's labels (20 Q&A answers) | [X]% | not run yet |
-| Time from canary start to automatic rollback | [X] min | not run yet |
-| Cost of one full eval run (tokens, plus GPU minutes when self-hosted) | $[X] | not run yet |
-| Noise band: the gap between two runs of the same config | [X] | not run yet |
+| The deliberately bad candidate (Qwen2.5-1.5B-Instruct) | Blocked by the red eval gate check (`evals / gate`) on [PR #81](https://github.com/mohankrishnaalavala/ai-platform/pull/81), never merged. Against the BF16 baseline: Q&A judge average 3.825 against 4.625 (gate ≥ baseline − 0.2), structured output 95% (gate ≥ 98%), instruction following 80% against 85% (gate ≥ baseline − 3). Safety 85% also failed the 100% gate, but so does the baseline | [1.5B run 2](results/4f75e5f4515af553/20261023t163117z-chat-default.md), [BF16 run 2](results/f5299ab1903d4bfd/20261023t154322z-chat-default.md) |
+| FP8 against BF16 quality change (P1's open question) | No change beyond the noise band: Q&A 4.65 and 4.575 against 4.625 and 4.625; structured output and instruction following the same (100% and 85%); safety 85% and 80% against 85% and 85% (one case of 20, in one run) | [FP8](results/717814b3d1ca1a4c/), [BF16](results/f5299ab1903d4bfd/) |
+| Judge agreement with the owner's labels (20 Q&A answers) | [X]% | labelling in progress |
+| Time from canary start to automatic rollback | 2 min 55 s, at the first step (10%), on TTFT (time to first token) p95: the candidate's 1.949 s against the baseline's 0.681 s × 1.2 | [canary-2026-10-23.md](results/canary-2026-10-23/canary-2026-10-23.md), issue [#79](https://github.com/mohankrishnaalavala/ai-platform/issues/79) |
+| Cost of one full eval run (tokens, plus GPU minutes when self-hosted) | Self-hosted: $0.2694 to $0.2960 (8 runs, with 4.01 to 7.92 GPU minutes each). Gemini 3.5 Flash-Lite: $0.1813 and $0.1847 (tokens only). The judge's tokens are included | `cost` in each results file |
+| Noise band: the gap between two runs of the same config | Q&A: up to 0.15 (Qwen2.5-1.5B). Pass rates: up to 5 points, one case of 20 (safety, for FP8 and Qwen2.5-1.5B). BF16, Qwen3-8B and Flash-Lite scored the same both times | the two runs of each config |
 
-Per category, the gate's metric for each config (each run twice):
+Per category, the gate's metric for each config, run 1 / run 2:
 
 | Category | Metric | Qwen2.5-7B BF16 (baseline) | Qwen2.5-7B FP8 | Qwen3-8B | Qwen2.5-1.5B (bad candidate) | Gemini 3.5 Flash-Lite | Gemini 3.5 Flash |
 |---|---|---|---|---|---|---|---|
-| Q&A | judge score (1 to 5), average | [X] | [X] | [X] | [X] | [X] | [X] |
-| Structured output | valid JSON for the schema, % | [X] | [X] | [X] | [X] | [X] | [X] |
-| Safety and PII | passed, % | [X] | [X] | [X] | [X] | [X] | [X] |
-| Instruction following | passed, % | [X] | [X] | [X] | [X] | [X] | [X] |
+| Q&A | judge score (1 to 5), average | 4.625 / 4.625 | 4.65 / 4.575 | 4.75 / 4.75 | 3.675 / 3.825 | 4.85 / 4.85 | [X] |
+| Structured output | valid JSON for the schema, % | 100 / 100 | 100 / 100 | 100 / 100 | 95 / 95 | 100 / 100 | [X] |
+| Safety and PII | passed, % | 85 / 85 | 85 / 80 | 95 / 95 | 90 / 85 | 100 / 100 | [X] |
+| Instruction following | passed, % | 85 / 85 | 85 / 85 | 85 / 85 | 80 / 80 | 100 / 100 | [X] |
 
-BF16 serves the weights as published (16-bit). FP8 has vLLM compress them to 8-bit while loading. PII is personal data.
+Sources: [BF16](results/f5299ab1903d4bfd/), [FP8](results/717814b3d1ca1a4c/), [Qwen3-8B](results/2eabd020280bce87/), [Qwen2.5-1.5B](results/4f75e5f4515af553/), [Flash-Lite](results/9c61a0b85593ff9b/) (`chat-hosted`). Every run is VALID: all 100 cases answered by the expected model, with no fallback. Self-hosted runs used one on-demand L4 GPU.
+
+BF16 serves the weights as published (16-bit). FP8 has vLLM compress them to 8-bit while loading. PII is personal data. Gemini 3.5 Flash stays `[X]`: in its offline runs, answers were cut off at the runner's 1024-token answer limit, because its thinking tokens count against that limit, so those runs weren't committed or kept. Only its latency and 20 live cases were checked, in the canary (below).
+
+**Safety finding.** Only Gemini 3.5 Flash-Lite passed every safety case. Every self-hosted config is under the 100% safety gate, the BF16 baseline included (3 of 20 cases failed in both runs). Every failure in all 8 self-hosted runs is the same kind: the answer repeats a person's name from the prompt (the placeholder names in cases pii-004, pii-006, pii-018 and pii-020). No email address, phone number or card number appeared in any answer. So no self-hosted model would pass the gate if it became the served config today. Whether the safety rule stays at 100% is the owner's decision; it isn't changed to make a run pass.
 
 ## How it works
 
@@ -124,4 +128,5 @@ make down && make status                # must say "nothing billable is running"
 - **An INVALID run can't be committed next to valid ones:** the gate fails any INVALID results file.
 - **Hosted model changes aren't enforced yet.** A change to `chat-hosted`'s model in P2's values isn't detected, so a hosted candidate's results are report only.
 - **PII cases measure the gateway and the model together.** P2's PII masking (Presidio) masks personal data before the model sees it.
+- **While the BF16 baseline fails the safety gate, any PR that changes the gate is red.** A change under `evals/`, to the judge alias, or to the served config or its file enforces the thresholds on the served config (BF16 today), whose committed results fail the 100% safety rule. That includes a PR that edits the safety threshold, because the gate uses the base commit's thresholds.
 - **The judge is also the canary's candidate** (`gemini-3.5-flash`), so it may favour its own answers (see above).
