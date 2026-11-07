@@ -4,7 +4,7 @@ The owner exported the billing console's Reports page (October 2026, cost per da
 
 - **Cost** is the list-price column ("Cost ($)"), before credits. Free-trial credits ("Other savings") covered all of it, so $0.00 was charged.
 - **Days** are the billing console's dates. Its figures are rounded to the cent.
-- **Project filter:** [to confirm: the export is filtered to this project. The billing account has one other project; if the export wasn't filtered, any cost of that project is included.]
+- **Project filter:** the export is filtered to this project (confirmed by the owner on 2026-11-07). The billing account has one other project; its cost isn't in these numbers.
 - **Recent days can still grow:** billing data lags, so 2026-10-23 may be incomplete in this export.
 
 ## Idle cost
