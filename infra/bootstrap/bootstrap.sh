@@ -101,7 +101,7 @@ if gcloud iam service-accounts describe "$sa" >/dev/null 2>&1; then
 else
   log "creating $sa"
   gcloud iam service-accounts create terraform --display-name="Terraform (foundation)" \
-    --description="Applies infra/foundation. No keys: foundation.yml uses it through WIF, the owner by impersonation."
+    --description="Applies infra/foundation. No keys: the owner impersonates it from the laptop."
   # A new service account can take a minute to become visible to IAM.
   for _ in $(seq 24); do gcloud iam service-accounts describe "$sa" >/dev/null 2>&1 && break; sleep 5; done
 fi
@@ -166,18 +166,11 @@ others=$(gcloud iam workload-identity-pools providers list --location=global --w
   --format='value(name.basename())' | grep -vx "$provider" || true)
 [ -z "$others" ] || die "WIF pool $pool has other providers ($others). Remove them by hand."
 
-# Only foundation.yml (on main, in this repo) may act as the terraform service account.
-wif_member="principalSet://iam.googleapis.com/projects/$project_number/locations/global/workloadIdentityPools/$pool/attribute.workflow/$repo_name/.github/workflows/foundation.yml"
-sa_policy=$(gcloud iam service-accounts get-iam-policy "$sa" --format=json)
-if has_binding "$sa_policy" roles/iam.workloadIdentityUser "$wif_member"; then
-  log "foundation.yml may act as terraform: granted, skipped"
-else
-  log "letting foundation.yml act as the terraform service account"
-  gcloud iam service-accounts add-iam-policy-binding "$sa" --role=roles/iam.workloadIdentityUser \
-    --member="$wif_member" >/dev/null
-fi
+# No workflow may act as the terraform service account (P0-13 closed 2026-10-23: foundation.yml was never built, and
+# the binding bootstrap used to grant for it was removed). Foundation changes run from the laptop by impersonation.
 
 # --- 7. The owner impersonates the terraform service account from the laptop: a short-lived token, no key.
+sa_policy=$(gcloud iam service-accounts get-iam-policy "$sa" --format=json)
 if has_binding "$sa_policy" roles/iam.serviceAccountTokenCreator "user:$USER_EMAIL"; then
   log "Token Creator for $USER_EMAIL: granted, skipped"
 else

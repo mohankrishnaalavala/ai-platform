@@ -20,7 +20,7 @@ It's built in public, one layer at a time. Each layer is a standalone story an e
 | 1 | [GPU model serving](projects/01-gpu-serving/) | "We want our own model, but we don't know what it costs or how fast it is." | done |
 | 2 | [LLM gateway](projects/02-llm-gateway/) | "Every team calls AI with its own keys, and nobody knows the spend." | done |
 | 3 | [LLM observability & SLOs](projects/03-llm-observability/) | "The AI feature is 'up', but users wait 8 seconds." | done, except scale from zero (P3-08, not measured) |
-| 4 | [Eval-gated model releases](projects/04-eval-gated-releases/) | "We swapped the model, quality dropped, and nobody noticed for a week." | done, except the upgrade demo (waits on a safety-gate decision) |
+| 4 | [Eval-gated model releases](projects/04-eval-gated-releases/) | "We swapped the model, quality dropped, and nobody noticed for a week." | done; the upgrade to Qwen3-8B isn't promoted: it fails the 100% safety gate, which the owner kept |
 | 5 | [Agent action gateway](projects/05-agent-action-gateway/) | "We want AI agents to fix infrastructure, but we're scared they'll break prod." | built and measured; demo video and an outside install still to come |
 
 ## Results so far
@@ -36,7 +36,7 @@ Each number is copied from the project's README, which links the results file wi
 
 ## How to run it
 
-Cloud work happens in a session: a GKE zonal cluster plus one NVIDIA L4 GPU (spot or on-demand), at $[X] per session (not measured yet). A session can run unattended from GitHub Actions ([`gpu-session.yml`](.github/workflows/gpu-session.yml)). First-time setup is in [Project 0](projects/00-foundation/).
+Cloud work happens in a session: a GKE zonal cluster plus one NVIDIA L4 GPU (spot or on-demand), at $1.07 to $7.33 per day with a session and $0.03 per idle day, at list price ([billing](projects/00-foundation/results/costs.md)). A session can run unattended from GitHub Actions ([`gpu-session.yml`](.github/workflows/gpu-session.yml)). First-time setup is in [Project 0](projects/00-foundation/).
 
 ```bash
 # One session = create, test, destroy
