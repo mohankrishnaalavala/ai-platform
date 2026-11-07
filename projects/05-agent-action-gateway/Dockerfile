@@ -1,7 +1,7 @@
 # The action gateway (P5): our MCP server. The base image is pinned by digest and every Python package by
 # hash (requirements.txt). It runs as a non-root user; the pod sets a read-only root filesystem and mounts
 # a writable /data (the local audit file and pending approvals in kind).
-FROM python:3.13-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f
+FROM python:3.13-slim@sha256:09a17cad02668ae61ece136b4fd36ac3849e14f670ebedb637ea3e15580525bc
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 COPY requirements.txt /tmp/requirements.txt
 # pip goes afterwards: the server doesn't use it, and CI's image scan (trivy, job action-gateway) checks
