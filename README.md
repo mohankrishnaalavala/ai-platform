@@ -1,4 +1,4 @@
-# ai-platform (working name)
+# ai-platform
 
 An open-source reference platform for running AI in production on Google Cloud:
 
@@ -46,3 +46,7 @@ make bench                 # P1 benchmarks
 make down                  # deletes everything except the cheap foundation
 make status                # proves nothing billable is still running
 ```
+
+## License
+
+[MIT](LICENSE). The Kubernetes documentation pages in [`projects/04-eval-gated-releases/evals/docs/`](projects/04-eval-gated-releases/evals/docs/), and the excerpts of them in the Q&A eval cases (`evals/datasets/v1/qa.jsonl`), keep their own license: CC BY 4.0 (Creative Commons Attribution), with the license and attribution in that folder.
