@@ -12,7 +12,7 @@ set -euo pipefail
 export CLOUDSDK_ACTIVE_CONFIG_NAME=ai-platform CLOUDSDK_CORE_DISABLE_PROMPTS=1 KUBECONFIG=${KUBECONFIG:-$HOME/.kube/ai-platform}
 
 here=$(cd "$(dirname "$0")" && pwd)
-config=${CONFIG:-config/models/qwen2.5-7b-bf16.yaml}
+config=${CONFIG:-config/models/qwen2.5-1.5b.yaml}
 project=$(gcloud config get project 2>/dev/null)
 owner=$(gcloud projects describe "$project" --format='value(labels.owner)')
 # The cluster's own session label, so Kubernetes objects match the Terraform resources.
